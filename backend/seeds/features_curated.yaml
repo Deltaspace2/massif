@@ -1,0 +1,420 @@
+# Hand-curated features for the Mont Blanc massif.
+#
+# WHAT LIVES HERE: things OSM handles badly or not at all — routes, named
+# hazard sections, itineraries — plus the alias lists for everything.
+#
+# WHAT DOESN'T: coordinates for huts, lifts, peaks and glaciers. Those come
+# from OSM via scripts/fetch_osm_candidates.py, matched into these entries by
+# alias. Inventing coordinates by hand is how you end up with a map that is
+# confidently wrong.
+#
+# THE ALIASES ARE THE POINT. Four sources in three languages name the same
+# route four different ways. Every alias you add here is a mention the
+# resolver will match instead of dumping in the review queue. Add to these
+# freely — it is the single highest-leverage maintenance task on the project.
+#
+# geom_verified stays false until a human has checked the geometry against IGN.
+
+# --------------------------------------------------------------- routes ----
+
+- slug: gouter-route
+  feature_type: route
+  name_default: Goûter Route
+  names:
+    fr: Voie du Goûter
+    it: Via normale francese
+    en: Goûter Route
+    de: Goûter-Route
+  aliases:
+    - Voie Royale
+    - Voie normale française
+    - Goûter
+    - Gouter
+    - Gouter route
+    - Arête du Goûter
+    - Via del Gouter
+    - Normalweg
+  alt_min: 1653
+  alt_max: 4808
+  country: FR
+
+- slug: grand-couloir
+  feature_type: couloir
+  parent: gouter-route
+  name_default: Grand Couloir du Goûter
+  names:
+    fr: Grand Couloir du Goûter
+    it: Grand Couloir
+    en: Grand Couloir
+  aliases:
+    - Grand Couloir
+    - Couloir du Goûter
+    - Couloir de la Mort
+    - Death Couloir
+    - Corridoio della Morte
+    - le Grand Couloir
+  alt_min: 3200
+  alt_max: 3400
+  country: FR
+  notes: >
+    The single most-searched feature on this map. Rockfall-exposed traverse on
+    the Goûter route. Its own feature rather than a note on the parent route,
+    because sources close and reopen it independently.
+
+- slug: trois-monts
+  feature_type: route
+  name_default: Trois Monts Route
+  names:
+    fr: Traversée des Trois Monts
+    it: Via dei Tre Monti
+    en: Three Monts Route
+  aliases:
+    - Trois Monts
+    - 3 Monts
+    - Traversée des 3 Monts
+    - Tacul-Maudit-Mont Blanc
+    - Tre Monti
+  alt_min: 3800
+  alt_max: 4808
+  country: FR
+
+- slug: aiguilles-grises
+  feature_type: route
+  name_default: Aiguilles Grises Route
+  names:
+    it: Via normale italiana
+    fr: Voie des Aiguilles Grises
+    en: Aiguilles Grises Route
+  aliases:
+    - Aiguilles Grises
+    - Gonella route
+    - Via normale italiana
+    - Italian normal route
+    - Papa route
+  alt_max: 4808
+  country: IT
+
+- slug: cosmiques-arete
+  feature_type: route
+  name_default: Arête des Cosmiques
+  names:
+    fr: Arête des Cosmiques
+    en: Cosmiques Arête
+    it: Cresta dei Cosmiques
+  aliases:
+    - Cosmiques
+    - Cosmiques ridge
+    - Arete des Cosmiques
+    - Cosmiques Arete
+  alt_min: 3613
+  alt_max: 3842
+  country: FR
+
+- slug: arete-midi-plan
+  feature_type: route
+  name_default: Arête Midi-Plan
+  aliases:
+    - Midi-Plan
+    - Midi Plan traverse
+    - Traversée Midi-Plan
+    - Arete Midi Plan
+  country: FR
+
+- slug: dent-du-geant
+  feature_type: route
+  name_default: Dent du Géant — normal route
+  names:
+    it: Dente del Gigante
+    fr: Dent du Géant
+  aliases:
+    - Dent du Geant
+    - Dente del Gigante
+    - Giant's Tooth
+    - Voie normale de la Dent du Géant
+  alt_max: 4013
+
+- slug: arete-du-diable
+  feature_type: route
+  name_default: Arête du Diable
+  aliases:
+    - Diable ridge
+    - Devil's Arête
+    - Arete du Diable
+    - Cresta del Diavolo
+  country: FR
+
+- slug: frendo-spur
+  feature_type: route
+  name_default: Éperon Frendo
+  aliases:
+    - Frendo Spur
+    - Eperon Frendo
+    - Frendo
+  country: FR
+
+- slug: chere-couloir
+  feature_type: route
+  name_default: Goulotte Chéré
+  aliases:
+    - Chéré Couloir
+    - Chere couloir
+    - Goulotte Chere
+  country: FR
+
+- slug: petite-aiguille-verte
+  feature_type: route
+  name_default: Petite Aiguille Verte — normal route
+  aliases:
+    - Petite Verte
+    - Petite Aiguille Verte
+  country: FR
+
+- slug: aiguille-du-tour-normal
+  feature_type: route
+  name_default: Aiguille du Tour — normal route
+  aliases:
+    - Aiguille du Tour
+    - Tour normal route
+  country: FR
+
+- slug: vallee-blanche
+  feature_type: route
+  name_default: Vallée Blanche
+  names:
+    fr: Vallée Blanche
+    it: Valle Bianca
+  aliases:
+    - Vallee Blanche
+    - VB
+    - Valle Bianca
+    - Vallée Blanche descent
+  country: FR
+
+# -------------------------------------------------------------- glaciers ---
+
+- slug: mer-de-glace
+  feature_type: glacier
+  name_default: Mer de Glace
+  aliases: [Mer de glace, Merdeglace]
+  country: FR
+
+- slug: glacier-des-bossons
+  feature_type: glacier
+  name_default: Glacier des Bossons
+  aliases: [Bossons, Glacier de Bossons]
+  country: FR
+
+- slug: glacier-dargentiere
+  feature_type: glacier
+  name_default: Glacier d'Argentière
+  aliases: [Glacier d'Argentiere, Argentière glacier]
+  country: FR
+
+# ----------------------------------------------------------------- lifts ---
+
+- slug: aiguille-du-midi
+  feature_type: lift
+  name_default: Téléphérique de l'Aiguille du Midi
+  names:
+    fr: Téléphérique de l'Aiguille du Midi
+    en: Aiguille du Midi cable car
+  aliases:
+    - Aiguille du Midi
+    - Midi
+    - Téléphérique du Midi
+    - Aiguille du Midi cable car
+    - Telepherique de l'Aiguille du Midi
+  alt_max: 3842
+  country: FR
+
+- slug: montenvers-railway
+  feature_type: lift
+  name_default: Chemin de fer du Montenvers
+  aliases:
+    - Montenvers
+    - Montenvers railway
+    - Train du Montenvers
+    - Montenvers-Mer de Glace
+  country: FR
+
+- slug: tramway-du-mont-blanc
+  feature_type: lift
+  name_default: Tramway du Mont-Blanc
+  aliases:
+    - TMB
+    - Tramway du Mont Blanc
+    - Nid d'Aigle
+    - Nid d'Aigle train
+  alt_max: 2372
+  country: FR
+  notes: Access for the Goûter route. Its closure closes the normal approach.
+
+- slug: grands-montets
+  feature_type: lift
+  name_default: Téléphérique des Grands Montets
+  aliases: [Grands Montets, Grand Montets, Les Grands Montets]
+  country: FR
+
+- slug: brevent
+  feature_type: lift
+  name_default: Téléphérique du Brévent
+  aliases: [Brévent, Brevent, Planpraz]
+  country: FR
+
+- slug: flegere
+  feature_type: lift
+  name_default: Télécabine de la Flégère
+  aliases: [Flégère, Flegere, Index]
+  country: FR
+
+- slug: skyway-monte-bianco
+  feature_type: lift
+  name_default: Skyway Monte Bianco
+  aliases:
+    - Skyway
+    - Punta Helbronner
+    - Pointe Helbronner
+    - Funivie Monte Bianco
+    - Helbronner
+  alt_max: 3466
+  country: IT
+
+# ------------------------------------------------------------------ huts ---
+# Coordinates come from OSM. Aliases are curated here because OSM naming is
+# inconsistent across the border.
+
+- slug: refuge-du-gouter
+  feature_type: hut
+  name_default: Refuge du Goûter
+  aliases: [Gouter hut, Refuge du Gouter, Goûter Hut, Nouveau refuge du Goûter]
+  alt_max: 3835
+  country: FR
+
+- slug: refuge-tete-rousse
+  feature_type: hut
+  name_default: Refuge de Tête Rousse
+  aliases: [Tête Rousse, Tete Rousse, Refuge de Tete Rousse]
+  alt_max: 3167
+  country: FR
+
+- slug: refuge-des-cosmiques
+  feature_type: hut
+  name_default: Refuge des Cosmiques
+  aliases: [Cosmiques hut, Refuge Cosmiques]
+  alt_max: 3613
+  country: FR
+
+- slug: refuge-des-grands-mulets
+  feature_type: hut
+  name_default: Refuge des Grands Mulets
+  aliases: [Grands Mulets, Grand Mulets]
+  alt_max: 3051
+  country: FR
+
+- slug: refuge-torino
+  feature_type: hut
+  name_default: Rifugio Torino
+  aliases: [Torino hut, Refuge Torino, Rifugio Torino Nuovo]
+  alt_max: 3375
+  country: IT
+
+- slug: rifugio-gonella
+  feature_type: hut
+  name_default: Rifugio Gonella
+  aliases: [Gonella, Refuge Gonella]
+  alt_max: 3071
+  country: IT
+
+- slug: refuge-du-requin
+  feature_type: hut
+  name_default: Refuge du Requin
+  aliases: [Requin, Requin hut]
+  country: FR
+
+- slug: refuge-du-couvercle
+  feature_type: hut
+  name_default: Refuge du Couvercle
+  aliases: [Couvercle]
+  country: FR
+
+- slug: refuge-de-la-charpoua
+  feature_type: hut
+  name_default: Refuge de la Charpoua
+  aliases: [Charpoua]
+  country: FR
+
+- slug: refuge-de-leschaux
+  feature_type: hut
+  name_default: Refuge de Leschaux
+  aliases: [Leschaux]
+  country: FR
+
+- slug: refuge-dargentiere
+  feature_type: hut
+  name_default: Refuge d'Argentière
+  aliases: [Argentière hut, Refuge d'Argentiere, Argentiere hut]
+  country: FR
+
+- slug: refuge-albert-1er
+  feature_type: hut
+  name_default: Refuge Albert 1er
+  aliases: [Albert 1er, Albert Premier, Refuge Albert Premier, Albert 1]
+  country: FR
+
+- slug: refuge-du-plan-de-laiguille
+  feature_type: hut
+  name_default: Refuge du Plan de l'Aiguille
+  aliases: [Plan de l'Aiguille, Plan de l'Aiguille hut]
+  country: FR
+
+- slug: rifugio-monzino
+  feature_type: hut
+  name_default: Rifugio Monzino
+  aliases: [Monzino]
+  country: IT
+
+- slug: refuge-durier
+  feature_type: hut
+  name_default: Refuge Durier
+  aliases: [Durier]
+  country: FR
+
+- slug: refuge-des-conscrits
+  feature_type: hut
+  name_default: Refuge des Conscrits
+  aliases: [Conscrits]
+  country: FR
+
+- slug: rifugio-elisabetta
+  feature_type: hut
+  name_default: Rifugio Elisabetta
+  aliases: [Elisabetta, Elisabetta Soldini]
+  country: IT
+
+- slug: abri-vallot
+  feature_type: hut
+  name_default: Abri Vallot
+  aliases: [Vallot, Vallot hut, Refuge Vallot, Cabane Vallot]
+  alt_max: 4362
+  country: FR
+  notes: Emergency shelter only. Never present as accommodation.
+
+- slug: bivacco-della-fourche
+  feature_type: hut
+  name_default: Bivacco della Fourche
+  aliases: [Fourche, Bivouac de la Fourche, Fourche bivouac]
+  country: IT
+
+# ---------------------------------------------------------- access roads ---
+
+- slug: route-du-nid-daigle
+  feature_type: access_road
+  name_default: Route/accès du Nid d'Aigle
+  aliases: [Nid d'Aigle access, Bellevue]
+  country: FR
+
+- slug: val-ferret-road
+  feature_type: access_road
+  name_default: Strada della Val Ferret
+  aliases: [Val Ferret road, Route du Val Ferret]
+  country: IT

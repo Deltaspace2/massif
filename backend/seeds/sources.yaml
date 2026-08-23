@@ -1,0 +1,107 @@
+# Source inventory for the Mont Blanc massif, v1.
+#
+# Each of these needs hands-on recon before its scraper is written. This is the
+# starting point, not verified ground truth. `active: false` means "identified,
+# not yet built".
+#
+# trust_weight drives status resolution: an arrêté outranks an Instagram post.
+
+- slug: mairie-chamonix
+  name: Mairie de Chamonix-Mont-Blanc — arrêtés municipaux
+  url: https://www.chamonix-mont-blanc.fr/
+  source_type: official
+  language: fr
+  country: FR
+  trust_weight: 1.00
+  fetch_interval_minutes: 360
+  active: false
+  notes: >
+    Legally authoritative closures. PDFs, irregular publication schedule.
+    Needs LLM extraction — a French legal notice naming which section of which
+    path is closed between which dates is exactly what a regex cannot do.
+
+- slug: mairie-saint-gervais
+  name: Mairie de Saint-Gervais-les-Bains — arrêtés municipaux
+  url: https://www.saintgervais.com/
+  source_type: official
+  language: fr
+  country: FR
+  trust_weight: 1.00
+  fetch_interval_minutes: 360
+  active: false
+  notes: >
+    Goûter route and Tête Rousse regulation. Historically the most
+    consequential publisher on this list.
+
+- slug: chamoniarde-ohm
+  name: La Chamoniarde / Office de Haute Montagne
+  url: https://www.chamoniarde.com/
+  source_type: institutional
+  language: fr
+  country: FR
+  trust_weight: 0.85
+  fetch_interval_minutes: 360
+  active: false
+  notes: >
+    Institutional condition and hazard notices, plus a community route-report
+    book. Client-side rendered: find the XHR endpoint its own frontend calls
+    before reaching for Playwright — it is usually plain JSON.
+
+- slug: fondazione-montagna-sicura
+  name: Fondazione Montagna Sicura
+  url: https://www.fondazionemontagnasicura.org/
+  source_type: institutional
+  language: it
+  country: IT
+  trust_weight: 0.85
+  fetch_interval_minutes: 720
+  active: false
+  notes: Aosta-side conditions and closures.
+
+- slug: compagnie-du-mont-blanc
+  name: Compagnie du Mont-Blanc — lift status
+  url: https://www.montblancnaturalresort.com/
+  source_type: operator
+  language: fr
+  country: FR
+  trust_weight: 0.95
+  fetch_interval_minutes: 30
+  active: false
+  notes: >
+    Aiguille du Midi, Montenvers, Grands Montets, Brévent, Flégère, Tramway du
+    Mont-Blanc. Likely a JSON status endpoint behind the site. Build this one
+    first: structured, frequently changing, immediately visible on the map.
+
+- slug: skyway-monte-bianco
+  name: Skyway Monte Bianco
+  url: https://www.montebianco.com/
+  source_type: operator
+  language: it
+  country: IT
+  trust_weight: 0.95
+  fetch_interval_minutes: 30
+  active: false
+
+- slug: pghm-chamonix
+  name: PGHM Chamonix / préfecture Haute-Savoie
+  url: https://www.haute-savoie.gouv.fr/
+  source_type: official
+  language: fr
+  country: FR
+  trust_weight: 1.00
+  fetch_interval_minutes: 720
+  active: false
+  notes: Safety alerts and access bans. Low volume, high authority.
+
+- slug: manual
+  name: Manual entry
+  url: https://example.org/
+  source_type: institutional
+  language: en
+  trust_weight: 0.70
+  fetch_interval_minutes: 100000
+  active: true
+  notes: >
+    Admin-entered statements — hut closures phoned in, things seen in person.
+    Keeps low-yield sources (refuge socials) out of scope for v1 without
+    losing the data.

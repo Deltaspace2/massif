@@ -1,0 +1,32 @@
+# Scheduled ingest. GitHub Actions cron is the correct boring answer for a
+# side project: nothing to keep warm, free, and the run log is your scraper
+# observability for nothing.
+#
+# Disabled until the first scraper exists.
+
+name: ingest
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "*/30 * * * *"   # lift status, in season
+  #   - cron: "17 */6 * * *"   # arrêtés and institutional sources
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        working-directory: backend
+        run: pip install -e .
+      - name: Run ingest
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          USER_AGENT: ${{ vars.USER_AGENT }}
+        run: python -m massif.scripts.run_ingest
