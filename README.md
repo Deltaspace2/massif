@@ -28,13 +28,14 @@ v1, pre-alpha. Schema and scaffold only.
 
 ## Local setup
 
-Requires Docker and Python 3.12+.
+Requires Python 3.12+ and Postgres 14+ with PostGIS.
 
 ```bash
 cp .env.example .env
 
-# start Postgres + PostGIS
-docker compose up -d
+# Postgres + PostGIS, either way:
+docker compose up -d              # Docker, port 5433
+./scripts/setup_db_native.sh      # or apt, port 5432 — edit .env to match
 
 # install backend
 cd backend
