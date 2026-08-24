@@ -13,3 +13,4 @@ node_modules/
 **/osm_candidates.yaml
 data/
 *.log
+_to_delete/
