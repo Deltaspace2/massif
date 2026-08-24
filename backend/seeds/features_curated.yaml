@@ -418,3 +418,54 @@
   name_default: Strada della Val Ferret
   aliases: [Val Ferret road, Route du Val Ferret]
   country: IT
+
+# --------------------------------- remaining Mont-Blanc Natural Resort lifts ---
+# Added after recon of the live status page: these names appear in its feed, so
+# they need features to resolve to. Megève and La Vormaine are outside the
+# massif proper but are carried on the same feed — kept so their mentions
+# resolve instead of filling the review queue every 30 minutes.
+
+- slug: panoramic-mont-blanc
+  feature_type: lift
+  name_default: Télécabine Panoramic Mont-Blanc
+  aliases: [Panoramic Mont-Blanc, Panoramic, Télécabine Panoramic]
+  country: FR
+  notes: Aiguille du Midi to Pointe Helbronner. Summer only.
+
+- slug: balme-le-tour
+  feature_type: lift
+  name_default: Domaine de Balme — Le Tour
+  aliases: [Balme, Le Tour, Domaine de Balme, Charamillon]
+  country: FR
+
+- slug: vallorcine
+  feature_type: lift
+  name_default: Vallorcine
+  aliases: [Vallorcine, Cabane de Vallorcine]
+  country: FR
+
+- slug: les-houches
+  feature_type: lift
+  name_default: Les Houches
+  aliases: [Les Houches, Houches, Prarion, Bellevue]
+  country: FR
+
+- slug: telesiege-des-bossons
+  feature_type: lift
+  name_default: Télésiège des Bossons
+  aliases: [Les Bossons, Bossons, Télésiège des Bossons]
+  country: FR
+
+- slug: megeve
+  feature_type: lift
+  name_default: Megève
+  aliases: [Megève, Megeve]
+  country: FR
+  notes: Outside the massif. Carried because it shares the operator's feed.
+
+- slug: la-vormaine
+  feature_type: lift
+  name_default: La Vormaine
+  aliases: [La Vormaine, Vormaine]
+  country: FR
+  notes: Outside the massif. Carried because it shares the operator's feed.

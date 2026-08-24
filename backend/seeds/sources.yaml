@@ -58,19 +58,39 @@
   active: false
   notes: Aosta-side conditions and closures.
 
-- slug: compagnie-du-mont-blanc
-  name: Compagnie du Mont-Blanc — lift status
-  url: https://www.montblancnaturalresort.com/
+- slug: mbnr-live
+  name: Mont-Blanc Natural Resort — live lift status
+  url: https://www.montblancnaturalresort.com/fr/infos-live
   source_type: operator
   language: fr
   country: FR
   trust_weight: 0.95
   fetch_interval_minutes: 30
-  active: false
+  active: true
   notes: >
-    Aiguille du Midi, Montenvers, Grands Montets, Brévent, Flégère, Tramway du
-    Mont-Blanc. Likely a JSON status endpoint behind the site. Build this one
-    first: structured, frequently changing, immediately visible on the map.
+    Real-time per-lift open/closed and operating hours, plus weather and
+    avalanche risk. Server-rendered HTML, so selectolax rather than Playwright.
+    NOT compagniedumontblanc.fr — that is the corporate/investor site and
+    carries no operational data. Same operator, different property.
+    robots.txt is "User-Agent: *" with no Disallow, so scraping is permitted;
+    stay slow anyway.
+
+- slug: mbnr-openings
+  name: Mont-Blanc Natural Resort — seasonal opening calendar
+  url: https://www.montblancnaturalresort.com/en/annual-openings
+  source_type: operator
+  language: en
+  country: FR
+  trust_weight: 0.90
+  fetch_interval_minutes: 1440
+  active: true
+  notes: >
+    Scheduled opening and closing dates per site for the season. A different
+    statement type from live status: forward-looking, low-churn, and the thing
+    that answers "will the Tramway be running in late September". Emits
+    statements with valid_from/valid_to rather than a current status.
+    Carries its own caveat that dates are indicative and subject to change —
+    reproduce that caveat, do not launder it into certainty.
 
 - slug: skyway-monte-bianco
   name: Skyway Monte Bianco

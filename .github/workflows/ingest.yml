@@ -2,15 +2,14 @@
 # side project: nothing to keep warm, free, and the run log is your scraper
 # observability for nothing.
 #
-# Disabled until the first scraper exists.
-
 name: ingest
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: "*/30 * * * *"   # lift status, in season
-  #   - cron: "17 */6 * * *"   # arrêtés and institutional sources
+  schedule:
+    # Every 30 min. Per-source fetch_interval_minutes decides what actually
+    # runs, so this cadence is a ceiling, not a promise.
+    - cron: "*/30 * * * *"
 
 jobs:
   ingest:
