@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFeature, resortTime, sinceLabel } from "@/lib/api";
 
-export const revalidate = 300;
+export const revalidate = 60;
 
 type Params = Promise<{ type: string; slug: string }>;
 

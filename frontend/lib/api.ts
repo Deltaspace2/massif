@@ -62,8 +62,20 @@ export interface FeatureDetail extends Feature {
   }[];
 }
 
-async function get<T>(path: string, revalidate = 300): Promise<T> {
-  const response = await fetch(`${API}${path}`, { next: { revalidate } });
+// One window for everything on a page. Mixing lifetimes produced a page that
+// disagreed with itself: a two-minute-old ingest timestamp printed beside
+// eleven-minute-old lift data, from a cached response that predated a schema
+// change. Parts of one view must age together.
+const REVALIDATE = 60;
+
+async function get<T>(path: string): Promise<T> {
+  const response = await fetch(`${API}${path}`, {
+    // In dev, never cache: you are editing the API and the parser, and a
+    // stale fetch reads exactly like a bug in whichever you touched last.
+    ...(process.env.NODE_ENV === "production"
+      ? { next: { revalidate: REVALIDATE } }
+      : { cache: "no-store" as const }),
+  });
   if (!response.ok) {
     throw new Error(`${path} returned ${response.status}`);
   }
@@ -89,7 +101,7 @@ export function getHealth() {
     last_successful_ingest: string | null;
     features: number;
     disclaimer: string;
-  }>("/health", 60);
+  }>("/health");
 }
 
 /** Resort-local, always. The mountain keeps its own clock, not the reader's. */

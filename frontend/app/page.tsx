@@ -1,7 +1,7 @@
 import MassifMap from "@/components/MassifMap";
 import { listFeatures, getHealth, sinceLabel, type Feature } from "@/lib/api";
 
-export const revalidate = 300;
+export const revalidate = 60;
 
 /** Routine closures are ranked below real ones: the point of the page is what
  *  is unexpectedly shut, not what is asleep. */
@@ -101,7 +101,9 @@ export default async function Home() {
               {feature.status.stale ? "⚠ not confirmed recently · " : ""}
               last confirmed {sinceLabel(feature.status.observed_at)}
               {childCount.get(feature.slug)
-                ? ` · ${childCount.get(feature.slug)} lifts`
+                ? ` · ${childCount.get(feature.slug)} ${
+                    childCount.get(feature.slug) === 1 ? "lift" : "lifts"
+                  }`
                 : ""}
             </div>
           </a>
