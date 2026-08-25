@@ -6,7 +6,9 @@ from __future__ import annotations
 
 from massif.ingest.base import Scraper
 from massif.ingest.sources.mbnr_live import MbnrLiveScraper
+from massif.ingest.sources.mbnr_openings import MbnrOpeningsScraper
 
 SCRAPERS: dict[str, type[Scraper]] = {
     MbnrLiveScraper.slug: MbnrLiveScraper,
+    MbnrOpeningsScraper.slug: MbnrOpeningsScraper,
 }
