@@ -36,7 +36,8 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time as dtime
+from zoneinfo import ZoneInfo
 
 from selectolax.parser import HTMLParser, Node
 from sqlalchemy.orm import Session
@@ -79,6 +80,11 @@ STATUS_ICONS: dict[str, tuple[StatusValue, int]] = {
 ICON_CLASS = re.compile(r"a_IconStatusPoi-([a-zA-Z]+)")
 COUNT = re.compile(r"([A-Za-zÀ-ÿ&\s]+?)\s*\(\s*(\d+)\s*/\s*(\d+)\s*\)")
 ALTITUDE = re.compile(r"-\s*(\d{3,4})\s*m\s*$")
+TIME_RANGE = re.compile(r"(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})")
+
+# The mountain keeps its own clock, not the reader's. Steven checking from
+# Manila at 03:00 is looking at Chamonix at 21:00.
+RESORT_TZ = ZoneInfo("Europe/Paris")
 
 # Categories that mean "uphill transport" rather than restaurants or ticket
 # desks. Montenvers is a rack railway, hence the second entry.
@@ -138,18 +144,56 @@ def parse_item(item: Node) -> dict:
     }
 
 
+def day_window(times: list[str]) -> tuple[dtime, dtime] | None:
+    """First opening and last closing across a lift's time ranges."""
+    bounds: list[tuple[dtime, dtime]] = []
+    for text in times:
+        match = TIME_RANGE.search(text)
+        if match:
+            o_h, o_m, c_h, c_m = (int(g) for g in match.groups())
+            bounds.append((dtime(o_h % 24, o_m), dtime(c_h % 24, c_m)))
+    if not bounds:
+        return None
+    return min(b[0] for b in bounds), max(b[1] for b in bounds)
+
+
+def pending_phase(items: list[dict], now: datetime) -> str:
+    """Word a pending sector by where the resort clock actually is.
+
+    "Not yet running today" is true at 06:00 and false at 21:00, and the
+    difference is invisible to anyone reading from another timezone.
+    """
+    local = now.astimezone(RESORT_TZ)
+    windows = [w for w in (day_window(i["times"]) for i in items) if w]
+    if not windows:
+        return "not currently running"
+
+    first_open = min(w[0] for w in windows)
+    last_close = max(w[1] for w in windows)
+    clock = local.time()
+
+    if clock < first_open:
+        return f"closed now, first lift {first_open.strftime('%H:%M')}"
+    if clock > last_close:
+        return f"closed for the day, reopens {first_open.strftime('%H:%M')}"
+    return "not running despite being within operating hours"
+
+
 def sector_status(
-    items: list[dict], counts: dict[str, int] | None
+    items: list[dict],
+    counts: dict[str, int] | None,
+    now: datetime | None = None,
 ) -> tuple[StatusValue, int, str]:
-    """Derive a sector status that does not lie before opening time.
+    """Derive a sector status that does not lie about why it is shut.
 
     A sector showing 0/N is only genuinely closed if none of its lifts are
-    merely waiting to start. Otherwise it is pending — scheduled to run, not
-    yet running.
+    merely waiting to start. Closed-because-it-is-night is not news;
+    closed-because-of-rockfall is, and the two must never read alike.
     """
+    now = now or datetime.now(UTC)
     lifts = [i for i in items if not i["is_trail"]]
     if lifts and all(i["raw_status"] == "pending" for i in lifts):
-        return StatusValue.UNKNOWN, 0, "scheduled, not yet running today"
+        return StatusValue.UNKNOWN, 0, pending_phase(lifts, now)
 
     if counts is None:
         return StatusValue.UNKNOWN, 0, "no lift counts published"
@@ -157,10 +201,21 @@ def sector_status(
     open_n, total_n = counts["open"], counts["total"]
     if total_n == 0:
         return StatusValue.UNKNOWN, 0, "no lifts listed"
+    plural = "lift" if total_n == 1 else "lifts"
     if open_n == 0:
-        return StatusValue.CLOSED, 1, f"all {total_n} lifts closed"
+        return (
+            StatusValue.CLOSED,
+            1,
+            f"its only {plural} is closed" if total_n == 1
+            else f"all {total_n} {plural} closed",
+        )
     if open_n == total_n:
-        return StatusValue.OPEN, 0, f"all {total_n} lifts open"
+        return (
+            StatusValue.OPEN,
+            0,
+            f"its only {plural} is open" if total_n == 1
+            else f"all {total_n} {plural} open",
+        )
     return StatusValue.RESTRICTED, 1, f"{open_n} of {total_n} lifts open"
 
 
@@ -187,7 +242,12 @@ def extract(tree: HTMLParser, observed_at: datetime) -> list[ExtractedStatement]
 
         # ---- sector-level statement, exact identity via the tab id
         slug = SECTOR_FEATURES.get(tab_id)
-        status, severity, note = sector_status(items, lift_counts(counts))
+        status, severity, note = sector_status(
+            items, lift_counts(counts), observed_at
+        )
+        scheduled = status is StatusValue.UNKNOWN and bool(
+            [i for i in items if not i['is_trail']]
+        )
         altitude = ALTITUDE.search(label)
 
         out.append(
@@ -203,6 +263,9 @@ def extract(tree: HTMLParser, observed_at: datetime) -> list[ExtractedStatement]
                 original_language="fr",
                 payload={
                     "tab_id": tab_id,
+                    # outside_hours is routine and must never be presented
+                    # like an unplanned closure
+                    "closure_kind": "outside_hours" if scheduled else None,
                     "counts": counts,
                     "altitude_m": int(altitude.group(1)) if altitude else None,
                     "lifts": [

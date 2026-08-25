@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from fastapi import Depends, FastAPI, HTTPException
 from geoalchemy2.shape import to_shape
 from sqlalchemy import desc, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from massif.db import get_session
 from massif.enums import StatusValue
@@ -35,11 +35,20 @@ def _geojson(feature: Feature) -> dict | None:
     return to_shape(feature.geom).__geo_interface__
 
 
-def _feature_dict(feature: Feature, status: FeatureStatus | None) -> dict:
+def _feature_dict(
+    feature: Feature,
+    status: FeatureStatus | None,
+    statement: Statement | None = None,
+    parent_slug: str | None = None,
+) -> dict:
     now = datetime.now(UTC)
+    payload = (statement.payload if statement else None) or {}
     return {
         "slug": feature.slug,
         "type": feature.feature_type,
+        # Lets a client separate sectors from the individual machines inside
+        # them. Without it every auto-created lift competes with its parent.
+        "parent_slug": parent_slug,
         "name": feature.name_default,
         "names": feature.names,
         "alt_min": feature.alt_min,
@@ -55,6 +64,13 @@ def _feature_dict(feature: Feature, status: FeatureStatus | None) -> dict:
             "stale": bool(
                 status and status.stale_after and status.stale_after < now
             ),
+            # "outside_hours" means routine: shut because it is night or out
+            # of season. The map must render that quietly. Anything else is
+            # a closure worth shouting about.
+            "closure_kind": payload.get("closure_kind"),
+            "counts": payload.get("counts"),
+            "altitude_m": payload.get("altitude_m"),
+            "lifts": payload.get("lifts"),
         },
     }
 
@@ -81,9 +97,12 @@ def list_features(
     status: StatusValue | None = None,
     session: Session = Depends(get_session),
 ) -> dict:
+    Parent = aliased(Feature)
     query = (
-        select(Feature, FeatureStatus)
+        select(Feature, FeatureStatus, Statement, Parent.slug)
         .outerjoin(FeatureStatus, FeatureStatus.feature_id == Feature.id)
+        .outerjoin(Statement, Statement.id == FeatureStatus.statement_id)
+        .outerjoin(Parent, Parent.id == Feature.parent_id)
         .where(Feature.active.is_(True))
     )
     if feature_type:
@@ -94,7 +113,10 @@ def list_features(
     rows = session.execute(query).all()
     return {
         "count": len(rows),
-        "features": [_feature_dict(f, s) for f, s in rows],
+        "features": [
+            _feature_dict(f, st, stmt, parent)
+            for f, st, stmt, parent in rows
+        ],
         "disclaimer": DISCLAIMER,
     }
 
@@ -102,13 +124,14 @@ def list_features(
 @app.get("/features/{slug}")
 def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
     row = session.execute(
-        select(Feature, FeatureStatus)
+        select(Feature, FeatureStatus, Statement)
         .outerjoin(FeatureStatus, FeatureStatus.feature_id == Feature.id)
+        .outerjoin(Statement, Statement.id == FeatureStatus.statement_id)
         .where(Feature.slug == slug)
     ).first()
     if row is None:
         raise HTTPException(404, "no such feature")
-    feature, status = row
+    feature, status, current = row
 
     history = session.execute(
         select(Statement, Source)
@@ -118,7 +141,28 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
         .limit(50)
     ).all()
 
-    payload = _feature_dict(feature, status)
+    parent = session.get(Feature, feature.parent_id) if feature.parent_id else None
+    payload = _feature_dict(
+        feature, status, current, parent.slug if parent else None
+    )
+
+    payload["parent"] = (
+        {"slug": parent.slug, "name": parent.name_default} if parent else None
+    )
+    payload["children"] = [
+        {
+            "slug": child.slug,
+            "name": child.name_default,
+            "status": child_status.status if child_status else StatusValue.UNKNOWN,
+            "summary": child_status.summary_en if child_status else None,
+        }
+        for child, child_status in session.execute(
+            select(Feature, FeatureStatus)
+            .outerjoin(FeatureStatus, FeatureStatus.feature_id == Feature.id)
+            .where(Feature.parent_id == feature.id)
+            .order_by(Feature.name_default)
+        ).all()
+    ]
     payload["history"] = [
         {
             "type": st.statement_type,
