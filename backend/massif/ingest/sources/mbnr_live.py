@@ -2,20 +2,34 @@
 
 https://www.montblancnaturalresort.com/fr/infos-live
 
-Note on the target: compagniedumontblanc.fr is the corporate/investor site and
-carries no operational data. Same operator, different property. The live status
-lives on montblancnaturalresort.com and is server-rendered, so selectolax is
-enough — no Playwright.
+Not compagniedumontblanc.fr: that is the corporate site and carries no
+operational data. Same operator, different property.
 
-EXTRACTION STRATEGY. The CSS selectors below are a best guess and have not been
-calibrated against the live DOM. They are deliberately not load-bearing: if
-they match nothing, the scraper falls back to a proximity scan that finds known
-lift names in the page text and reads the nearest status word. The fallback is
-uglier but survives a redesign, which the selectors will not.
+DOM, established by recon rather than guesswork:
 
-Calibrate with:
+    div.o_InfoLiveTab[id]                   stable sector id, e.g. "brevent"
+      div.o_InfoLiveTab_label               "Brévent - 2525 m"
+      div.o_BlockOpening
+        div.o_BlockOpening_tabs             "Remontées ( 0 / 3 ) Restaurants ( 0 / 2 )"
+        div.m_PIOItem
+          div.m_PIOItem_timeList
+            div.m_PIOItem_time              "07:20 - 16:10"   (repeats)
+          div.m_PIOItem_name                "TPH AIGUILLE DU MIDI"
+          div.m_PIOItem_message             "Fermé de 13h00 et 14h00"
+          div.m_PIOItem_status
+            i.a_IconStatusPoi-<state>       the actual status
 
-    python -m massif.ingest.sources.mbnr_live --dump
+Two things this gets right that the first version did not:
+
+1. Status comes from the icon modifier class, not from text. m_PIOItem_status
+   has no text content at all, so any text-based reading of it was guesswork.
+
+2. "pending" is not "closed". Before the first lift of the day every item is
+   pending and every sector reads 0/N. Publishing that as CLOSED would have the
+   map declaring Chamonix shut every morning until 07:20.
+
+The site is a Lumiplan/eLiberty white-label, so this parser is likely to port
+to other French resorts with little more than a new sector map.
 """
 
 from __future__ import annotations
@@ -24,156 +38,231 @@ import re
 import sys
 from datetime import UTC, datetime
 
-from selectolax.parser import HTMLParser
+from selectolax.parser import HTMLParser, Node
 from sqlalchemy.orm import Session
 
 from massif.enums import ExtractionMethod, StatementType, StatusValue
 from massif.ingest.base import ExtractedStatement, Scraper, fetch, store_document
-from massif.ingest.resolve import normalise
 from massif.models import Document, Source
 
 URL = "https://www.montblancnaturalresort.com/fr/infos-live"
 
-# Best-guess selectors. Verify with --dump; the proximity fallback covers us
-# until then.
-ROW_SELECTORS = [
-    "[class*='remontee']",
-    "[class*='lift']",
-    "[class*='status']",
-    "[class*='ouverture']",
-    "li[class*='item']",
-]
+# Stable tab id -> our feature slug. Exact mapping, no fuzzy matching: the
+# source tells us what each sector is, so we should not be guessing.
+SECTOR_FEATURES: dict[str, str] = {
+    "aiguille-du-midi": "aiguille-du-midi",
+    "montenvers-mer-de-glace": "montenvers-railway",
+    "brevent": "brevent",
+    "flegere": "flegere",
+    "balme": "balme-le-tour",
+    "grands-montets": "grands-montets",
+    "houches-saint-gervais": "les-houches",
+    "les-planards": "les-planards",
+    "megeve-rochebrune": "megeve-rochebrune",
+    "les-bossons": "telesiege-des-bossons",
+    "megeve-mont-arbois": "megeve-mont-arbois",
+}
 
-# French status vocabulary -> our enum. Order matters: check negatives first,
-# because "non ouvert" contains "ouvert".
-STATUS_PATTERNS: list[tuple[re.Pattern, StatusValue, int]] = [
-    (re.compile(r"\bnon\s+ouvert", re.I), StatusValue.CLOSED, 1),
-    (re.compile(r"\bferm[ée]", re.I), StatusValue.CLOSED, 1),
-    (re.compile(r"\bfermeture", re.I), StatusValue.CLOSED, 1),
-    (re.compile(r"\bhors\s+service", re.I), StatusValue.CLOSED, 2),
-    (re.compile(r"\bsuspendu", re.I), StatusValue.CLOSED, 2),
-    (re.compile(r"\bouvert", re.I), StatusValue.OPEN, 0),
-    (re.compile(r"\ben\s+service", re.I), StatusValue.OPEN, 0),
-    (re.compile(r"\bouverture\s+pr[ée]vue", re.I), StatusValue.UNKNOWN, 0),
-]
+# Icon modifier -> status. Only "pending" has been observed live; the others
+# are inferred from the naming scheme and will be confirmed in season. An
+# unrecognised modifier is recorded verbatim rather than guessed at.
+STATUS_ICONS: dict[str, tuple[StatusValue, int]] = {
+    "open": (StatusValue.OPEN, 0),
+    "opened": (StatusValue.OPEN, 0),
+    "pending": (StatusValue.UNKNOWN, 0),
+    "closed": (StatusValue.CLOSED, 1),
+    "close": (StatusValue.CLOSED, 1),
+    "disrupted": (StatusValue.RESTRICTED, 2),
+    "hold": (StatusValue.RESTRICTED, 2),
+}
 
-HOURS = re.compile(r"(\d{1,2})\s*[:hH]\s*(\d{2})\s*[-–—]\s*(\d{1,2})\s*[:hH]\s*(\d{2})")
+ICON_CLASS = re.compile(r"a_IconStatusPoi-([a-zA-Z]+)")
+COUNT = re.compile(r"([A-Za-zÀ-ÿ&\s]+?)\s*\(\s*(\d+)\s*/\s*(\d+)\s*\)")
+ALTITUDE = re.compile(r"-\s*(\d{3,4})\s*m\s*$")
 
-# Lift names as this site writes them -> our feature slugs' surface forms. The
-# resolver handles the rest; this is only the seed vocabulary for the
-# proximity scan.
-KNOWN_LIFTS = [
-    "Aiguille du Midi",
-    "Panoramic Mont-Blanc",
-    "Montenvers",
-    "Mer de Glace",
-    "Brévent",
-    "Flégère",
-    "Grands Montets",
-    "Balme",
-    "Le Tour",
-    "Vallorcine",
-    "Les Houches",
-    "Tramway du Mont-Blanc",
-    "Les Bossons",
-    "Megève",
-    "La Vormaine",
-]
+# Categories that mean "uphill transport" rather than restaurants or ticket
+# desks. Montenvers is a rack railway, hence the second entry.
+LIFT_CATEGORIES = ("remontees", "trains visites", "trains & visites")
 
 
-def classify(text: str) -> tuple[StatusValue, int] | None:
-    for pattern, status, severity in STATUS_PATTERNS:
-        if pattern.search(text):
-            return status, severity
-    return None
+def _text(node: Node | None) -> str:
+    if node is None:
+        return ""
+    return " ".join(node.text(separator=" ", strip=True).split())
 
 
-def parse_hours(text: str) -> dict:
-    match = HOURS.search(text)
-    if not match:
-        return {}
-    o_h, o_m, c_h, c_m = match.groups()
-    return {"first_lift": f"{int(o_h):02d}:{o_m}", "last_lift": f"{int(c_h):02d}:{c_m}"}
+def icon_status(item: Node) -> tuple[StatusValue, int, str | None]:
+    """Read the status icon. Returns (status, severity, raw_modifier)."""
+    status_node = item.css_first("div.m_PIOItem_status i")
+    if status_node is None:
+        return StatusValue.UNKNOWN, 0, None
+    classes = status_node.attributes.get("class") or ""
+    match = ICON_CLASS.search(classes)
+    if match is None:
+        return StatusValue.UNKNOWN, 0, None
+    raw = match.group(1).lower()
+    status, severity = STATUS_ICONS.get(raw, (StatusValue.UNKNOWN, 0))
+    return status, severity, raw
 
 
-def _from_rows(tree: HTMLParser, observed_at: datetime) -> list[ExtractedStatement]:
-    """Structured path: one element per lift."""
-    out: list[ExtractedStatement] = []
-    seen: set[str] = set()
-
-    for selector in ROW_SELECTORS:
-        for node in tree.css(selector):
-            text = " ".join(node.text(separator=" ", strip=True).split())
-            if not (8 < len(text) < 300):
-                continue
-            verdict = classify(text)
-            if verdict is None:
-                continue
-
-            name = next(
-                (lift for lift in KNOWN_LIFTS if normalise(lift) in normalise(text)),
-                None,
-            )
-            if name is None or name in seen:
-                continue
-            seen.add(name)
-
-            status, severity = verdict
-            out.append(
-                ExtractedStatement(
-                    feature_mention=name,
-                    statement_type=StatementType.OPERATIONAL_STATUS,
-                    status=status,
-                    severity=severity,
-                    observed_at=observed_at,
-                    summary_en=f"{name}: {status.value}",
-                    original_text=text,
-                    original_language="fr",
-                    payload=parse_hours(text),
-                    extraction_method=ExtractionMethod.RULE,
-                    extraction_confidence=0.9,
-                )
-            )
-        if out:
-            break
+def parse_counts(text: str) -> dict[str, dict[str, int]]:
+    """'Remontées ( 0 / 4 ) Restaurants ( 0 / 2 )' -> structured counts."""
+    out: dict[str, dict[str, int]] = {}
+    for label, open_n, total_n in COUNT.findall(text):
+        key = " ".join(label.split()).lower()
+        out[key] = {"open": int(open_n), "total": int(total_n)}
     return out
 
 
-def _from_proximity(tree: HTMLParser, observed_at: datetime) -> list[ExtractedStatement]:
-    """Fallback: find each known lift name in the flattened text and read the
-    nearest status word within a small window. Survives a redesign; less
-    precise, so it is marked with lower confidence."""
-    flat = " ".join(tree.text(separator=" ", strip=True).split())
-    out: list[ExtractedStatement] = []
+def lift_counts(counts: dict[str, dict[str, int]]) -> dict[str, int] | None:
+    for key, value in counts.items():
+        normalised = key.replace("é", "e").replace("&", "").strip()
+        normalised = " ".join(normalised.split())
+        if any(normalised.startswith(c.replace("&", "").strip())
+               for c in LIFT_CATEGORIES):
+            return value
+    return None
 
-    for lift in KNOWN_LIFTS:
-        index = normalise(flat).find(normalise(lift))
-        if index < 0:
+
+def parse_item(item: Node) -> dict:
+    times = [_text(t) for t in item.css("div.m_PIOItem_time")]
+    status, severity, raw = icon_status(item)
+    return {
+        "name": _text(item.css_first("div.m_PIOItem_name")),
+        "times": [t for t in times if t],
+        "message": _text(item.css_first("div.m_PIOItem_message")),
+        "status": status,
+        "severity": severity,
+        "raw_status": raw,
+        "is_trail": "m_PIOItem-trail" in (item.attributes.get("class") or ""),
+    }
+
+
+def sector_status(
+    items: list[dict], counts: dict[str, int] | None
+) -> tuple[StatusValue, int, str]:
+    """Derive a sector status that does not lie before opening time.
+
+    A sector showing 0/N is only genuinely closed if none of its lifts are
+    merely waiting to start. Otherwise it is pending — scheduled to run, not
+    yet running.
+    """
+    lifts = [i for i in items if not i["is_trail"]]
+    if lifts and all(i["raw_status"] == "pending" for i in lifts):
+        return StatusValue.UNKNOWN, 0, "scheduled, not yet running today"
+
+    if counts is None:
+        return StatusValue.UNKNOWN, 0, "no lift counts published"
+
+    open_n, total_n = counts["open"], counts["total"]
+    if total_n == 0:
+        return StatusValue.UNKNOWN, 0, "no lifts listed"
+    if open_n == 0:
+        return StatusValue.CLOSED, 1, f"all {total_n} lifts closed"
+    if open_n == total_n:
+        return StatusValue.OPEN, 0, f"all {total_n} lifts open"
+    return StatusValue.RESTRICTED, 1, f"{open_n} of {total_n} lifts open"
+
+
+def extract(tree: HTMLParser, observed_at: datetime) -> list[ExtractedStatement]:
+    out: list[ExtractedStatement] = []
+    unknown_modifiers: set[str] = set()
+
+    for tab in tree.css("div.o_InfoLiveTab"):
+        tab_id = tab.attributes.get("id")
+        if not tab_id:
             continue
-        # normalise() changes offsets, so re-find on the raw text
-        raw_index = flat.lower().find(lift.lower())
-        if raw_index < 0:
+
+        label = _text(tab.css_first("div.o_InfoLiveTab_label"))
+        block = tab.css_first("div.o_BlockOpening")
+        if block is None:
             continue
-        window = flat[raw_index : raw_index + 160]
-        verdict = classify(window)
-        if verdict is None:
-            continue
-        status, severity = verdict
+
+        counts = parse_counts(_text(block.css_first("div.o_BlockOpening_tabs")))
+        items = [parse_item(i) for i in block.css("div.m_PIOItem")]
+
+        for item in items:
+            if item["raw_status"] and item["raw_status"] not in STATUS_ICONS:
+                unknown_modifiers.add(item["raw_status"])
+
+        # ---- sector-level statement, exact identity via the tab id
+        slug = SECTOR_FEATURES.get(tab_id)
+        status, severity, note = sector_status(items, lift_counts(counts))
+        altitude = ALTITUDE.search(label)
+
         out.append(
             ExtractedStatement(
-                feature_mention=lift,
+                feature_mention=label or tab_id,
+                feature_slug=slug,
                 statement_type=StatementType.OPERATIONAL_STATUS,
                 status=status,
                 severity=severity,
                 observed_at=observed_at,
-                summary_en=f"{lift}: {status.value}",
-                original_text=window,
+                summary_en=f"{label or tab_id}: {note}",
+                original_text=_text(block)[:2000],
                 original_language="fr",
-                payload=parse_hours(window),
+                payload={
+                    "tab_id": tab_id,
+                    "counts": counts,
+                    "altitude_m": int(altitude.group(1)) if altitude else None,
+                    "lifts": [
+                        {
+                            "name": i["name"],
+                            "status": i["status"].value,
+                            "raw_status": i["raw_status"],
+                            "times": i["times"],
+                            "message": i["message"],
+                        }
+                        for i in items
+                        if not i["is_trail"]
+                    ],
+                },
                 extraction_method=ExtractionMethod.RULE,
-                extraction_confidence=0.6,
-                context="proximity fallback — selectors did not match",
+                extraction_confidence=1.0 if slug else 0.5,
+                context=f"tab id {tab_id}",
             )
+        )
+
+        # ---- per-machine statements. These resolve by name, so unknown lifts
+        # land in the review queue and become the alias work list.
+        for item in items:
+            if item["is_trail"] or not item["name"] or not slug:
+                continue
+            out.append(
+                ExtractedStatement(
+                    feature_mention=item["name"],
+                    # scoped to this sector: a lift can only ever resolve to a
+                    # lift of the sector that published it
+                    parent_slug=slug,
+                    statement_type=StatementType.OPERATIONAL_STATUS,
+                    status=item["status"],
+                    severity=item["severity"],
+                    observed_at=observed_at,
+                    summary_en=(
+                        f"{item['name']}: {item['raw_status'] or 'unknown'}"
+                        + (f" — {item['message']}" if item["message"] else "")
+                    ),
+                    original_text=" | ".join(
+                        filter(None, [*item["times"], item["name"], item["message"]])
+                    ),
+                    original_language="fr",
+                    payload={
+                        "sector": tab_id,
+                        "times": item["times"],
+                        "message": item["message"],
+                        "raw_status": item["raw_status"],
+                    },
+                    extraction_method=ExtractionMethod.RULE,
+                    extraction_confidence=0.95,
+                    context=f"lift in sector {tab_id}",
+                )
+            )
+
+    if unknown_modifiers:
+        print(
+            f"  note: unrecognised status icons {sorted(unknown_modifiers)} — "
+            f"add them to STATUS_ICONS",
+            file=sys.stderr,
         )
     return out
 
@@ -187,50 +276,33 @@ class MbnrLiveScraper(Scraper):
         response = fetch(URL)
         document, is_new = store_document(session, source, URL, response)
         if not is_new:
-            return []  # page unchanged since last fetch
-
-        observed_at = datetime.now(UTC)
+            return []  # unchanged since last fetch
         tree = HTMLParser(response.text)
-
-        statements = _from_rows(tree, observed_at)
-        if not statements:
-            statements = _from_proximity(tree, observed_at)
-
-        return [(document, statements)]
+        return [(document, extract(tree, datetime.now(UTC)))]
 
 
 def _dump() -> int:
-    """Print what the page actually looks like, so the selectors above can be
-    replaced with real ones."""
+    """Show what the parser makes of the live page, without touching the DB."""
     response = fetch(URL)
     tree = HTMLParser(response.text)
+    statements = extract(tree, datetime.now(UTC))
 
-    print(f"HTTP {response.status_code}, {len(response.content)} bytes\n")
+    sectors = [s for s in statements if s.payload.get("tab_id")]
+    machines = [s for s in statements if s.payload.get("sector")]
 
-    print("--- elements whose text contains a status word ---")
-    shown = 0
-    for node in tree.css("*"):
-        text = " ".join(node.text(separator=" ", strip=True).split())
-        if not (8 < len(text) < 200) or classify(text) is None:
-            continue
-        if not any(normalise(lift) in normalise(text) for lift in KNOWN_LIFTS):
-            continue
-        print(f"  <{node.tag} class={node.attributes.get('class')!r}>")
-        print(f"    {text[:160]}")
-        shown += 1
-        if shown >= 25:
-            break
-    if not shown:
-        print("  none — the page shape has changed, or it is not server-rendered")
-
-    print("\n--- lift names found in flat text ---")
-    flat = normalise(" ".join(tree.text(separator=" ", strip=True).split()))
-    for lift in KNOWN_LIFTS:
-        print(f"  {'OK ' if normalise(lift) in flat else 'MISS'}  {lift}")
+    print(f"{len(sectors)} sectors, {len(machines)} lifts\n")
+    for statement in sectors:
+        mapped = "->" + (statement.feature_slug or "UNMAPPED")
+        print(f"{statement.payload['tab_id']:<26} {statement.status.value:<10} {mapped}")
+        print(f"    {statement.summary_en}")
+        print(f"    counts: {statement.payload['counts']}")
+        for lift in statement.payload["lifts"]:
+            note = f"  [{lift['message']}]" if lift["message"] else ""
+            print(f"      {lift['name']:<28} {lift['raw_status'] or '?':<9} "
+                  f"{', '.join(lift['times'])}{note}")
+        print()
     return 0
 
 
 if __name__ == "__main__":
-    if "--dump" in sys.argv:
-        raise SystemExit(_dump())
-    print(__doc__)
+    raise SystemExit(_dump())

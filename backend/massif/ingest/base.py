@@ -11,7 +11,9 @@ rate-limit hard, back off on errors. You are a guest on these servers.
 from __future__ import annotations
 
 import hashlib
+import re
 import time
+import unicodedata
 import urllib.robotparser
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -25,8 +27,8 @@ from sqlalchemy.orm import Session
 
 from massif.config import settings
 from massif.enums import ExtractionMethod, StatementType, StatusValue
-from massif.models import Document, IngestRun, Source, Statement
-from massif.ingest.resolve import FeatureResolver
+from massif.models import Document, Feature, IngestRun, Source, Statement
+from massif.ingest.resolve import FeatureResolver, Match, normalise
 from massif.status import recompute_many
 
 _last_request_at: dict[str, float] = defaultdict(float)
@@ -131,6 +133,16 @@ class ExtractedStatement:
     status: StatusValue
     observed_at: datetime
     severity: int = 0
+    # Set when the source exposes a stable identifier (an element id, an
+    # API key) mapped to a feature slug. Exact lookup, no fuzzy matching —
+    # a source that knows what it is should never be guessed at.
+    feature_slug: str | None = None
+    # Set when the source is authoritative about a parent/child hierarchy —
+    # an operator listing the lifts inside its own sector. Resolution is then
+    # restricted to that parent's children, and a child is created on first
+    # sight rather than fuzzy-matched against the whole table. Without this,
+    # "TC MER DE GLACE" cheerfully resolves to the Mer de Glace glacier.
+    parent_slug: str | None = None
     valid_from: datetime | None = None
     valid_to: datetime | None = None
     summary_en: str | None = None
@@ -140,6 +152,51 @@ class ExtractedStatement:
     extraction_method: ExtractionMethod = ExtractionMethod.RULE
     extraction_confidence: float | None = None
     context: str | None = None
+
+
+def slugify(text: str) -> str:
+    """ASCII slug for auto-provisioned features."""
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-").lower()
+    return re.sub(r"-{2,}", "-", text)
+
+
+def resolve_child(session: Session, parent_slug: str, name: str) -> "Match | None":
+    """Find (or create) the child of parent_slug named `name`.
+
+    Scoped so a lift can never resolve to an unrelated feature, and
+    auto-provisioning because the operator is the authority on which lifts
+    exist inside its own sector. Created features carry no geometry and are
+    marked so a human can see what the machine invented.
+    """
+    parent = session.scalar(select(Feature).where(Feature.slug == parent_slug))
+    if parent is None:
+        return None
+
+    target = normalise(name)
+    for child in session.scalars(
+        select(Feature).where(Feature.parent_id == parent.id)
+    ):
+        forms = [child.name_default, *(child.aliases or [])]
+        if any(normalise(f) == target for f in forms):
+            return Match(str(child.id), 100.0, child.name_default)
+
+    child = Feature(
+        slug=f"{parent_slug}-{slugify(name)}",
+        feature_type=parent.feature_type,
+        name_default=name,
+        names={},
+        aliases=[name],
+        parent_id=parent.id,
+        massif=parent.massif,
+        country=parent.country,
+        external_ids={},
+        notes=f"Auto-created from an operator feed as a child of {parent_slug}.",
+    )
+    session.add(child)
+    session.flush()
+    return Match(str(child.id), 100.0, name)
 
 
 class Scraper(ABC):
@@ -170,7 +227,34 @@ class Scraper(ABC):
             for document, extracted in self.collect(session, source):
                 run.documents_new += 1
                 for item in extracted:
-                    match, candidates = resolver.resolve(item.feature_mention)
+                    if item.parent_slug:
+                        match = resolve_child(
+                            session, item.parent_slug, item.feature_mention
+                        )
+                        candidates = []
+                        if match is None:
+                            resolver.queue_unresolved(
+                                item.feature_mention,
+                                [],
+                                source_id=source.id,
+                                document_id=document.id,
+                                context=f"parent {item.parent_slug} not seeded",
+                            )
+                            run.unresolved_new += 1
+                            continue
+                    elif item.feature_slug:
+                        feature = session.scalar(
+                            select(Feature).where(Feature.slug == item.feature_slug)
+                        )
+                        match = (
+                            Match(str(feature.id), 100.0, item.feature_slug)
+                            if feature
+                            else None
+                        )
+                        candidates = []
+                    else:
+                        match, candidates = resolver.resolve(item.feature_mention)
+
                     if match is None:
                         resolver.queue_unresolved(
                             item.feature_mention,

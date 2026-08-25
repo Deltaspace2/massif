@@ -469,3 +469,24 @@
   aliases: [La Vormaine, Vormaine]
   country: FR
   notes: Outside the massif. Carried because it shares the operator's feed.
+
+- slug: les-planards
+  feature_type: lift
+  name_default: Les Planards
+  aliases: [Les Planards, Planards, les-planards]
+  country: FR
+  notes: Chamonix valley-floor beginner area. Carried on the operator's feed.
+
+- slug: megeve-rochebrune
+  feature_type: lift
+  name_default: Megève — Rochebrune
+  aliases: [Rochebrune, Megève Rochebrune, megeve-rochebrune]
+  country: FR
+  notes: Outside the massif. Carried because it shares the operator's feed.
+
+- slug: megeve-mont-arbois
+  feature_type: lift
+  name_default: Megève — Mont d'Arbois
+  aliases: [Mont d'Arbois, Megève Mont d'Arbois, megeve-mont-arbois]
+  country: FR
+  notes: Outside the massif. Carried because it shares the operator's feed.
