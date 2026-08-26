@@ -32,7 +32,15 @@ from massif.ingest.resolve import FeatureResolver, Match, normalise
 from massif.status import recompute_many
 
 _last_request_at: dict[str, float] = defaultdict(float)
-_robots_cache: dict[str, urllib.robotparser.RobotFileParser] = {}
+
+# root -> (monotonic time of the check, parser or None if it could not be read)
+_robots_cache: dict[
+    str, tuple[float, urllib.robotparser.RobotFileParser | None]
+] = {}
+
+# How long a robots.txt verdict is reused before re-fetching.
+ROBOTS_TTL = 3600.0
+ROBOTS_RETRY_TTL = 300.0
 
 
 def _throttle(host: str) -> None:
@@ -43,26 +51,80 @@ def _throttle(host: str) -> None:
     _last_request_at[host] = time.monotonic()
 
 
+def _read_robots(root: str) -> urllib.robotparser.RobotFileParser | None:
+    """Fetch and parse one robots.txt. None means we could not find out.
+
+    Fetched with httpx rather than RobotFileParser.read(), which uses
+    urllib with no timeout and sends `Python-urllib/x.y` instead of the
+    User-Agent we promise to identify with — announcing ourselves honestly
+    matters most on the request that asks what we are allowed to do.
+    """
+    parser = urllib.robotparser.RobotFileParser()
+    try:
+        response = httpx.get(
+            f"{root}/robots.txt",
+            headers={"User-Agent": settings.user_agent},
+            timeout=settings.scrape_timeout,
+            follow_redirects=True,
+        )
+    except Exception:
+        return None
+
+    code = response.status_code
+    if code in (401, 403):
+        # Access to the policy itself is restricted: treat the whole site as
+        # off limits rather than guessing we are welcome.
+        parser.disallow_all = True
+        return parser
+    if 400 <= code < 500:
+        # No robots.txt published. Nothing is disallowed.
+        parser.allow_all = True
+        return parser
+    if code >= 500:
+        # The server is struggling. Hammering it is the worst possible reply.
+        return None
+
+    parser.parse(response.text.splitlines())
+    return parser
+
+
 def robots_allows(url: str) -> bool:
+    """May we fetch this URL?
+
+    Unreachable robots.txt means NO, not yes. The previous version returned
+    True on any exception and then cached a parser it had never read — and
+    `can_fetch` on an unread parser returns False. So the first request to a
+    host with a flaky robots.txt was permitted and every later one refused,
+    for the life of the process, with no retry. Chamonix was written off as
+    "recon blocked" on the strength of one 503 that had long since cleared.
+    """
     parsed = urlparse(url)
     root = f"{parsed.scheme}://{parsed.netloc}"
-    parser = _robots_cache.get(root)
+    now = time.monotonic()
+
+    cached = _robots_cache.get(root)
+    if cached is not None:
+        checked_at, parser = cached
+        # A failure is re-checked sooner than a success: a 503 is usually a
+        # bad minute, not a policy, and must not poison the host until
+        # restart. A published policy is stable enough to reuse for an hour.
+        ttl = ROBOTS_TTL if parser is not None else ROBOTS_RETRY_TTL
+        if now - checked_at < ttl:
+            return parser.can_fetch(settings.user_agent, url) if parser else False
+
+    parser = _read_robots(root)
+    _robots_cache[root] = (now, parser)
     if parser is None:
-        parser = urllib.robotparser.RobotFileParser()
-        parser.set_url(f"{root}/robots.txt")
-        try:
-            parser.read()
-        except Exception:
-            # No reachable robots.txt: proceed, but stay slow and polite.
-            _robots_cache[root] = parser
-            return True
-        _robots_cache[root] = parser
+        return False
     return parser.can_fetch(settings.user_agent, url)
 
 
 def fetch(url: str, *, client: httpx.Client | None = None) -> httpx.Response:
     if not robots_allows(url):
-        raise PermissionError(f"robots.txt disallows {url}")
+        raise PermissionError(
+            f"robots.txt disallows {url} (or could not be read — an "
+            f"unreachable policy is treated as a refusal)"
+        )
     host = urlparse(url).netloc
     _throttle(host)
     owned = client is None

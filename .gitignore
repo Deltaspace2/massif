@@ -14,3 +14,4 @@ node_modules/
 data/
 *.log
 _to_delete/
+*.tsbuildinfo
