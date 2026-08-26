@@ -7,8 +7,8 @@
 # trust_weight drives status resolution: an arrêté outranks an Instagram post.
 
 - slug: mairie-chamonix
-  name: Mairie de Chamonix-Mont-Blanc — arrêtés municipaux
-  url: https://www.chamonix-mont-blanc.fr/
+  name: Mairie de Chamonix-Mont-Blanc — actes réglementaires
+  url: https://www.chamonix.fr/la-commune/publications-municipales/deliberations/
   source_type: official
   language: fr
   country: FR
@@ -16,22 +16,28 @@
   fetch_interval_minutes: 360
   active: false
   notes: >
-    Legally authoritative closures. PDFs, irregular publication schedule.
-    Needs LLM extraction — a French legal notice naming which section of which
-    path is closed between which dates is exactly what a regex cannot do.
+    Legally authoritative closures. NOT chamonix-mont-blanc.fr — that is the
+    tourist office. The mairie is chamonix.fr, and its regulatory acts page is
+    "Actes réglementaires: délibérations, arrêtés, décisions".
+    Recon blocked: chamonix.fr/robots.txt returned 503, so nothing has been
+    fetched yet. Confirm robots policy by hand before enabling.
 
 - slug: mairie-saint-gervais
-  name: Mairie de Saint-Gervais-les-Bains — arrêtés municipaux
-  url: https://www.saintgervais.com/
+  name: Mairie de Saint-Gervais-les-Bains — actualités
+  url: https://www.saintgervais.com/mairie/actualites/
   source_type: official
   language: fr
   country: FR
   trust_weight: 1.00
   fetch_interval_minutes: 360
-  active: false
+  active: true
   notes: >
-    Goûter route and Tête Rousse regulation. Historically the most
-    consequential publisher on this list.
+    Goûter route and Tête Rousse regulation — the most consequential publisher
+    on this list for alpinists. Notices are plain HTML news posts, not PDFs,
+    with dates in the title ("du 26 au 29 mai 2026", "le 26/08/26"), so no PDF
+    extraction is needed. They sit undifferentiated in the general municipal
+    feed alongside town news, so the scraper must decide what is a mountain
+    notice: keyword gate, then rule-based date parsing on the title.
 
 - slug: chamoniarde-ohm
   name: La Chamoniarde / Office de Haute Montagne
