@@ -136,7 +136,14 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
     history = session.execute(
         select(Statement, Source)
         .join(Source, Source.id == Statement.source_id)
-        .where(Statement.feature_id == feature.id)
+        .where(
+            Statement.feature_id == feature.id,
+            # Retired by re-extraction: the parser that produced these has
+            # since retracted them. They stay in the table as a record of
+            # what we used to think, but we never show them as notices.
+            Statement.superseded_at.is_(None),
+            Statement.superseded_by.is_(None),
+        )
         .order_by(desc(Statement.observed_at))
         .limit(50)
     ).all()
@@ -189,6 +196,11 @@ def feed(limit: int = 50, session: Session = Depends(get_session)) -> dict:
         select(Statement, Feature, Source)
         .join(Feature, Feature.id == Statement.feature_id)
         .join(Source, Source.id == Statement.source_id)
+        # Retracted by a later re-extraction; never in the feed.
+        .where(
+            Statement.superseded_at.is_(None),
+            Statement.superseded_by.is_(None),
+        )
         .order_by(desc(Statement.observed_at))
         .limit(min(limit, 200))
     ).all()
