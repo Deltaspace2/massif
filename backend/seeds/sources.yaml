@@ -13,14 +13,38 @@
   language: fr
   country: FR
   trust_weight: 1.00
-  fetch_interval_minutes: 360
+  fetch_interval_minutes: 1440
   active: false
   notes: >
-    Legally authoritative closures. NOT chamonix-mont-blanc.fr — that is the
-    tourist office. The mairie is chamonix.fr, and its regulatory acts page is
-    "Actes réglementaires: délibérations, arrêtés, décisions".
-    Recon blocked: chamonix.fr/robots.txt returned 503, so nothing has been
-    fetched yet. Confirm robots policy by hand before enabling.
+    INVESTIGATED AND PARKED — not a productive source. Recorded so nobody
+    spends another afternoon on it.
+
+    Not chamonix-mont-blanc.fr, which is the tourist office. robots.txt is
+    permissive; the site is WordPress and its REST API is open.
+
+    The "decree" post type (Publicité des actes) exists but is EMPTY:
+    /wp-json/wp/v2/decree returns X-WP-Total=0 and decree-sitemap1.xml lists
+    zero URLs. Scaffolding with nothing published through it.
+
+    The news feed (471 items, full JSON, real dates) carries no route
+    closures. Server-side search across arrête/montagne/glacier/éboulement/
+    interdiction and ten more terms surfaced 31 mountain-adjacent items in two
+    years: parking closures, the swimming pool, town-hall counters, refuge
+    concession tenders, a firework ban, cable maintenance, exhibitions. Zero
+    alpine route closures, zero rockfall or glacier arrêtés, nothing on the
+    Grand Couloir.
+
+    No third-party acts portal either: the page's only outbound links are
+    social media and the web agency. publication=municipal bulletin,
+    report=council minutes, procedure=empty.
+
+    Why: Saint-Gervais is unusual in owning and actively regulating the Goûter
+    route. Chamonix has no equivalent role over alpine routes — its lifts are
+    Compagnie du Mont-Blanc (covered by mbnr-live) and its high-mountain
+    hazard information comes from the OHM/Chamoniarde, not the mairie.
+
+    Re-check only if the decree register starts publishing. The recon module
+    massif/ingest/sources/chamonix.py re-runs all of the above in one command.
 
 - slug: mairie-saint-gervais
   name: Mairie de Saint-Gervais-les-Bains — actualités
