@@ -40,6 +40,9 @@ def recompute_feature(session: Session, feature_id: uuid.UUID) -> FeatureStatus:
         .where(
             Statement.feature_id == feature_id,
             Statement.superseded_by.is_(None),
+            # Retired by re-extraction. Checked alongside superseded_by rather
+            # than replacing it: a row excluded before must stay excluded.
+            Statement.superseded_at.is_(None),
             (Statement.valid_from.is_(None)) | (Statement.valid_from <= now),
             (Statement.valid_to.is_(None)) | (Statement.valid_to >= now),
         )

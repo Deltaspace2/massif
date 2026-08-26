@@ -10,8 +10,10 @@ from datetime import UTC, datetime
 import pytest
 
 from massif.enums import StatementType, StatusValue
+from massif.models import Document
 from massif.ingest.sources.saint_gervais import (
     GATE,
+    SaintGervaisScraper,
     classify,
     extract_published_at,
     features_mentioned,
@@ -264,3 +266,63 @@ def test_expired_closure_does_not_linger():
     """The May closure is over. It must not still be shutting the route."""
     winner = winning_status("gouter-route", datetime(2026, 6, 15, 9, 0, tzinfo=UTC))
     assert winner is None or winner.status is not StatusValue.CLOSED
+
+
+# ----------------------------------------------------- re-extraction --------
+
+def _doc(raw_text, url="https://www.saintgervais.com/mairie/actualites/x/",
+         published_at=None, fetched_at=None):
+    return Document(
+        url=url,
+        raw_text=raw_text,
+        published_at=published_at,
+        fetched_at=fetched_at or datetime(2026, 8, 27, 12, 0, tzinfo=UTC),
+        content_hash="x",
+        source_id=None,
+    )
+
+
+ARTICLE_HTML = """
+<html><head>
+<script type="application/ld+json">
+{"@graph":[{"@type":"WebPage","datePublished":"2026-05-26 09:00:00"}]}
+</script></head>
+<body><article><h1>Fermeture temporaire de la voie normale du Mont-Blanc
+du 26 au 29 mai 2026</h1><p>Arrêté municipal.</p></article></body></html>
+"""
+
+
+def test_extract_stored_reads_the_stored_html():
+    statements = SaintGervaisScraper().extract_stored(_doc(ARTICLE_HTML))
+    assert [s.feature_slug for s in statements] == ["gouter-route"]
+    assert statements[0].status is StatusValue.CLOSED
+
+
+def test_extract_stored_dates_from_the_document_not_now():
+    """A re-extraction is not a new observation. Dating April's notice today
+    would hand it the ranking win over August's reopening — the exact bug
+    published_at was introduced to fix, reintroduced invisibly."""
+    statements = SaintGervaisScraper().extract_stored(_doc(ARTICLE_HTML))
+    assert statements[0].observed_at.date().isoformat() == "2026-05-26"
+
+
+def test_extract_stored_falls_back_to_fetched_at_never_now():
+    """A document stored before published_at existed has no publication date.
+    fetched_at is when we saw it, which is still a fact about the past."""
+    html = ARTICLE_HTML.replace('"datePublished":"2026-05-26 09:00:00"', '"x":1')
+    doc = _doc(html, fetched_at=datetime(2026, 1, 5, 8, 0, tzinfo=UTC))
+    statements = SaintGervaisScraper().extract_stored(doc)
+    assert statements
+    assert statements[0].observed_at == datetime(2026, 1, 5, 8, 0, tzinfo=UTC)
+
+
+def test_extract_stored_skips_the_listing_page():
+    """The listing is stored for provenance but is not a notice. Extracting
+    it would double-count every headline it links to."""
+    listing = "<html><body><h1>Actualités</h1>Fermeture des refuges</body></html>"
+    doc = _doc(listing, url="https://www.saintgervais.com/mairie/actualites/")
+    assert SaintGervaisScraper().extract_stored(doc) == []
+
+
+def test_extract_stored_handles_a_document_with_no_text():
+    assert SaintGervaisScraper().extract_stored(_doc(None)) == []

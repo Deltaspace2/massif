@@ -321,8 +321,29 @@ def statements_for(
     return out
 
 
+def extract_page(html: str, url: str, fallback_observed_at: datetime) -> list[ExtractedStatement]:
+    """Everything downstream of having the HTML: the extract half, sharable
+    between a live fetch and a re-extraction from a stored document."""
+    published = extract_published_at(html)
+    title, body = article_text(html)
+    return statements_for(title, body, url, published or fallback_observed_at)
+
+
 class SaintGervaisScraper(Scraper):
     slug = "mairie-saint-gervais"
+
+    def extract_stored(self, document: Document) -> list[ExtractedStatement]:
+        # The listing page is stored for provenance but carries no notice of
+        # its own; extracting it would double-count every headline it links.
+        if not document.raw_text or document.url.rstrip("/").endswith("actualites"):
+            return []
+        # published_at was parsed at store time; fetched_at is the honest
+        # fallback for a document stored before that existed. Never now().
+        return extract_page(
+            document.raw_text,
+            document.url,
+            document.published_at or document.fetched_at,
+        )
 
     def collect(
         self, session: Session, source: Source
@@ -362,10 +383,8 @@ class SaintGervaisScraper(Scraper):
             )
             if not is_new:
                 continue
-            title, body = article_text(response.text)
-            results.append(
-                (document, statements_for(title, body, url, published or observed_at))
-            )
+            # Same extraction path re-extraction uses, so the two cannot drift.
+            results.append((document, extract_page(response.text, url, observed_at)))
 
         return results
 

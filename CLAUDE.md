@@ -18,6 +18,7 @@ python -m massif.scripts.migrate            # apply db/migrations/*.sql in order
 pytest -q                                   # ~60 tests
 python -m massif.scripts.seed_features      # load seeds/, merge OSM geometry
 python -m massif.scripts.run_ingest [slug]  # all due sources, or one
+python -m massif.scripts.reextract <slug> [--dry-run]  # re-parse stored docs
 python -m massif.scripts.review_queue       # names that did not resolve
 python -m massif.scripts.recompute          # rebuild feature_status from scratch
 uvicorn massif.main:app --reload            # API on :8000
@@ -46,6 +47,13 @@ kinds of information need new rows, not new tables.
 
 `documents` is immutable and never deleted. Extraction runs *from* stored
 documents so improving a parser means re-running over history, not re-fetching.
+`reextract` is that entry point: it calls each scraper's `extract_stored()`,
+retires the document's previous statements by setting `superseded_at`, and
+writes the new ones. Grain is the **document**, never the statement — an
+improved parser can emit fewer statements than it did before, or none, and
+those orphans have no successor for `superseded_by` to point at. Re-extraction
+must date statements from `published_at`/`fetched_at`, never `now()`: it is not
+a new observation.
 
 `feature_status` is a materialised cache. Ingest refreshes only what it
 touched; run `recompute` after anything that edits statements out of band.

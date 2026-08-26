@@ -215,6 +215,11 @@ class Statement(Base):
     superseded_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("statements.id", ondelete="SET NULL")
     )
+    # THAT this statement is retired, where superseded_by says WHICH row
+    # replaced it. Re-extraction is not 1:1 — an improved parser can emit
+    # fewer statements than it did before, or none — so a retired statement
+    # often has no successor to point at.
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

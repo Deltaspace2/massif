@@ -211,6 +211,90 @@ class Scraper(ABC):
     ) -> list[tuple[Document, list[ExtractedStatement]]]:
         """Fetch, store documents, and extract statements from them."""
 
+    def extract_stored(self, document: Document) -> list[ExtractedStatement]:
+        """Re-run extraction over an already-stored document, no network.
+
+        The extract half of `collect()`, callable on `document.raw_text`.
+        Implementing this is what lets an improved parser be re-run over
+        history instead of re-fetching it — see massif.scripts.reextract.
+
+        `observed_at` must come from the document, never from now(): a
+        re-extraction is not a new observation, and dating April's notice
+        today would hand it the ranking win over August's.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} has no extract_stored(); "
+            f"it cannot be re-extracted from stored documents yet"
+        )
+
+    def resolve_and_build(
+        self,
+        session: Session,
+        source: Source,
+        document: Document,
+        item: ExtractedStatement,
+        resolver: "FeatureResolver",
+    ) -> Statement | None:
+        """Resolve one extracted item to a feature and build its Statement.
+
+        Returns None when the mention did not resolve, having queued it in
+        `unresolved_mentions` first — unmatched goes to the review queue,
+        never to /dev/null.
+
+        Shared by `run()` and by re-extraction so the resolution rules cannot
+        drift apart between the two paths.
+        """
+        if item.parent_slug:
+            match = resolve_child(session, item.parent_slug, item.feature_mention)
+            candidates = []
+            if match is None:
+                resolver.queue_unresolved(
+                    item.feature_mention,
+                    [],
+                    source_id=source.id,
+                    document_id=document.id,
+                    context=f"parent {item.parent_slug} not seeded",
+                )
+                return None
+        elif item.feature_slug:
+            feature = session.scalar(
+                select(Feature).where(Feature.slug == item.feature_slug)
+            )
+            match = (
+                Match(str(feature.id), 100.0, item.feature_slug) if feature else None
+            )
+            candidates = []
+        else:
+            match, candidates = resolver.resolve(item.feature_mention)
+
+        if match is None:
+            resolver.queue_unresolved(
+                item.feature_mention,
+                candidates,
+                source_id=source.id,
+                document_id=document.id,
+                context=item.context or item.original_text,
+            )
+            return None
+
+        return Statement(
+            feature_id=match.feature_id,
+            source_id=source.id,
+            document_id=document.id,
+            statement_type=item.statement_type,
+            status=item.status,
+            severity=item.severity,
+            observed_at=item.observed_at,
+            valid_from=item.valid_from,
+            valid_to=item.valid_to,
+            summary_en=item.summary_en,
+            original_text=item.original_text,
+            original_language=item.original_language or source.language,
+            payload=item.payload,
+            extraction_method=item.extraction_method,
+            extraction_confidence=item.extraction_confidence,
+        )
+
     def run(self, session: Session) -> IngestRun:
         source = session.scalar(select(Source).where(Source.slug == self.slug))
         if source is None:
@@ -227,66 +311,15 @@ class Scraper(ABC):
             for document, extracted in self.collect(session, source):
                 run.documents_new += 1
                 for item in extracted:
-                    if item.parent_slug:
-                        match = resolve_child(
-                            session, item.parent_slug, item.feature_mention
-                        )
-                        candidates = []
-                        if match is None:
-                            resolver.queue_unresolved(
-                                item.feature_mention,
-                                [],
-                                source_id=source.id,
-                                document_id=document.id,
-                                context=f"parent {item.parent_slug} not seeded",
-                            )
-                            run.unresolved_new += 1
-                            continue
-                    elif item.feature_slug:
-                        feature = session.scalar(
-                            select(Feature).where(Feature.slug == item.feature_slug)
-                        )
-                        match = (
-                            Match(str(feature.id), 100.0, item.feature_slug)
-                            if feature
-                            else None
-                        )
-                        candidates = []
-                    else:
-                        match, candidates = resolver.resolve(item.feature_mention)
-
-                    if match is None:
-                        resolver.queue_unresolved(
-                            item.feature_mention,
-                            candidates,
-                            source_id=source.id,
-                            document_id=document.id,
-                            context=item.context or item.original_text,
-                        )
+                    statement = self.resolve_and_build(
+                        session, source, document, item, resolver
+                    )
+                    if statement is None:
                         run.unresolved_new += 1
                         continue
-
-                    session.add(
-                        Statement(
-                            feature_id=match.feature_id,
-                            source_id=source.id,
-                            document_id=document.id,
-                            statement_type=item.statement_type,
-                            status=item.status,
-                            severity=item.severity,
-                            observed_at=item.observed_at,
-                            valid_from=item.valid_from,
-                            valid_to=item.valid_to,
-                            summary_en=item.summary_en,
-                            original_text=item.original_text,
-                            original_language=item.original_language or source.language,
-                            payload=item.payload,
-                            extraction_method=item.extraction_method,
-                            extraction_confidence=item.extraction_confidence,
-                        )
-                    )
+                    session.add(statement)
                     run.statements_new += 1
-                    touched.add(match.feature_id)
+                    touched.add(statement.feature_id)
 
                 document.extracted_at = datetime.now(UTC)
 
