@@ -14,7 +14,27 @@ import yaml
 from sqlalchemy import select
 
 from massif.db import session_scope
-from massif.ingest.resolve import normalise
+import re
+import unicodedata
+
+
+# Deliberately NOT massif.ingest.resolve.normalise. That one strips generic
+# mountain nouns (route, voie, arête, refuge, du) so prose mentions match
+# loosely — which is exactly wrong here. Under it, "Goûter Route" and "Refuge
+# du Goûter" are the same string, and the route inherited the hut's location.
+# Geometry assignment wants the strictest match we can manage, not the
+# loosest: casefold, strip accents, collapse whitespace, nothing else.
+def geo_key(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r"[^a-z0-9\s]", " ", text.casefold())
+    return re.sub(r"\s+", " ", text).strip()
+
+
+# Feature kinds that ARE a point. A route or a couloir is a line; giving it a
+# point is the wrong shape even when the name matches correctly, so they are
+# never assigned OSM point geometry.
+POINT_LIKE = {"hut", "lift", "lift_station", "peak"}
 from massif.models import Feature, Source
 
 SEEDS = Path(__file__).resolve().parents[2] / "seeds"
@@ -55,7 +75,7 @@ def build_osm_index() -> dict[str, dict]:
         forms = [candidate["name_default"], *(candidate.get("names") or {}).values()]
         forms.extend(candidate.get("aliases") or [])
         for form in forms:
-            key = normalise(form)
+            key = geo_key(form)
             if key:
                 index.setdefault(key, candidate)
     return index
@@ -84,9 +104,14 @@ def seed_features(session) -> tuple[int, int]:
         existing.country = row.get("country")
         existing.notes = row.get("notes")
 
-        # OSM supplies geometry only
-        for form in [row["name_default"], *existing.aliases]:
-            candidate = osm.get(normalise(form))
+        # OSM supplies geometry only, and only to features that ARE points
+        forms = (
+            [row["name_default"], *existing.aliases]
+            if row["feature_type"] in POINT_LIKE
+            else []
+        )
+        for form in forms:
+            candidate = osm.get(geo_key(form))
             if candidate:
                 existing.geom = (
                     f"SRID=4326;POINT({candidate['lon']} {candidate['lat']})"

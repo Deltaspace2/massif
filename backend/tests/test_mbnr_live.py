@@ -125,7 +125,7 @@ def test_pending_sector_is_not_reported_closed():
     items = [_item(ITEM_PENDING), _item(ITEM_PENDING)]
     status, _, note = sector_status(items, {"open": 0, "total": 2}, morning)
     assert status is StatusValue.UNKNOWN
-    assert "first lift 07:20" in note
+    assert "07:20–16:10" in note
 
 
 def test_pending_sector_wording_depends_on_the_resort_clock():
@@ -141,8 +141,9 @@ def test_pending_sector_wording_depends_on_the_resort_clock():
         datetime(2026, 8, 24, 21, 16, tzinfo=paris),
     )[2]
     assert morning != evening
-    assert "first lift" in morning
+    assert "closed now" in morning
     assert "closed for the day" in evening
+    assert "07:20–16:10" in morning and "07:20–16:10" in evening
 
 
 def test_genuinely_closed_sector_reads_closed():
@@ -276,7 +277,10 @@ def _pending(times):
 
 def test_before_first_lift_says_not_yet():
     now = datetime(2026, 8, 24, 6, 45, tzinfo=PARIS)
-    assert "first lift 07:20" in pending_phase([_pending(["07:20 - 16:10"])], now)
+    phrase = pending_phase([_pending(["07:20 - 16:10"])], now)
+    assert "closed now" in phrase
+    # both ends of the day: the last lift down decides whether a day out works
+    assert "07:20–16:10" in phrase
 
 
 def test_after_last_lift_says_closed_for_the_day():
@@ -285,6 +289,7 @@ def test_after_last_lift_says_closed_for_the_day():
     now = datetime(2026, 8, 24, 21, 16, tzinfo=PARIS)
     phrase = pending_phase([_pending(["07:20 - 16:10"])], now)
     assert "closed for the day" in phrase
+    assert "07:20–16:10" in phrase
     assert "not yet" not in phrase
 
 

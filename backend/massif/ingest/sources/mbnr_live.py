@@ -172,11 +172,16 @@ def pending_phase(items: list[dict], now: datetime) -> str:
     last_close = max(w[1] for w in windows)
     clock = local.time()
 
+    # Both ends of the day, not just the reopening. "Reopens 08:20" tells you
+    # when to turn up and nothing about how long you have — and the last lift
+    # down is the number that decides whether a day out is feasible at all.
+    window = f"{first_open.strftime('%H:%M')}–{last_close.strftime('%H:%M')}"
+
     if clock < first_open:
-        return f"closed now, first lift {first_open.strftime('%H:%M')}"
+        return f"closed now · runs {window} today"
     if clock > last_close:
-        return f"closed for the day, reopens {first_open.strftime('%H:%M')}"
-    return "not running despite being within operating hours"
+        return f"closed for the day · runs {window}"
+    return f"not running despite operating hours {window}"
 
 
 def sector_status(

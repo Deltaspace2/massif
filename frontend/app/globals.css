@@ -98,3 +98,113 @@ table.history th { color: var(--muted); font-weight: 500; }
   padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px;
 }
 .lifts .times { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Feature kind, shown so a route closure is not mistaken for a lift one. */
+.pill.type {
+  color: var(--muted);
+  border-color: var(--line);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+/* A status word is a lossy summary. When other live notices exist they are
+   flagged on the card itself, not left for whoever scrolls to the history. */
+.notices {
+  margin: 6px 0 0 !important;
+  color: var(--restricted) !important;
+  font-size: 13px;
+}
+
+.notice {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--restricted);
+  background: var(--panel);
+  border-radius: 6px;
+  padding: 10px 13px;
+  margin-bottom: 8px;
+}
+.notice h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.notice p { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* --- hierarchy ---------------------------------------------------------
+   The page answers one question: what is shut that should not be. A real
+   closure and a lift asleep for the night were the same size card, so
+   answering it meant reading twenty of them. Weight now tracks how much a
+   thing deserves attention. */
+
+.headline {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--closed);
+  background: linear-gradient(180deg, rgba(248,81,73,0.07), transparent 60%),
+              var(--panel);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin-bottom: 10px;
+  display: block;
+  text-decoration: none;
+}
+.headline.restricted { border-left-color: var(--restricted); }
+.headline h3 { margin: 0 0 6px; font-size: 20px; letter-spacing: -0.01em; }
+.headline p { margin: 0; font-size: 15px; color: var(--text); opacity: 0.85; }
+
+/* Routine status: a table, not a wall of cards. Present, scannable, quiet. */
+.quiet {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 10px;
+}
+.quiet td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+.quiet td:first-child { color: var(--text); width: 34%; }
+.quiet td.state { width: 1%; white-space: nowrap; }
+.quiet tr:hover td { background: rgba(255, 255, 255, 0.02); }
+.quiet a { text-decoration: none; }
+
+.dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-align: 1px;
+}
+.dot.open { background: var(--open); }
+.dot.closed { background: var(--closed); }
+.dot.restricted { background: var(--restricted); }
+.dot.unknown { background: var(--unknown); }
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 34px 0 4px;
+}
+.section-head h2 { font-size: 15px; margin: 0; }
+.section-head span { color: var(--muted); font-size: 12px; }
+
+/* Map key. Six line colours and forty markers had nothing explaining them. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i {
+  display: inline-block;
+  width: 18px; height: 0;
+  border-top: 2px solid currentColor;
+}
+.legend i.dashed { border-top-style: dashed; }
+
+.feature-map {
+  height: 280px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  margin-top: 14px;
+}

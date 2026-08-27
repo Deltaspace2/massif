@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import FeatureMap from "@/components/FeatureMap";
 import { getFeature, resortTime, sinceLabel } from "@/lib/api";
 
 export const revalidate = 60;
@@ -55,7 +56,12 @@ export default async function FeaturePage({ params }: { params: Params }) {
         {feature.country ? ` · ${feature.country}` : ""}
       </p>
 
-      <div className={routine ? "card routine" : `card ${feature.status.value}`}>
+      <FeatureMap feature={feature} />
+
+      <div
+        className={routine ? "card routine" : `card ${feature.status.value}`}
+        style={{ marginTop: 14 }}
+      >
         <h3>
           {feature.status.summary ?? feature.status.value}{" "}
           {!routine && feature.status.value !== "unknown" && (
@@ -75,6 +81,40 @@ export default async function FeaturePage({ params }: { params: Params }) {
           </div>
         )}
       </div>
+
+      {feature.other_notices.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 15, marginTop: 26 }}>
+            Also currently in force
+          </h3>
+          <p className="meta">
+            Live notices about this feature that are not the headline status. A
+            route can be legally open and still carry a warning — only one of
+            them gets to be the colour of the card, so the rest are here rather
+            than buried in the history.
+          </p>
+          {feature.other_notices.map((notice, index) => (
+            <div className="notice" key={index}>
+              <h4>
+                {notice.summary ?? notice.type}{" "}
+                <span className={`pill ${notice.status}`}>{notice.status}</span>
+              </h4>
+              {notice.original_text && (
+                <p>
+                  “{notice.original_text.slice(0, 240)}
+                  {notice.original_text.length > 240 ? "…" : ""}”
+                </p>
+              )}
+              <p className="meta">
+                {resortTime(notice.observed_at)} ·{" "}
+                <a href={notice.source.url} rel="nofollow noopener">
+                  {notice.source.name}
+                </a>
+              </p>
+            </div>
+          ))}
+        </>
+      )}
 
       {feature.status.lifts && feature.status.lifts.length > 0 && (
         <>

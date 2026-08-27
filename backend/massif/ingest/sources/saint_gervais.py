@@ -46,7 +46,8 @@ from sqlalchemy.orm import Session
 
 from massif.enums import ExtractionMethod, StatementType, StatusValue
 from massif.ingest.base import ExtractedStatement, Scraper, fetch, store_document
-from massif.ingest.fr_dates import parse_range, strip_accents
+from massif.ingest.fr_dates import parse_range
+from massif.ingest.fr_features import features_mentioned, norm
 from massif.models import Document, Source
 from massif.status import STALE_DAYS
 
@@ -78,28 +79,10 @@ GATE = re.compile(
     re.I,
 )
 
-# Unambiguous name -> slug. Checked on accent-stripped lowercase text.
-FEATURE_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"voie normale du mont[- ]blanc"), "gouter-route"),
-    (re.compile(r"voie normale"), "gouter-route"),
-    (re.compile(r"(voie|arete|itineraire) du gouter"), "gouter-route"),
-    (re.compile(r"grand couloir"), "grand-couloir"),
-    (re.compile(r"tete rousse"), "refuge-tete-rousse"),
-    (re.compile(r"tramway du mont[- ]blanc|nid d'aigle"), "tramway-du-mont-blanc"),
-    (re.compile(r"aiguille du gouter"), "gouter-route"),
-]
+# Feature recognition is shared with the other French sources — see
+# massif/ingest/fr_features.py. Kept re-exported here so this module's public
+# surface (and its tests) are unchanged.
 
-# "Goûter" alone is ambiguous — the refuge or the route — so it is never
-# matched bare. Context within this many characters decides, and if both
-# senses appear the notice genuinely concerns both.
-GOUTER = re.compile(r"gouter")
-GOUTER_WINDOW = 45
-REFUGE_SENSE = re.compile(r"refuge|cabane|dortoir|nuit|reservation")
-ROUTE_SENSE = re.compile(r"voie|arete|itineraire|acces|couloir|ascension|course")
-
-# Matched against norm() output: lowercase, accents stripped. "Réouverture"
-# and "reouverture" must behave identically, and the raw-text version of this
-# check inverted a reopening into a closure.
 OPENING_WORDS = re.compile(
     r"reouvert|reouverture|rouvre|levee de l'interdiction|"
     r"levee de l'arrete|retabli|de nouveau accessible|reprise"
@@ -110,31 +93,6 @@ CLOSURE_WORDS = re.compile(
 )
 
 
-def norm(text: str) -> str:
-    return re.sub(r"\s+", " ", strip_accents(text).lower()).strip()
-
-
-def features_mentioned(text: str) -> list[str]:
-    """Every feature this notice names. Order-stable, deduped."""
-    flat = norm(text)
-    found: list[str] = []
-
-    for pattern, slug in FEATURE_PATTERNS:
-        if pattern.search(flat) and slug not in found:
-            found.append(slug)
-
-    for match in GOUTER.finditer(flat):
-        start = max(0, match.start() - GOUTER_WINDOW)
-        window = flat[start: match.end() + GOUTER_WINDOW]
-        # A bare "Goûter" is never assigned. If the sentence does not say
-        # whether it means the hut or the route, we would be guessing, and a
-        # wrong guess closes the wrong thing.
-        if REFUGE_SENSE.search(window) and "refuge-du-gouter" not in found:
-            found.append("refuge-du-gouter")
-        if ROUTE_SENSE.search(window) and "gouter-route" not in found:
-            found.append("gouter-route")
-
-    return found
 
 
 def classify(title: str, body: str = "") -> tuple[StatementType, StatusValue, int] | None:

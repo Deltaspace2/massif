@@ -35,11 +35,115 @@ def _geojson(feature: Feature) -> dict | None:
     return to_shape(feature.geom).__geo_interface__
 
 
+# What counts as a NOTICE rather than just more data. A seasonal calendar
+# entry — "scheduled summer season 2026-07-13 – 2026-09-27" — is a different
+# fact from today's lift status, and correctly survives retirement, but it is
+# not something to warn anyone about. Flagging it amber next to real rockfall
+# notices teaches people to ignore the amber.
+NOTEWORTHY_TYPES = ("closure", "restriction", "hazard_observation")
+
+
+def _noteworthy(statement: Statement) -> bool:
+    if (statement.payload or {}).get("schedule"):
+        return False
+    return (
+        statement.severity >= 1
+        or str(statement.statement_type) in NOTEWORTHY_TYPES
+    )
+
+
+def _live(now: datetime):
+    """Statements that count right now: not retired, inside their validity."""
+    return (
+        Statement.superseded_at.is_(None),
+        Statement.superseded_by.is_(None),
+        (Statement.valid_from.is_(None)) | (Statement.valid_from <= now),
+        (Statement.valid_to.is_(None)) | (Statement.valid_to >= now),
+    )
+
+
+def _other_notice_counts(session: Session, now: datetime) -> dict:
+    """Per feature, how many currently-valid statements did NOT win the
+    status slot.
+
+    A single status word is a lossy summary. Saint-Gervais says the Goûter
+    route is legally open; the same feature can simultaneously carry a
+    rockfall notice and a demolition restriction that lost on trust weight or
+    severity and are otherwise invisible. An unqualified green "open" on the
+    normal route up Mont Blanc is exactly the reading this project exists to
+    avoid, so the count is surfaced even when the status is not.
+    """
+    rows = session.execute(
+        select(Statement, FeatureStatus.statement_id)
+        .join(FeatureStatus, FeatureStatus.feature_id == Statement.feature_id)
+        .where(*_live(now))
+    ).all()
+
+    counts: dict = {}
+    for statement, winning_id in rows:
+        if statement.id == winning_id or not _noteworthy(statement):
+            continue
+        counts[statement.feature_id] = counts.get(statement.feature_id, 0) + 1
+    return counts
+
+
+def _season_status(statements: list, has_schedule: bool) -> dict:
+    """Is this thing available THIS SEASON, ignoring the hour of the day?
+
+    The site was colouring by operational status — "is it turning right now" —
+    which is the wrong question for someone planning a trip. At 03:00 every
+    lift in the massif reads closed, the whole map goes grey, and a genuine
+    seasonal closure is indistinguishable from nightfall.
+
+    Season status ignores operational_status entirely and reads only the
+    facts that survive the night: decreed closures, advisories, and whether a
+    published season covers today.
+
+    A feature that publishes seasons and has none covering today is out of
+    season — that is a real answer, not missing data, and it is the one
+    Grands Montets needs.
+    """
+    blocking = [
+        st for st in statements
+        if str(st.statement_type) in ("closure", "restriction")
+    ]
+    if blocking:
+        worst = max(blocking, key=lambda st: st.severity)
+        return {
+            "value": (
+                StatusValue.CLOSED
+                if str(worst.statement_type) == "closure"
+                else StatusValue.RESTRICTED
+            ),
+            "reason": worst.summary_en,
+            "kind": "notice",
+        }
+
+    live_schedule = [st for st in statements if (st.payload or {}).get("schedule")]
+    if live_schedule:
+        return {
+            "value": StatusValue.OPEN,
+            "reason": live_schedule[0].summary_en,
+            "kind": "in_season",
+        }
+
+    if has_schedule:
+        return {
+            "value": StatusValue.CLOSED,
+            "reason": "not running this season",
+            "kind": "out_of_season",
+        }
+
+    return {"value": StatusValue.UNKNOWN, "reason": None, "kind": None}
+
+
 def _feature_dict(
     feature: Feature,
     status: FeatureStatus | None,
     statement: Statement | None = None,
     parent_slug: str | None = None,
+    other_notices: int = 0,
+    season: dict | None = None,
 ) -> dict:
     now = datetime.now(UTC)
     payload = (statement.payload if statement else None) or {}
@@ -71,7 +175,14 @@ def _feature_dict(
             "counts": payload.get("counts"),
             "altitude_m": payload.get("altitude_m"),
             "lifts": payload.get("lifts"),
+            # Currently-valid statements that did not win the status slot.
+            # Never let one word be the whole story.
+            "other_notices": other_notices,
         },
+        # What a trip planner actually asks. status is "right now"; this is
+        # "this season", and it is what the UI colours by.
+        "season": season
+        or {"value": StatusValue.UNKNOWN, "reason": None, "kind": None},
     }
 
 
@@ -111,10 +222,34 @@ def list_features(
         query = query.where(FeatureStatus.status == status)
 
     rows = session.execute(query).all()
+    now = datetime.now(UTC)
+    others = _other_notice_counts(session, now)
+
+    # Every currently-valid statement, grouped by feature, so season status
+    # can be derived without a query per feature.
+    live_by_feature: dict = {}
+    for statement in session.scalars(select(Statement).where(*_live(now))):
+        live_by_feature.setdefault(statement.feature_id, []).append(statement)
+
+    # Which features publish seasons at all — an empty result then means
+    # "out of season" rather than "we have no idea".
+    schedule_features = {
+        fid
+        for (fid,) in session.execute(
+            select(Statement.feature_id)
+            .where(Statement.payload["schedule"].astext == "true")
+            .distinct()
+        )
+    }
     return {
         "count": len(rows),
         "features": [
-            _feature_dict(f, st, stmt, parent)
+            _feature_dict(
+                f, st, stmt, parent, others.get(f.id, 0),
+                _season_status(
+                    live_by_feature.get(f.id, []), f.id in schedule_features
+                ),
+            )
             for f, st, stmt, parent in rows
         ],
         "disclaimer": DISCLAIMER,
@@ -148,10 +283,60 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
         .limit(50)
     ).all()
 
+    now = datetime.now(UTC)
+
+    # Everything currently valid that is NOT the winning statement. These are
+    # the notices a single status word discards — a legal opening can sit on
+    # the same feature as a live rockfall warning, and only one of them gets
+    # to be the colour of the card.
+    winning = status.statement_id if status else None
+    others = [
+        (st, src)
+        for st, src in session.execute(
+            select(Statement, Source)
+            .join(Source, Source.id == Statement.source_id)
+            .where(Statement.feature_id == feature.id, *_live(now))
+            .order_by(desc(Statement.severity), desc(Statement.observed_at))
+        ).all()
+        if st.id != winning and _noteworthy(st)
+    ]
+
+    live_here = list(
+        session.scalars(
+            select(Statement).where(Statement.feature_id == feature.id, *_live(now))
+        )
+    )
+    publishes_seasons = bool(
+        session.scalar(
+            select(Statement.id).where(
+                Statement.feature_id == feature.id,
+                Statement.payload["schedule"].astext == "true",
+            )
+        )
+    )
+
     parent = session.get(Feature, feature.parent_id) if feature.parent_id else None
     payload = _feature_dict(
-        feature, status, current, parent.slug if parent else None
+        feature, status, current, parent.slug if parent else None, len(others),
+        _season_status(live_here, publishes_seasons),
     )
+
+    payload["other_notices"] = [
+        {
+            "type": st.statement_type,
+            "status": st.status,
+            "severity": st.severity,
+            "observed_at": st.observed_at,
+            "valid_from": st.valid_from,
+            "valid_to": st.valid_to,
+            "summary": st.summary_en,
+            "original_text": st.original_text,
+            "original_language": st.original_language,
+            "advisory": bool((st.payload or {}).get("advisory")),
+            "source": {"name": src.name, "url": src.url, "type": src.source_type},
+        }
+        for st, src in others
+    ]
 
     payload["parent"] = (
         {"slug": parent.slug, "name": parent.name_default} if parent else None

@@ -30,6 +30,11 @@ QUERY = f"""
   way["tourism"~"^(alpine_hut|wilderness_hut)$"]{BBOX};
   node["natural"="peak"]["ele"]{BBOX};
   way["aerialway"~"^(cable_car|gondola)$"]{BBOX};
+  // Mountain railways are not tagged railway=rail + usage=tourism. The
+  // Montenvers is a rack railway and the Tramway du Mont-Blanc a metre-gauge
+  // one, so both were missing from candidates entirely — read as "OSM does
+  // not have it" when the query simply never asked.
+  way["railway"~"^(narrow_gauge|funicular|rack|light_rail)$"]["name"]{BBOX};
   way["railway"="rail"]["usage"="tourism"]{BBOX};
   node["aerialway"="station"]{BBOX};
   way["natural"="glacier"]{BBOX};
@@ -60,7 +65,9 @@ def classify(tags: dict) -> str | None:
         return "lift_station"
     if tags.get("natural") == "glacier":
         return "glacier"
-    if tags.get("railway") == "rail":
+    if tags.get("railway") in (
+        "rail", "narrow_gauge", "funicular", "rack", "light_rail"
+    ):
         return "lift"
     return None
 

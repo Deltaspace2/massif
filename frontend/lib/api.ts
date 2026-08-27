@@ -16,6 +16,8 @@ export interface FeatureStatus {
   closure_kind: string | null;
   counts: Record<string, { open: number; total: number }> | null;
   altitude_m: number | null;
+  /** Currently-valid statements that did not win the status slot. */
+  other_notices: number;
   lifts:
     | {
         name: string;
@@ -27,7 +29,16 @@ export interface FeatureStatus {
     | null;
 }
 
+/** Availability THIS SEASON, ignoring the hour. What a trip planner asks. */
+export interface Season {
+  value: StatusValue;
+  reason: string | null;
+  /** "in_season" | "out_of_season" | "notice" | null */
+  kind: string | null;
+}
+
 export interface Feature {
+  season: Season;
   slug: string;
   type: string;
   /** Null for a sector; set for an individual machine inside one. */
@@ -42,7 +53,23 @@ export interface Feature {
   status: FeatureStatus;
 }
 
+export interface Notice {
+  type: string;
+  status: StatusValue;
+  severity: number;
+  observed_at: string;
+  valid_from: string | null;
+  valid_to: string | null;
+  summary: string | null;
+  original_text: string | null;
+  original_language: string | null;
+  advisory: boolean;
+  source: { name: string; url: string; type: string };
+}
+
 export interface FeatureDetail extends Feature {
+  /** The detail endpoint returns the notices themselves, not just a count. */
+  other_notices: Notice[];
   parent: { slug: string; name: string } | null;
   children: {
     slug: string;
@@ -123,5 +150,6 @@ export function sinceLabel(iso: string | null): string {
   if (minutes < 60) return `${minutes} min ago`;
   const hours = Math.round(minutes / 60);
   if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)} days ago`;
+  const days = Math.round(hours / 24);
+  return days === 1 ? "yesterday" : `${days} days ago`;
 }

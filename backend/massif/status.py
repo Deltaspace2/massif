@@ -94,3 +94,60 @@ def recompute_many(session: Session, feature_ids: set[uuid.UUID]) -> int:
 def is_stale(status: FeatureStatus, at: datetime | None = None) -> bool:
     at = at or datetime.now(UTC)
     return status.stale_after is not None and status.stale_after < at
+
+
+def active_advisories(
+    session: Session, feature_ids: set[uuid.UUID], at: datetime | None = None
+) -> dict[uuid.UUID, list[Statement]]:
+    """Currently-valid warnings that did NOT win the status slot.
+
+    Trust weight decides open versus closed, and it should: legal authority
+    outranks a safety office on whether a route is legally shut. But losing
+    that contest must not silence a warning.
+
+    The case this exists for, live in the database:
+
+        Saint-Gervais (trust 1.00): the Goûter route is open.
+        OHM (trust 0.85): "Réouverture « administrative » ... Cela ne signifie
+        pas une disparition des risques… Différer son projet d'ascension."
+
+    Both true. Resolution correctly shows "open" — and a page that stops there
+    is a technically accurate answer that reads as clearance on the
+    most-climbed route in the Alps, in a season the local safety office is
+    telling people to stay off it.
+
+    So: everything valid right now, carrying severity, that is not the winner.
+    """
+    if not feature_ids:
+        return {}
+    at = at or datetime.now(UTC)
+
+    winners = {
+        row[0]
+        for row in session.execute(
+            select(FeatureStatus.statement_id).where(
+                FeatureStatus.feature_id.in_(feature_ids),
+                FeatureStatus.statement_id.is_not(None),
+            )
+        ).all()
+    }
+
+    rows = session.scalars(
+        select(Statement)
+        .where(
+            Statement.feature_id.in_(feature_ids),
+            Statement.severity >= 1,
+            Statement.superseded_by.is_(None),
+            Statement.superseded_at.is_(None),
+            (Statement.valid_from.is_(None)) | (Statement.valid_from <= at),
+            (Statement.valid_to.is_(None)) | (Statement.valid_to >= at),
+        )
+        .order_by(Statement.severity.desc(), Statement.observed_at.desc())
+    ).all()
+
+    out: dict[uuid.UUID, list[Statement]] = {}
+    for statement in rows:
+        if statement.id in winners:
+            continue
+        out.setdefault(statement.feature_id, []).append(statement)
+    return out

@@ -261,6 +261,49 @@ def resolve_child(session: Session, parent_slug: str, name: str) -> "Match | Non
     return Match(str(child.id), 100.0, name)
 
 
+def retire_replaced(session: Session, incoming: Statement) -> int:
+    """Mark older readings that this statement replaces as superseded.
+
+    A source reporting on a feature again has not added a second opinion; it
+    has updated its own. Without this, every reading from every run stayed
+    permanently live — harmless while nothing read them, then visible as
+    "3 other current notices" on every lift the moment the API started
+    surfacing non-winning statements.
+
+    Same feature, same source, same type, and overlapping validity. The
+    overlap test is what keeps mbnr-openings' summer and winter seasons apart:
+    both OPENING, both from one source on one feature, but two different facts
+    rather than two readings of one.
+    """
+    query = select(Statement).where(
+        Statement.feature_id == incoming.feature_id,
+        Statement.source_id == incoming.source_id,
+        Statement.statement_type == incoming.statement_type,
+        Statement.superseded_at.is_(None),
+        Statement.superseded_by.is_(None),
+    )
+    if incoming.valid_from is not None:
+        query = query.where(
+            (Statement.valid_to.is_(None))
+            | (Statement.valid_to >= incoming.valid_from)
+        )
+    if incoming.valid_to is not None:
+        query = query.where(
+            (Statement.valid_from.is_(None))
+            | (Statement.valid_from <= incoming.valid_to)
+        )
+
+    now = datetime.now(UTC)
+    count = 0
+    for older in session.scalars(query):
+        if older.observed_at and incoming.observed_at:
+            if older.observed_at > incoming.observed_at:
+                continue  # the stored one is newer; leave it alone
+        older.superseded_at = now
+        count += 1
+    return count
+
+
 class Scraper(ABC):
     """One per source. Implement collect(); the base class handles storage,
     resolution and status recomputation."""
@@ -379,6 +422,7 @@ class Scraper(ABC):
                     if statement is None:
                         run.unresolved_new += 1
                         continue
+                    retire_replaced(session, statement)
                     session.add(statement)
                     run.statements_new += 1
                     touched.add(statement.feature_id)

@@ -3,18 +3,112 @@ import { listFeatures, getHealth, sinceLabel, type Feature } from "@/lib/api";
 
 export const revalidate = 60;
 
-/** Routine closures are ranked below real ones: the point of the page is what
- *  is unexpectedly shut, not what is asleep. */
-function rank(feature: Feature): number {
-  if (feature.status.closure_kind === "outside_hours") return 3;
-  return { closed: 0, restricted: 1, open: 2, unknown: 4 }[
-    feature.status.value
-  ] ?? 5;
+const TYPE_LABEL: Record<string, string> = {
+  route: "route",
+  couloir: "couloir",
+  hut: "hut",
+  lift: "lift",
+  lift_station: "station",
+  glacier: "glacier",
+  access_road: "access",
+  trail: "trail",
+  peak: "peak",
+  zone: "zone",
+};
+
+/** Worth interrupting a TRIP PLANNER for. Not "shut because it is 3am" —
+ *  colouring by the hour turned the page grey every night and hid the one
+ *  genuine seasonal closure among eleven sleeping lifts. */
+function isNotable(feature: Feature): boolean {
+  return (
+    feature.season.value === "closed" || feature.season.value === "restricted"
+  );
 }
 
-function cardClass(feature: Feature): string {
-  if (feature.status.closure_kind === "outside_hours") return "card routine";
-  return `card ${feature.status.value}`;
+function rank(feature: Feature): number {
+  return (
+    { closed: 0, restricted: 1, open: 2, unknown: 4 }[feature.season.value] ?? 5
+  );
+}
+
+/** "closed for the day · runs 07:20–16:10" is a detail, not a headline.
+ *
+ *  Returns null when there is nothing to add: no live status, the season line
+ *  already says it, or the thing is shut for the season anyway. A feature
+ *  with only a calendar entry was printing the same sentence twice. */
+function rightNow(feature: Feature): string | null {
+  const summary = feature.status.summary;
+  if (!summary) return null;
+  if (feature.season.value === "closed") return null;
+  if (summary === feature.season.reason) return null;
+  return summary;
+}
+
+/** The answer to the page's question, given room to be read. */
+function Headline({ feature }: { feature: Feature }) {
+  return (
+    <a
+      className={`headline ${feature.status.value}`}
+      href={`/${feature.type}/${feature.slug}`}
+    >
+      <h3>
+        {feature.name}{" "}
+        <span className={`pill ${feature.season.value}`}>
+          {feature.season.kind === "out_of_season"
+            ? "not this season"
+            : feature.season.value}
+        </span>
+      </h3>
+      <p>{feature.season.reason ?? feature.status.summary}</p>
+      {rightNow(feature) && <p className="meta">Today: {rightNow(feature)}</p>}
+      {feature.status.other_notices > 0 && (
+        <p className="notices">
+          ⚠ {feature.status.other_notices} other current notice
+          {feature.status.other_notices === 1 ? "" : "s"} on this feature
+        </p>
+      )}
+      <div className={`meta ${feature.status.stale ? "stale" : ""}`}>
+        {TYPE_LABEL[feature.type] ?? feature.type} ·{" "}
+        {feature.status.stale ? "⚠ not confirmed recently · " : ""}
+        last confirmed {sinceLabel(feature.status.observed_at)}
+      </div>
+    </a>
+  );
+}
+
+/** Everything routine: present and scannable, never competing for attention. */
+function QuietTable({ features }: { features: Feature[] }) {
+  return (
+    <table className="quiet">
+      <tbody>
+        {features.map((feature) => (
+          <tr key={feature.slug}>
+            <td>
+              <a href={`/${feature.type}/${feature.slug}`}>
+                <span className={`dot ${feature.season.value}`} />
+                {feature.name}
+              </a>
+            </td>
+            <td>
+              {feature.season.reason ?? feature.status.summary}
+              {rightNow(feature) && (
+                <div className="meta">Today: {rightNow(feature)}</div>
+              )}
+            </td>
+            <td className="state">
+              {feature.status.other_notices > 0 && (
+                <span className="notices">
+                  ⚠ {feature.status.other_notices}
+                </span>
+              )}{" "}
+              {feature.status.stale ? "⚠ " : ""}
+              {sinceLabel(feature.status.observed_at)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 
 export default async function Home() {
@@ -39,76 +133,94 @@ export default async function Home() {
     );
   }
 
-  // Sectors only. The individual machines inside them are auto-created from
-  // the operator feed and belong on the sector's own page — listing them here
-  // buries one real closure under twenty lifts reading "pending", and counts
-  // Grands Montets twice because its single lift is also closed.
-  const sectors = features
-    .filter((f) => f.type === "lift" && !f.parent_slug && f.status.summary)
+  const withStatus = features.filter((f) => f.status.summary && !f.parent_slug);
+
+  const notable = withStatus
+    .filter(isNotable)
+    .sort(
+      (a, b) =>
+        b.status.severity - a.status.severity || a.name.localeCompare(b.name),
+    );
+  const notableSlugs = new Set(notable.map((f) => f.slug));
+
+  const routes = withStatus
+    .filter((f) => f.type !== "lift" && !notableSlugs.has(f.slug))
     .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 
-  const childCount = new Map<string, number>();
-  for (const f of features) {
-    if (f.parent_slug) {
-      childCount.set(f.parent_slug, (childCount.get(f.parent_slug) ?? 0) + 1);
-    }
-  }
-
-  const notable = sectors.filter(
-    (f) => f.status.value !== "unknown" && f.status.closure_kind === null,
-  );
+  const lifts = withStatus
+    .filter((f) => f.type === "lift" && !notableSlugs.has(f.slug))
+    .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 
   return (
     <>
       <MassifMap features={features} />
 
+      <div className="legend">
+        <span style={{ color: "var(--closed)" }}>
+          <i /> closed, or not running this season
+        </span>
+        <span style={{ color: "var(--restricted)" }}>
+          <i /> restricted
+        </span>
+        <span style={{ color: "var(--open)" }}>
+          <i /> operating this season
+        </span>
+        <span style={{ color: "var(--unknown)" }}>
+          <i /> no seasonal information
+        </span>
+        <span style={{ color: "#4a5563" }}>
+          <i className="dashed" /> route drawn for context — no notices
+        </span>
+      </div>
+
+      {notable.length > 0 ? (
+        <>
+          <div className="section-head">
+            <h2>
+              {notable.length === 1
+                ? "1 closure or restriction"
+                : `${notable.length} closures and restrictions`}
+            </h2>
+            <span>the reason this page exists</span>
+          </div>
+          {notable.map((feature) => (
+            <Headline key={feature.slug} feature={feature} />
+          ))}
+        </>
+      ) : (
+        <div className="section-head">
+          <h2>Nothing unexpectedly shut</h2>
+          <span>everything below is routine</span>
+        </div>
+      )}
+
       <p className="disclaimer">
         A directory of what operators and authorities have published. Statuses
-        may be out of date, and being confidently stale is the failure mode
-        this page tries hardest to avoid — every card shows when it was last
+        may be out of date, and being confidently stale is the failure mode this
+        page tries hardest to avoid — every row shows when it was last
         confirmed. Verify locally before committing to anything.
       </p>
 
-      <p className="meta">
+      {routes.length > 0 && (
+        <>
+          <div className="section-head">
+            <h2>Routes, huts and access</h2>
+            <span>{routes.length} tracked</span>
+          </div>
+          <QuietTable features={routes} />
+        </>
+      )}
+
+      <div className="section-head">
+        <h2>Lifts and mountain railways</h2>
+        <span>{lifts.length} sectors</span>
+      </div>
+      <QuietTable features={lifts} />
+
+      <p className="meta" style={{ marginTop: 24 }}>
         Last successful ingest: {sinceLabel(lastIngest)} · {features.length}{" "}
         features tracked
       </p>
-
-      <h2 style={{ fontSize: 16, marginTop: 28 }}>
-        {notable.length > 0
-          ? `${notable.length} closure${notable.length === 1 ? "" : "s"} worth knowing about`
-          : "Nothing unexpectedly shut"}
-      </h2>
-
-      <div className="grid">
-        {sectors.map((feature) => (
-          <a
-            key={feature.slug}
-            className={cardClass(feature)}
-            href={`/${feature.type}/${feature.slug}`}
-          >
-            <h3>
-              {feature.name}{" "}
-              {feature.status.closure_kind === null &&
-                feature.status.value !== "unknown" && (
-                  <span className={`pill ${feature.status.value}`}>
-                    {feature.status.value}
-                  </span>
-                )}
-            </h3>
-            <p>{feature.status.summary}</p>
-            <div className={`meta ${feature.status.stale ? "stale" : ""}`}>
-              {feature.status.stale ? "⚠ not confirmed recently · " : ""}
-              last confirmed {sinceLabel(feature.status.observed_at)}
-              {childCount.get(feature.slug)
-                ? ` · ${childCount.get(feature.slug)} ${
-                    childCount.get(feature.slug) === 1 ? "lift" : "lifts"
-                  }`
-                : ""}
-            </div>
-          </a>
-        ))}
-      </div>
     </>
   );
 }
