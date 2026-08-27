@@ -7,6 +7,9 @@ This is a directory of published notices, **not a safety service**. It reports
 what sources have said; it never tells anyone whether to go. Keep that framing
 in every string a user can read — a stale "open" must never read as clearance.
 
+Unattended sessions (scheduled overnight runs) have their own contract in
+`OVERNIGHT.md` — read it first if nobody is watching.
+
 ## Commands
 
 ```bash

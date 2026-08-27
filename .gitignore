@@ -15,3 +15,4 @@ data/
 *.log
 _to_delete/
 *.tsbuildinfo
+_bundle/
