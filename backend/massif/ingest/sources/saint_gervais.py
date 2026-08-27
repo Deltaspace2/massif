@@ -46,7 +46,7 @@ from sqlalchemy.orm import Session
 
 from massif.enums import ExtractionMethod, StatementType, StatusValue
 from massif.ingest.base import ExtractedStatement, Scraper, fetch, store_document
-from massif.ingest.fr_dates import parse_range
+from massif.ingest.fr_dates import describe, parse_range
 from massif.ingest.fr_features import features_mentioned, norm
 from massif.models import Document, Source
 from massif.status import STALE_DAYS
@@ -204,6 +204,23 @@ def extract_published_at(html: str) -> datetime | None:
     return None
 
 
+def english_summary(statement_type: StatementType, dates) -> str:
+    """Plain English, composed from what we extracted — not translated.
+
+    The notices are French and the cards were showing them verbatim, which
+    is unreadable to most of the audience. We already know the act and the
+    dates structurally, so we can state them exactly in English; the French
+    original stays in original_text and is quoted on the feature page, where
+    it belongs as the source's own words.
+    """
+    window = describe(dates)
+    if statement_type is StatementType.OPENING:
+        return f"Reopening {window}" if window else "Reopening — no date stated"
+    if window:
+        return f"Closed {window}"
+    return "Closure notice — no dates stated"
+
+
 def statements_for(
     title: str, body: str, url: str, observed_at: datetime
 ) -> list[ExtractedStatement]:
@@ -217,6 +234,11 @@ def statements_for(
         return []
 
     dates = parse_range(title) or parse_range(body)
+    # What the notice actually says, before we widen anything. The widening
+    # below is an internal validity trick so a one-day reopening does not
+    # lapse overnight; it is not a claim the mairie made, and it must not
+    # appear in the summary as though it were.
+    stated = dates
 
     # "Réouverture ... le 26/08/26" names the day the thing opens, not the only
     # day it is open. Taken literally it asserted OPEN for 24 hours and then
@@ -254,7 +276,7 @@ def statements_for(
                 observed_at=observed_at,
                 valid_from=dates.start if dates else None,
                 valid_to=dates.end if dates else None,
-                summary_en=title,
+                summary_en=english_summary(statement_type, stated),
                 original_text=(title + " — " + body)[:2000],
                 original_language="fr",
                 payload={

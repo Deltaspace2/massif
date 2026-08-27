@@ -326,3 +326,28 @@ def test_extract_stored_skips_the_listing_page():
 
 def test_extract_stored_handles_a_document_with_no_text():
     assert SaintGervaisScraper().extract_stored(_doc(None)) == []
+
+
+
+# --------------------------------------------------------- english summary --
+
+def test_summary_is_composed_english_not_french():
+    """Cards were showing the French notice title verbatim. We already know
+    the act and the dates structurally, so state them exactly in English —
+    the French stays in original_text as the source's own words."""
+    statement = statements_for(MAY_CLOSURE, "", "http://x", NOW)[0]
+    assert statement.summary_en == "Closed 26–29 May 2026"
+    assert "Fermeture" in statement.original_text
+    assert statement.original_language == "fr"
+
+
+def test_reopening_reads_as_a_reopening():
+    statements = statements_for(REOPENING, "", "http://x", NOW)
+    assert all(s.summary_en == "Reopening 26 Aug 2026" for s in statements)
+
+
+def test_undated_notice_says_so_plainly():
+    statements = statements_for(
+        "Fermeture des refuges de Tête Rousse et du Goûter", "", "http://x", NOW
+    )
+    assert all(s.summary_en == "Closure notice — no dates stated" for s in statements)

@@ -103,9 +103,16 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
     season — that is a real answer, not missing data, and it is the one
     Grands Montets needs.
     """
+    # statement_type says what KIND of notice it is; status says whether it
+    # asserts anything. An undated closure carries type=closure and
+    # status=unknown on purpose — it is a real notice with no validity window,
+    # so it must not claim the present. Reading type alone resurrected exactly
+    # that bug and published the Goûter route as closed on the day
+    # Saint-Gervais reopened it.
     blocking = [
         st for st in statements
         if str(st.statement_type) in ("closure", "restriction")
+        and str(st.status) in ("closed", "restricted")
     ]
     if blocking:
         worst = max(blocking, key=lambda st: st.severity)

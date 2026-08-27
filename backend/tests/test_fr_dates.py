@@ -94,3 +94,40 @@ def test_impossible_date_does_not_crash():
 def test_two_digit_years_are_this_century(year_text, expected):
     result = parse_range(f"le 26/08/{year_text}")
     assert result.start.year == expected
+
+
+# ------------------------------------------------------------- describe -----
+
+def test_describe_same_month_range():
+    from massif.ingest.fr_dates import describe
+
+    assert describe(parse_range("du 26 au 29 mai 2026")) == "26–29 May 2026"
+
+
+def test_describe_single_day():
+    from massif.ingest.fr_dates import describe
+
+    assert describe(parse_range("le 26/08/26")) == "26 Aug 2026"
+
+
+def test_describe_across_months_and_years():
+    from massif.ingest.fr_dates import describe
+
+    assert describe(parse_range("du 30 mai au 2 juin 2026")) == "30 May – 2 Jun 2026"
+    assert (
+        describe(parse_range("du 28 décembre 2026 au 3 janvier 2027"))
+        == "28 Dec 2026 – 3 Jan 2027"
+    )
+
+
+def test_describe_open_ended():
+    from massif.ingest.fr_dates import describe
+
+    assert describe(parse_range("jusqu'au 30 septembre 2026")) == "until 30 Sep 2026"
+    assert describe(parse_range("à partir du 12 juin 2026")) == "from 12 Jun 2026"
+
+
+def test_describe_none():
+    from massif.ingest.fr_dates import describe
+
+    assert describe(None) is None

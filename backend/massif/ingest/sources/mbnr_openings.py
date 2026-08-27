@@ -44,6 +44,7 @@ from sqlalchemy.orm import Session
 
 from massif.enums import ExtractionMethod, StatementType, StatusValue
 from massif.ingest.base import ExtractedStatement, Scraper, fetch, store_document
+from massif.ingest.fr_dates import strip_accents
 from massif.models import Document, Source
 
 URL = "https://www.montblancnaturalresort.com/fr/ouvertures"
@@ -89,6 +90,27 @@ SUBTITLE_OVERRIDES: list[tuple[str, str, str]] = [
     ("balme", "le tour", "balme-le-tour"),
     ("balme", "vallorcine", "balme-le-tour-tc-vallorcine"),
 ]
+
+
+# One calendar row can cover several sectors. "Megève", subtitle "Evasion
+# Mont-Blanc -2350 m", is the linked domain — it is about Megève, and both our
+# Megève sectors are Megève. Mapping it to Rochebrune alone left Mont d'Arbois
+# with no season at all and grey on a map that colours by season, which read
+# as "we have no idea" when the operator had in fact published one.
+MULTI_TARGETS: dict[str, list[str]] = {
+    "megeve": ["megeve-rochebrune", "megeve-mont-arbois"],
+}
+
+
+def resolve_slugs(title: str, subtitle: str) -> list[str]:
+    """Every feature this row speaks for. Usually one; sometimes a domain."""
+    # strip_accents, because the key is "megeve" and the title is "Megève".
+    # Fourth time an accent has silently broken a match in this project.
+    multi = MULTI_TARGETS.get(strip_accents(title).lower().strip())
+    if multi:
+        return multi
+    single = resolve_slug(title, subtitle)
+    return [single] if single else []
 
 
 def resolve_slug(title: str, subtitle: str) -> str | None:
@@ -234,49 +256,55 @@ def extract(html: str, observed_at: datetime) -> list[ExtractedStatement]:
                 window = " – ".join(
                     filter(None, [row.get("valueOne"), row.get("valueTow")])
                 )
-                out.append(
-                    ExtractedStatement(
-                        feature_mention=f"{title} {subtitle}".strip(),
-                        feature_slug=resolve_slug(title, subtitle),
-                        statement_type=StatementType.OPENING,
-                        # A schedule is not an observation. It says what is
-                        # planned, never what is true right now — and it must
-                        # lose to the live feed, which it does on trust weight.
-                        status=StatusValue.UNKNOWN,
-                        severity=0,
-                        observed_at=observed_at,
-                        valid_from=opens or season_from,
-                        valid_to=closes or season_to,
-                        summary_en=(
-                            f"{title}: scheduled {season} season {window}"
-                            " (indicative, subject to change)"
-                        ),
-                        original_text=f"{title_raw} — {subtitle} — {window}",
-                        original_language="fr",
-                        payload={
-                            "schedule": True,
-                            "season": season,
-                            "opens": row.get("valueOne"),
-                            "closes": row.get("valueTow"),
-                            "season_window": {
-                                "start": table.get("startDate"),
-                                "end": table.get("endDate"),
-                            },
-                            "subtitle": subtitle,
-                            "altitude_m": int(altitude.group(1)) if altitude else None,
-                            # Their asterisk. Reproduced, not laundered into
-                            # certainty — the operator does not guarantee these.
-                            "caveated": caveated,
-                            "caveat": (
-                                "Dates are indicative and subject to change "
-                                "with operating and weather conditions."
+                # A row can speak for more than one sector — see MULTI_TARGETS.
+                # An unmapped row still emits once, mention-only, so the
+                # resolver and then the review queue can see it.
+                targets = resolve_slugs(title, subtitle) or [None]
+
+                for target in targets:
+                    out.append(
+                        ExtractedStatement(
+                            feature_mention=f"{title} {subtitle}".strip(),
+                            feature_slug=target,
+                            statement_type=StatementType.OPENING,
+                            # A schedule is not an observation. It says what is
+                            # planned, never what is true right now — and it must
+                            # lose to the live feed, which it does on trust weight.
+                            status=StatusValue.UNKNOWN,
+                            severity=0,
+                            observed_at=observed_at,
+                            valid_from=opens or season_from,
+                            valid_to=closes or season_to,
+                            summary_en=(
+                                f"{title}: scheduled {season} season {window}"
+                                " (indicative, subject to change)"
                             ),
-                        },
-                        extraction_method=ExtractionMethod.RULE,
-                        extraction_confidence=1.0,
-                        context=f"{season} season calendar",
+                            original_text=f"{title_raw} — {subtitle} — {window}",
+                            original_language="fr",
+                            payload={
+                                "schedule": True,
+                                "season": season,
+                                "opens": row.get("valueOne"),
+                                "closes": row.get("valueTow"),
+                                "season_window": {
+                                    "start": table.get("startDate"),
+                                    "end": table.get("endDate"),
+                                },
+                                "subtitle": subtitle,
+                                "altitude_m": int(altitude.group(1)) if altitude else None,
+                                # Their asterisk. Reproduced, not laundered into
+                                # certainty — the operator does not guarantee these.
+                                "caveated": caveated,
+                                "caveat": (
+                                    "Dates are indicative and subject to change "
+                                    "with operating and weather conditions."
+                                ),
+                            },
+                            extraction_method=ExtractionMethod.RULE,
+                            extraction_confidence=1.0,
+                            context=f"{season} season calendar",
+                        )
                     )
-                )
     return out
 
 

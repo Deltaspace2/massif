@@ -148,3 +148,44 @@ def parse_range(text: str) -> DateRange | None:
             continue
 
     return None
+
+
+MONTH_EN = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]
+
+
+def describe(dates: "DateRange | None") -> str | None:
+    """A date range in plain English: "26–29 May 2026", "26 Aug 2026".
+
+    Composed from the parsed dates rather than translated from the French.
+    We already know what the notice says structurally; rendering that in
+    English is exact, whereas translating prose is a guess — and the French
+    original stays alongside as the quotable source.
+    """
+    if dates is None:
+        return None
+    start, end = dates.start, dates.end
+
+    def day(value) -> str:
+        return f"{value.day} {MONTH_EN[value.month - 1]} {value.year}"
+
+    if start and end:
+        if start.date() == end.date():
+            return day(start)
+        if (start.year, start.month) == (end.year, end.month):
+            return (
+                f"{start.day}–{end.day} {MONTH_EN[start.month - 1]} {start.year}"
+            )
+        if start.year == end.year:
+            return (
+                f"{start.day} {MONTH_EN[start.month - 1]} – "
+                f"{end.day} {MONTH_EN[end.month - 1]} {start.year}"
+            )
+        return f"{day(start)} – {day(end)}"
+    if end:
+        return f"until {day(end)}"
+    if start:
+        return f"from {day(start)}"
+    return None

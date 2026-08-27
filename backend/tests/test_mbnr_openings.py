@@ -163,3 +163,65 @@ def test_nested_object_still_found():
     text = '{"outer":[{"_modelApiKey":"block_table","seasonType":"winter"}]}'
     blocks = list(find_objects(text, '"_modelApiKey":"block_table"'))
     assert blocks and blocks[0]["seasonType"] == "winter"
+
+
+def test_one_row_can_cover_two_sectors():
+    """The calendar publishes a single "Megève" row, subtitle "Evasion
+    Mont-Blanc" — the linked domain. Mapping it to Rochebrune alone left
+    Mont d'Arbois with no season, and on a map that colours by season that
+    read as "no idea" when the operator had in fact published one."""
+    from massif.ingest.sources.mbnr_openings import resolve_slugs
+
+    assert resolve_slugs("Megève", "Evasion Mont-Blanc -2350 m") == [
+        "megeve-rochebrune",
+        "megeve-mont-arbois",
+    ]
+
+
+def test_single_target_rows_are_unaffected():
+    from massif.ingest.sources.mbnr_openings import resolve_slugs
+
+    assert resolve_slugs("Aiguille du Midi", "Chamonix - 3842 m") == [
+        "aiguille-du-midi"
+    ]
+    assert resolve_slugs("Balme", "Vallorcine - 2270 m") == [
+        "balme-le-tour-tc-vallorcine"
+    ]
+
+
+def test_unknown_row_yields_nothing_to_map():
+    from massif.ingest.sources.mbnr_openings import resolve_slugs
+
+    assert resolve_slugs("Somewhere New", "") == []
+
+
+def test_megeve_row_emits_a_statement_per_sector():
+    block = json.loads(json.dumps(SUMMER))
+    block["table"][0]["list"][0]["table"] = [
+        {
+            "__typename": "TableLineDateRecord",
+            "title": "Megève",
+            "subtitle": "Evasion Mont-Blanc -2350 m",
+            "valueOne": "2026-06-20",
+            "valueTow": "2026-09-06",
+        }
+    ]
+    statements = extract(_page(block), datetime.now(UTC))
+    assert {s.feature_slug for s in statements} == {
+        "megeve-rochebrune",
+        "megeve-mont-arbois",
+    }
+
+
+def test_multi_target_keys_are_accent_free():
+    """Guard rail. MULTI_TARGETS is looked up on accent-stripped text, so an
+    accented key silently never matches — which is how "Megève" missed
+    "megeve" and Mont d'Arbois lost its season. Four separate bugs in this
+    project have been an accent; this one stays caught."""
+    from massif.ingest.fr_dates import strip_accents
+    from massif.ingest.sources.mbnr_openings import MULTI_TARGETS
+
+    for key in MULTI_TARGETS:
+        assert key == strip_accents(key).lower(), (
+            f"{key!r} will never match: keys must be accent-free and lowercase"
+        )
