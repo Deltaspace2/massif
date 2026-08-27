@@ -27,8 +27,8 @@ from sqlalchemy.orm import Session
 
 from massif.config import settings
 from massif.enums import ExtractionMethod, StatementType, StatusValue
-from massif.models import Document, Feature, IngestRun, Source, Statement
 from massif.ingest.resolve import FeatureResolver, Match, normalise
+from massif.models import Document, Feature, IngestRun, Source, Statement
 from massif.status import recompute_many
 
 _last_request_at: dict[str, float] = defaultdict(float)
@@ -224,7 +224,7 @@ def slugify(text: str) -> str:
     return re.sub(r"-{2,}", "-", text)
 
 
-def resolve_child(session: Session, parent_slug: str, name: str) -> "Match | None":
+def resolve_child(session: Session, parent_slug: str, name: str) -> Match | None:
     """Find (or create) the child of parent_slug named `name`.
 
     Scoped so a lift can never resolve to an unrelated feature, and
@@ -296,9 +296,12 @@ def retire_replaced(session: Session, incoming: Statement) -> int:
     now = datetime.now(UTC)
     count = 0
     for older in session.scalars(query):
-        if older.observed_at and incoming.observed_at:
-            if older.observed_at > incoming.observed_at:
-                continue  # the stored one is newer; leave it alone
+        if (
+            older.observed_at
+            and incoming.observed_at
+            and older.observed_at > incoming.observed_at
+        ):
+            continue  # the stored one is newer; leave it alone
         older.superseded_at = now
         count += 1
     return count
@@ -338,7 +341,7 @@ class Scraper(ABC):
         source: Source,
         document: Document,
         item: ExtractedStatement,
-        resolver: "FeatureResolver",
+        resolver: FeatureResolver,
     ) -> Statement | None:
         """Resolve one extracted item to a feature and build its Statement.
 

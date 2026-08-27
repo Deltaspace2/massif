@@ -38,3 +38,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+# B008 flags function calls in argument defaults. Depends(...) in a
+# signature is exactly that, and is also the only way FastAPI spells
+# dependency injection. The rule is right in general and wrong here.
+ignore = ["B008"]

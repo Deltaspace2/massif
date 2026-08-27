@@ -36,7 +36,8 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import UTC, datetime, time as dtime
+from datetime import UTC, datetime
+from datetime import time as dtime
 from zoneinfo import ZoneInfo
 
 from selectolax.parser import HTMLParser, Node

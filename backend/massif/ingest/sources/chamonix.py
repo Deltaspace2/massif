@@ -38,7 +38,6 @@ Run from a machine the site will talk to:
 
 from __future__ import annotations
 
-import json
 import re
 import sys
 
@@ -124,7 +123,7 @@ def _endpoint(label: str, url: str, show: int = 3) -> None:
         print("    (empty)")
         return
 
-    print(f"\n    --- shape of one record ---")
+    print("\n    --- shape of one record ---")
     _shape(records[0])
 
     print(f"\n    --- {min(show, len(records))} recent titles ---")

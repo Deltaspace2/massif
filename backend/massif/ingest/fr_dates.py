@@ -18,7 +18,8 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import UTC, datetime, time as dtime
+from datetime import UTC, datetime
+from datetime import time as dtime
 
 MONTHS: dict[str, int] = {
     "janvier": 1, "fevrier": 2, "mars": 3, "avril": 4,
@@ -156,7 +157,7 @@ MONTH_EN = [
 ]
 
 
-def describe(dates: "DateRange | None") -> str | None:
+def describe(dates: DateRange | None) -> str | None:
     """A date range in plain English: "26–29 May 2026", "26 Aug 2026".
 
     Composed from the parsed dates rather than translated from the French.

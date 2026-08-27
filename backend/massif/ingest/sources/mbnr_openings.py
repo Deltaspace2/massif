@@ -36,9 +36,10 @@ from __future__ import annotations
 
 import json
 import re
-import sys
-from datetime import UTC, datetime, time as dtime
-from typing import Any, Iterator
+from collections.abc import Iterator
+from datetime import UTC, datetime
+from datetime import time as dtime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -118,9 +119,12 @@ def resolve_slug(title: str, subtitle: str) -> str | None:
     # longest prefix wins, so "le tour - vallorcine" beats "le tour"
     best: tuple[int, str] | None = None
     for want_title, want_sub, slug in SUBTITLE_OVERRIDES:
-        if low_title == want_title and low_sub.startswith(want_sub):
-            if best is None or len(want_sub) > best[0]:
-                best = (len(want_sub), slug)
+        if (
+            low_title == want_title
+            and low_sub.startswith(want_sub)
+            and (best is None or len(want_sub) > best[0])
+        ):
+            best = (len(want_sub), slug)
     if best:
         return best[1]
     return SECTOR_FEATURES.get(low_title)

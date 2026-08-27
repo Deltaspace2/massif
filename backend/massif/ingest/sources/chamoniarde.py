@@ -36,11 +36,10 @@ from __future__ import annotations
 import json
 import re
 import sys
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urljoin
 
 from selectolax.parser import HTMLParser
-
-from datetime import UTC, datetime, timedelta
 
 from massif.enums import ExtractionMethod, StatementType, StatusValue
 from massif.ingest.base import (
@@ -90,8 +89,18 @@ def _get(url: str):
     return response
 
 
-DATEISH = re.compile(r"\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b|\b\d{1,2}\s+(?:janvier|f[ée]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)", re.I)
-ROUTEISH = re.compile(r"cosmiques|midi|tacul|maudit|goutter|go[uû]ter|verte|drus|jorasses|tour ronde|argenti|talefre|couvercle|charpoua|glacier|couloir|ar[êe]te|bergschrund|rimaye", re.I)
+DATEISH = re.compile(
+    r"\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b"
+    r"|\b\d{1,2}\s+(?:janvier|f[ée]vrier|mars|avril|mai|juin|juillet"
+    r"|ao[uû]t|septembre|octobre|novembre|d[ée]cembre)",
+    re.I,
+)
+ROUTEISH = re.compile(
+    r"cosmiques|midi|tacul|maudit|goutter|go[uû]ter|verte|drus|jorasses"
+    r"|tour ronde|argenti|talefre|couvercle|charpoua|glacier|couloir"
+    r"|ar[êe]te|bergschrund|rimaye",
+    re.I,
+)
 
 
 def _content() -> int:
@@ -214,7 +223,10 @@ def _list() -> int:
         tree = HTMLParser(response.text)
         heading = tree.css_first("h1")
         print(f"  h1: {heading.text(strip=True) if heading else None!r}")
-        for selector in (".artitext", ".articontexte", "article", ".tag", "time", "[class*='date']"):
+        selectors = (
+            ".artitext", ".articontexte", "article", ".tag", "time", "[class*='date']",
+        )
+        for selector in selectors:
             nodes = tree.css(selector)
             if not nodes:
                 continue

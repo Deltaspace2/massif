@@ -6,7 +6,9 @@ fields always win over OSM — OSM supplies geometry, the YAML supplies identity
 
 from __future__ import annotations
 
+import re
 import sys
+import unicodedata
 from decimal import Decimal
 from pathlib import Path
 
@@ -14,8 +16,7 @@ import yaml
 from sqlalchemy import select
 
 from massif.db import session_scope
-import re
-import unicodedata
+from massif.models import Feature, Source
 
 
 # Deliberately NOT massif.ingest.resolve.normalise. That one strips generic
@@ -35,7 +36,6 @@ def geo_key(text: str) -> str:
 # point is the wrong shape even when the name matches correctly, so they are
 # never assigned OSM point geometry.
 POINT_LIKE = {"hut", "lift", "lift_station", "peak"}
-from massif.models import Feature, Source
 
 SEEDS = Path(__file__).resolve().parents[2] / "seeds"
 
