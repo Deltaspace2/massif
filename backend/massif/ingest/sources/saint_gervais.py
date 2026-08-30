@@ -204,6 +204,75 @@ def extract_published_at(html: str) -> datetime | None:
     return None
 
 
+
+# Specific, high-signal terms only, matched on accent-stripped text. This is
+# not translation — we do not translate prose and should not pretend to. It is
+# recognition of a short list of things a mountain authority says when it is
+# warning about something, so that an English reader learns WHY a route is shut
+# without us inventing a sentence. Anything unmatched simply gets no tail; the
+# French original is quoted underneath either way.
+# Specific, high-signal terms only, matched on accent-stripped text. This is
+# not translation — we do not translate prose and should not pretend to. It is
+# recognition of a short list of things a mountain authority says, so that an
+# English reader learns WHY a route is shut without us inventing a sentence.
+# Anything unmatched gets no tail at all; the French is quoted underneath
+# either way.
+#
+# Two lists, because they are two different kinds of fact and one connector
+# cannot carry both: a notice WARNS OF rockfall, but it does not "warn of an
+# access ban" — the ban is the act it is announcing.
+HAZARD_TERMS: tuple[tuple[str, str], ...] = (
+    ("chutes de pierres", "rockfall"),
+    ("chute de pierres", "rockfall"),
+    ("eboulement", "rockslide"),
+    ("serac", "serac fall"),
+    ("avalanche", "avalanche risk"),
+    ("crevasse", "crevasses"),
+    ("danger mortel", "lethal danger"),
+    ("secheresse", "drought conditions"),
+    ("canicule", "extreme heat"),
+    ("orage", "storms"),
+    ("vent violent", "high wind"),
+)
+
+ACT_TERMS: tuple[tuple[str, str], ...] = (
+    ("interdiction", "access ban"),
+    ("interdit", "access ban"),
+    ("demontage", "demolition works"),
+    ("travaux", "works"),
+)
+
+
+def _glosses(text: str, lexicon: tuple[tuple[str, str], ...]) -> list[str]:
+    flat = norm(text or "")
+    found: list[str] = []
+    for needle, gloss in lexicon:
+        if needle in flat and gloss not in found:
+            found.append(gloss)
+    return found
+
+
+def hazards_in(text: str) -> list[str]:
+    """English glosses for the hazards named, in lexicon order, no duplicates."""
+    return _glosses(text, HAZARD_TERMS)
+
+
+def acts_in(text: str) -> list[str]:
+    """English glosses for the administrative act announced."""
+    return _glosses(text, ACT_TERMS)
+
+
+def _tail(title: str) -> str:
+    parts: list[str] = []
+    hazards = hazards_in(title)
+    if hazards:
+        parts.append(f"warns of {', '.join(hazards)}")
+    acts = acts_in(title)
+    if acts:
+        parts.append(", ".join(acts))
+    return f" · {'; '.join(parts)}" if parts else ""
+
+
 def english_summary(statement_type: StatementType, dates, title: str = "") -> str:
     """Plain English, composed from what we extracted — not translated.
 
@@ -216,16 +285,21 @@ def english_summary(statement_type: StatementType, dates, title: str = "") -> st
     window = describe(dates)
     if statement_type is StatementType.OPENING:
         return f"Reopening {window}" if window else "Reopening — no date stated"
+
+    # What the notice WARNS about, in English, from a fixed lexicon — never the
+    # French title pasted into an English field.
+    #
+    # This has now been wrong in both directions. Returning a bare "Closure
+    # notice — no dates stated" discarded the title and turned "danger mortel
+    # de chutes de pierres" into boilerplate. Returning the title fixed that by
+    # putting French back on an English page, directly above the same sentence
+    # quoted as the source's own words. The information is worth keeping; the
+    # French belongs in original_text, where it already is.
+    tail = _tail(title)
+
     if window:
-        return f"Closed {window}"
-    # An undated closure used to return this bare string and discard the title,
-    # which turned "Accès au Mont-Blanc : danger mortel de chutes de pierres"
-    # into boilerplate — the most serious notice in the database rendered as
-    # the least informative line on the page. We cannot date it, so we say so;
-    # what the mairie actually announced is the part worth keeping.
-    if title:
-        return f"{title.strip()} — no dates stated"
-    return "Closure notice — no dates stated"
+        return f"Closed {window}{tail}"
+    return f"Closure notice — no dates stated{tail}"
 
 
 def statements_for(

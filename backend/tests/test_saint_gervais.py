@@ -13,9 +13,12 @@ from massif.enums import StatementType, StatusValue
 from massif.ingest.sources.saint_gervais import (
     GATE,
     SaintGervaisScraper,
+    acts_in,
     classify,
+    english_summary,
     extract_published_at,
     features_mentioned,
+    hazards_in,
     norm,
     statements_for,
 )
@@ -364,7 +367,8 @@ def test_undated_notice_says_so_plainly():
     assert statements
     for statement in statements:
         assert "no dates stated" in statement.summary_en
-        assert "Fermeture des refuges" in statement.summary_en
+        # No hazard words in this one, so no tail — and no French either.
+        assert "Fermeture" not in statement.summary_en
         assert statement.valid_from is None and statement.valid_to is None
 
 
@@ -387,24 +391,57 @@ ROCKFALL = (
 )
 
 
-def test_undated_closure_keeps_the_notice_text():
+def test_undated_closure_says_what_it_warns_about_in_english():
     statements = statements_for(ROCKFALL, "", "https://example.org/a", NOW)
     assert statements, "the rockfall notice must produce at least one statement"
     for statement in statements:
         assert statement.statement_type is StatementType.CLOSURE
-        # The danger is the point of the notice; it must survive extraction.
-        assert "danger mortel" in statement.summary_en
+        # The danger is the point of the notice and must survive extraction —
+        # in English. Returning the French title instead put untranslated text
+        # on an English page directly above the same sentence quoted as the
+        # source's own words.
+        assert "rockfall" in statement.summary_en
+        assert "lethal danger" in statement.summary_en
+        assert "chutes de pierres" not in statement.summary_en
         # And we still say plainly that we could not date it.
         assert "no dates stated" in statement.summary_en
         # An undated notice must not claim the present.
         assert statement.valid_from is None and statement.valid_to is None
         assert statement.status is StatusValue.UNKNOWN
+        # The French survives where it belongs.
+        assert "chutes de pierres" in statement.original_text
 
 
-def test_dated_closure_still_summarises_in_english():
-    """The title is only borrowed when there are no dates to state instead."""
+def test_an_act_is_not_a_hazard():
+    """A notice warns OF rockfall; it does not "warn of an access ban" — the
+    ban is the act it announces. One connector could not carry both."""
+    summary = english_summary(
+        StatementType.CLOSURE,
+        None,
+        "Démontage de l'ancien refuge du Goûter et interdiction temporaire d'accès",
+    )
+    assert "warns of" not in summary
+    assert "access ban" in summary and "demolition works" in summary
+
+
+def test_hazard_glosses_are_recognition_not_translation():
+    """Unmatched prose gets no tail at all — we never invent a sentence."""
+    assert hazards_in("Fermeture des refuges de Tête Rousse et du Goûter") == []
+    assert hazards_in("Réouverture des refuges") == []
+    # Accent-stripped matching, like everything else in this module.
+    assert "rockfall" in hazards_in("chutes de pierres")
+    assert hazards_in("interdiction temporaire d'accès") == []
+    assert "access ban" in acts_in("interdiction temporaire d'accès")
+    # Lexicon order, no duplicates, even when several terms overlap.
+    glosses = hazards_in("danger mortel de chutes de pierres et chute de pierres")
+    assert glosses.count("rockfall") == 1
+
+
+def test_dated_closure_still_leads_with_the_dates():
     statements = statements_for(MAY_CLOSURE, "", "https://example.org/b", NOW)
     assert statements
     for statement in statements:
-        assert statement.summary_en.startswith("Closed ")
+        assert statement.summary_en.startswith("Closed 26–29 May 2026")
         assert "no dates stated" not in statement.summary_en
+        # No French in the English field, dated or not.
+        assert "Fermeture" not in statement.summary_en
