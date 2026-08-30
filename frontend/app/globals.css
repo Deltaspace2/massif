@@ -1,16 +1,47 @@
-:root {
-  --bg: #0e1116;
-  --panel: #161b22;
-  --line: #263041;
-  --text: #e6edf3;
-  --muted: #8b949e;
+/* massif — "Alpine editorial" front page.
+   Design: Claude Design handoff, 30 Aug 2026. Tokens below follow that
+   handoff except where a measured contrast failure forced a change; each of
+   those is annotated with the number that forced it. Nothing here was
+   eyeballed — every ratio is against the page background #fbfcfd. */
 
-  /* Status. Routine closures must never look like incidents, so
-     outside-hours borrows the muted grey rather than the red. */
-  --open: #3fb950;
-  --closed: #f85149;
-  --restricted: #d29922;
-  --unknown: #6e7681;
+:root {
+  --bg: #fbfcfd;
+  --card: #ffffff;
+
+  /* Text ramp. The handoff had two greys, #6d7681 (4.48) and #9aa2ab (2.51).
+     The second carried last-confirmed ages — the one string the whole product
+     is organised around — at 2.51:1, which is unreadable and flatly
+     contradicts rule 1. Darkening it to pass collapsed it into the first, so
+     the ramp is respaced instead: four steps, all >= 4.5:1, hierarchy intact. */
+  --ink:       #22282e;  /* 14.49:1  headings, feature names */
+  --body:      #4d545c;  /*  7.47:1  body copy */
+  --secondary: #5f6873;  /*  5.50:1  status text, altitudes */
+  --tertiary:  #6d7580;  /*  4.54:1  ages, mono meta — the floor for text */
+  --decor:     #9aa2ab;  /*  2.51:1  NEVER text. Rules, placeholders, glyph fills. */
+
+  /* Status. Glyphs are non-text indicators (WCAG 1.4.11, 3:1); anywhere one of
+     these carries actual words, the darker -text variant is used instead. */
+  --open:            #3d8f63;  /* 3.85:1 as glyph */
+  --restricted:      #b3831d;  /* 3.31:1 as glyph */
+  --restricted-text: #8c6d14;  /* 4.74:1 as text */
+  --closed:          #b23c31;  /* 5.70:1 */
+  --unknown:         #6e757e;  /* 4.53:1 — darkened from #7c848d (3.69), which
+                                  set italic body copy, not just a glyph */
+
+  --tint-caution: #f4f0e4;
+  --card-caution: #fdf9ef;
+  --edge-caution: #d8bd7a;
+
+  --rule:       #e3e7ea;
+  --rule-faint: #eef1f3;
+  --hover:      #f4f6f8;
+
+  --scrim-ink: 26, 31, 36;   /* #1a1f24, as rgb parts for alpha ramps */
+
+  --shadow-card: 0 2px 10px #22282e0f;
+  --shadow-lift: 0 -8px 30px #22282e2b;
+
+  --gutter: 40px;
 }
 
 * { box-sizing: border-box; }
@@ -19,192 +50,306 @@ html, body {
   margin: 0;
   padding: 0;
   background: var(--bg);
-  color: var(--text);
-  font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--ink);
+  font-family: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
 }
 
-a { color: inherit; }
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
 
-.wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px 64px; }
-
-header.site {
-  border-bottom: 1px solid var(--line);
-  padding: 18px 0;
-  margin-bottom: 22px;
-}
-header.site h1 { font-size: 19px; margin: 0; letter-spacing: -0.01em; }
-header.site p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
-
-.disclaimer {
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--restricted);
-  background: var(--panel);
-  padding: 10px 14px;
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 13px;
-  margin: 18px 0;
+.mono {
+  font-family: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
-#map { height: 460px; border-radius: 8px; border: 1px solid var(--line); }
+/* ---------------------------------------------------------------- masthead
+   The handoff floated the wordmark and nav in white over the photo. Measured
+   against the actual image at the specified crop, that lands at 1.89:1 for the
+   wordmark and 2.44:1 for the nav — and it cannot be rescued by darkening the
+   scrim: a pure-ink band at 75% opacity still only reaches 3.57:1, because the
+   top of this photo is bright sky. Reaching 4.5:1 would need a near-opaque
+   black bar, so it *is* a bar. White on #1a1f24 is 15.6:1. */
+.masthead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--gutter);
+  height: 52px;
+  background: #1a1f24;
+  color: #ffffff;
+}
+.masthead__mark {
+  font-size: 16px; font-weight: 600; letter-spacing: 0.22em;
+}
+.masthead__nav { display: flex; gap: 26px; font-size: 12.5px; font-weight: 500; letter-spacing: 0.08em; }
+.masthead__nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
-.grid { display: grid; gap: 10px; margin-top: 22px; }
-@media (min-width: 720px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-
-.card {
+/* -------------------------------------------------------------------- hero */
+.hero { position: relative; height: 560px; overflow: hidden; background: #1a1f24; }
+.hero__img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center 68%;
   display: block;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--unknown);
-  border-radius: 6px;
-  padding: 12px 14px;
-  text-decoration: none;
+}
+/* Pure ink, fading to transparent. The handoff's gradient interpolated toward
+   #fbfcfd in its middle stops, so darkening the bottom stop actually *lowered*
+   contrast under the headline — more white was being laid down, not less.
+   A single-colour ramp is monotonic, which is the property you want when you
+   are tuning a number. At 0.55 the worst pixel under the headline is 4.46:1,
+   against a 3:1 requirement for text this size. */
+.hero__scrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(var(--scrim-ink), 0) 36%,
+    rgba(var(--scrim-ink), 0.55) 100%
+  );
+}
+.hero__copy { position: absolute; left: var(--gutter); bottom: 82px; color: #fff; }
+.hero__kicker { font-size: 12px; letter-spacing: 0.24em; font-weight: 500; }
+.hero__headline {
+  margin: 8px 0 0;
+  font-size: 62px; font-weight: 200; letter-spacing: 0.01em; line-height: 1.05;
+}
+
+/* ------------------------------------------------------------ verdict card
+   The answer to the page's question, overlapping the photo so it reads as the
+   point of the page rather than a caption under a picture. */
+.verdict {
+  position: relative; z-index: 1;
+  margin: -52px var(--gutter) 0;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 18px 26px;
+  display: flex; align-items: center; gap: 22px;
+  box-shadow: var(--shadow-lift);
+}
+/* Modifier names are namespaced. `notice` collided with the feature page's
+   .notice block — padding 10px 13px and a border — and inflated this 12px dot
+   to a 30x22 rounded rectangle. Measured in the DOM; it was not obvious at a
+   glance, which is the whole argument for measuring. */
+.verdict__dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 12px; }
+.verdict__dot--ok { background: var(--open); }
+.verdict__dot--alert { background: var(--closed); }
+.verdict__line { font-size: 19px; font-weight: 500; }
+.verdict__counts { font-size: 13px; color: var(--secondary); }
+.verdict__sweep { margin-left: auto; font-size: 11.5px; color: var(--tertiary); white-space: nowrap; }
+
+/* ------------------------------------------------------------------ layout */
+.layout {
+  padding: 34px var(--gutter) var(--gutter);
+  display: grid; grid-template-columns: 1fr 440px; gap: 44px;
+  align-items: start;
+}
+.col { display: flex; flex-direction: column; gap: 26px; }
+
+/* ------------------------------------------------------ unverified banner */
+.unverified {
+  display: flex; gap: 12px; align-items: baseline;
+  padding: 12px 16px; background: var(--tint-caution); border-radius: 8px;
+}
+.unverified__label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+  color: var(--restricted-text); white-space: nowrap;
+}
+.unverified__text { font-size: 13px; line-height: 1.55; color: var(--body); }
+
+/* ------------------------------------------------------------------ tables */
+.sec-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  padding-bottom: 8px; border-bottom: 1px solid var(--rule);
+}
+.sec-head h2 {
+  margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.18em;
+  color: var(--secondary); text-transform: uppercase;
+}
+.sec-head span { font-size: 11.5px; color: var(--tertiary); }
+
+/* No column-gap: the row divider is drawn by each cell's own bottom border, so
+   a gap leaves the rule visibly broken between columns. Cells carry the
+   spacing as padding instead, which keeps the line continuous. */
+.tbl { display: grid; grid-template-columns: 20px 1fr auto 72px; font-size: 14px; }
+.tbl > * { padding: 10px 0; border-bottom: 1px solid var(--rule-faint); }
+.tbl > .name, .tbl > .what { padding-right: 14px; }
+.tbl > .glyph { align-self: center; font-size: 9px; line-height: 1; }
+.tbl > .glyph.unknown { font-size: 11px; }
+.tbl .name { font-weight: 500; }
+.tbl .name a:hover { text-decoration: underline; }
+.tbl .alt { color: var(--secondary); font-weight: 400; font-size: 12.5px; }
+.tbl .what { color: var(--secondary); font-size: 13px; }
+.tbl .what.quoted { font-style: italic; }
+.tbl .what.unknown { color: var(--unknown); font-style: italic; }
+/* Rule 1: the age is part of the claim, not metadata about it. The handoff set
+   it in the 2.51:1 grey; here it sits at the same weight as the status text. */
+.tbl .age { font-size: 11.5px; color: var(--tertiary); text-align: right; }
+.tbl .age.caution { color: var(--restricted-text); font-weight: 600; }
+.tbl-row:hover { background: var(--hover); }
+
+.pill-unverified {
+  display: inline-block; margin-left: 6px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  color: #fff; background: var(--restricted); padding: 2px 7px; border-radius: 999px;
+  white-space: nowrap;
+}
+
+.disclaimer { font-size: 12.5px; line-height: 1.65; color: var(--secondary); max-width: 640px; }
+
+/* --------------------------------------------------------------- map pane */
+.mappane {
+  border: 1px solid var(--rule); border-radius: 10px; overflow: hidden;
+  background: var(--card); display: flex; flex-direction: column;
+  min-height: 640px; position: sticky; top: 20px;
+}
+.mappane__head {
+  padding: 14px 18px; border-bottom: 1px solid var(--rule);
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.mappane__head b { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--secondary); }
+.mappane__head span { font-size: 11.5px; color: var(--tertiary); }
+.mappane__map { flex: 1; min-height: 420px; }
+.map-canvas { width: 100%; height: 100%; }
+.mappane__legend {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  padding: 12px 18px; border-top: 1px solid var(--rule);
+  font-size: 12px; color: var(--secondary);
+}
+.mappane__legend i { font-style: normal; margin-right: 6px; }
+
+/* ------------------------------------------------------- notice cards */
+.notice-card {
+  background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 16px; box-shadow: var(--shadow-card);
+}
+.notice-card + .notice-card { margin-top: 12px; }
+.notice-card.unverified-card { border-color: var(--edge-caution); background: var(--card-caution); }
+.notice-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.notice-card__status { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; }
+.notice-card__status.closed { color: var(--closed); }
+.notice-card__status.restricted { color: var(--restricted-text); }
+.notice-card__age { font-size: 11px; color: var(--tertiary); }
+.notice-card h3 { margin: 8px 0 0; font-size: 17px; font-weight: 600; }
+.notice-card h3 .alt { font-size: 12px; color: var(--secondary); font-weight: 400; }
+.notice-card p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--body); }
+.notice-card blockquote {
+  margin: 10px 0 0; padding-left: 12px; border-left: 2px solid var(--rule);
+  font-style: italic; color: var(--secondary); font-size: 13.5px;
+}
+.notice-card__source {
+  display: inline-block; margin-top: 10px;
+  font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tertiary);
+}
+
+/* --------------------------------------------------------- remainder */
+.remainder { border-top: 1px solid var(--rule); }
+.remainder > summary {
+  list-style: none; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 14px 0; font-size: 13px; color: var(--secondary);
+}
+.remainder > summary::-webkit-details-marker { display: none; }
+.remainder > summary b { font-weight: 600; font-size: 11.5px; letter-spacing: 0.08em; color: var(--ink); }
+
+/* ------------------------------------------------------------- feature page
+   Not redesigned in this pass — given the new tokens so it does not look
+   like a different website while it waits its turn. */
+.subpage { padding: 26px var(--gutter) 64px; max-width: 900px; }
+.subpage h1 { font-size: 28px; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 4px; }
+.meta { color: var(--secondary); font-size: 12px; }
+.meta.stale { color: var(--restricted-text); font-weight: 600; }
+.card {
+  display: block; background: var(--card); border: 1px solid var(--rule);
+  border-left: 3px solid var(--decor); border-radius: 8px; padding: 12px 14px;
+  box-shadow: var(--shadow-card);
 }
 .card.open { border-left-color: var(--open); }
 .card.closed { border-left-color: var(--closed); }
 .card.restricted { border-left-color: var(--restricted); }
-.card.routine { border-left-color: var(--unknown); }
-
+.card.routine { border-left-color: var(--decor); }
 .card h3 { margin: 0 0 3px; font-size: 15px; }
-.card p { margin: 0; color: var(--muted); font-size: 13px; }
-
+.card p { margin: 0; color: var(--secondary); font-size: 13px; }
 .pill {
-  display: inline-block;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  color: var(--muted);
+  display: inline-block; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.06em; padding: 2px 7px; border-radius: 999px;
+  border: 1px solid var(--rule); color: var(--secondary);
 }
 .pill.closed { color: var(--closed); border-color: var(--closed); }
 .pill.open { color: var(--open); border-color: var(--open); }
-.pill.restricted { color: var(--restricted); border-color: var(--restricted); }
-
-.meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
-.stale { color: var(--restricted); }
-
+.pill.restricted { color: var(--restricted-text); border-color: var(--restricted); }
+.grid { display: grid; gap: 10px; margin-top: 12px; }
+@media (min-width: 720px) { .grid { grid-template-columns: repeat(2, 1fr); } }
 table.history { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
 table.history th, table.history td {
-  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line);
-  vertical-align: top;
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top;
 }
-table.history th { color: var(--muted); font-weight: 500; }
-
+table.history th { color: var(--secondary); font-weight: 500; }
 .lifts { list-style: none; padding: 0; margin: 12px 0 0; }
 .lifts li {
   display: flex; justify-content: space-between; gap: 12px;
-  padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px;
+  padding: 7px 0; border-bottom: 1px solid var(--rule); font-size: 13px;
 }
-.lifts .times { color: var(--muted); font-variant-numeric: tabular-nums; }
-
-/* Feature kind, shown so a route closure is not mistaken for a lift one. */
-.pill.type {
-  color: var(--muted);
-  border-color: var(--line);
-  text-transform: lowercase;
-  letter-spacing: 0.02em;
-}
-
-/* A status word is a lossy summary. When other live notices exist they are
-   flagged on the card itself, not left for whoever scrolls to the history. */
-.notices {
-  margin: 6px 0 0 !important;
-  color: var(--restricted) !important;
-  font-size: 13px;
-}
-
+.lifts .times { color: var(--secondary); font-variant-numeric: tabular-nums; }
 .notice {
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--restricted);
-  background: var(--panel);
-  border-radius: 6px;
-  padding: 10px 13px;
-  margin-bottom: 8px;
+  border: 1px solid var(--rule); border-left: 3px solid var(--restricted);
+  background: var(--card); border-radius: 8px; padding: 10px 13px; margin-bottom: 8px;
 }
 .notice h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
-.notice p { margin: 0; color: var(--muted); font-size: 13px; }
+.notice p { margin: 0; color: var(--secondary); font-size: 13px; }
+.notices { color: var(--restricted-text); font-size: 13px; }
+.feature-map { height: 280px; border-radius: 10px; border: 1px solid var(--rule); margin-top: 14px; }
 
-/* --- hierarchy ---------------------------------------------------------
-   The page answers one question: what is shut that should not be. A real
-   closure and a lift asleep for the night were the same size card, so
-   answering it meant reading twenty of them. Weight now tracks how much a
-   thing deserves attention. */
+/* ------------------------------------------------------------------ mobile
+   Moment three from the brief: a phone, in a hut, on bad signal. Single
+   column, map after the answer, routine rows behind a <details> so the
+   default payload is small — and it works with JS switched off. */
+@media (max-width: 900px) {
+  :root { --gutter: 16px; }
+  .hero { height: 300px; }
+  .hero__img { object-position: center 66%; }
+  .hero__copy { bottom: 34px; }
+  .hero__headline { font-size: 32px; }
+  .hero__kicker { font-size: 10.5px; letter-spacing: 0.2em; }
+  /* Taken out of the hero entirely. Absolutely positioned at this width the
+     card is three lines tall and covers the headline it is supposed to
+     answer — it cut "what's shut." in half. It now sits under the photo and
+     laps up over the edge by 14px, which keeps the overlap without the
+     collision. */
+  .verdict {
+    margin: -18px 16px 0;
+    padding: 14px 16px;
+    flex-wrap: wrap; gap: 8px;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--rule);
+  }
+  .verdict__line { font-size: 17px; }
+  .verdict__counts, .verdict__sweep { width: 100%; margin-left: 0; }
+  .layout { grid-template-columns: 1fr; gap: 24px; padding-top: 26px; }
+  .mappane { min-height: 0; position: static; }
+  .mappane__map { min-height: 220px; height: 220px; }
+  /* Two competing labels on one 390px line collided; the caption is a desktop
+     nicety and the count is the useful half. */
+  .mappane__head { flex-direction: column; gap: 2px; }
+  .mappane__head span { font-size: 11px; }
+  .tbl { grid-template-columns: 14px 1fr 58px; }
+  .tbl .what { grid-column: 2 / 4; padding-top: 0; border-top: 0; }
+  .tbl > .name { border-bottom: 0; padding-bottom: 2px; }
+}
 
-.headline {
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--closed);
-  background: linear-gradient(180deg, rgba(248,81,73,0.07), transparent 60%),
-              var(--panel);
-  border-radius: 8px;
-  padding: 18px 20px;
-  margin-bottom: 10px;
-  display: block;
-  text-decoration: none;
-}
-.headline.restricted { border-left-color: var(--restricted); }
-.headline h3 { margin: 0 0 6px; font-size: 20px; letter-spacing: -0.01em; }
-.headline p { margin: 0; font-size: 15px; color: var(--text); opacity: 0.85; }
 
-/* Routine status: a table, not a wall of cards. Present, scannable, quiet. */
-.quiet {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  margin-top: 10px;
-}
-.quiet td {
-  padding: 7px 10px;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
-}
-.quiet td:first-child { color: var(--text); width: 34%; }
-.quiet td.state { width: 1%; white-space: nowrap; }
-.quiet tr:hover td { background: rgba(255, 255, 255, 0.02); }
-.quiet a { text-decoration: none; }
-
-.dot {
-  display: inline-block;
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  margin-right: 7px;
-  vertical-align: 1px;
-}
-.dot.open { background: var(--open); }
-.dot.closed { background: var(--closed); }
-.dot.restricted { background: var(--restricted); }
-.dot.unknown { background: var(--unknown); }
-
-.section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin: 34px 0 4px;
-}
-.section-head h2 { font-size: 15px; margin: 0; }
-.section-head span { color: var(--muted); font-size: 12px; }
-
-/* Map key. Six line colours and forty markers had nothing explaining them. */
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.legend i {
-  display: inline-block;
-  width: 18px; height: 0;
-  border-top: 2px solid currentColor;
-}
-.legend i.dashed { border-top-style: dashed; }
-
-.feature-map {
-  height: 280px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  margin-top: 14px;
+/* --------------------------------------------------- routine tables, desktop
+   Open on desktop, collapsed on a phone: no JS, no duplicated markup. Browsers
+   hide a closed <details>' children two different ways depending on version —
+   a UA `display: none` on the children, or `content-visibility` on the
+   ::details-content pseudo — so both are overridden. This block lives at the
+   end of the file deliberately: an earlier attempt placed it above the
+   `.remainder > summary` rule it needs to beat, matched on specificity, and
+   lost on source order, which left "SHOW" showing next to already-open tables.
+   Verified in Chromium at 1280 and 390. */
+@media (min-width: 901px) {
+  .remainder > summary { display: none; }
+  .remainder > .remainder__body { display: block; }
+  .remainder::details-content { content-visibility: visible; block-size: auto; }
 }

@@ -16,3 +16,8 @@ data/
 _to_delete/
 *.tsbuildinfo
 _bundle/
+
+# Camera originals. Never in public/ — Next serves that directory verbatim,
+# EXIF and all. Derived, stripped web assets go in public/backgrounds/.
+photo-source/
+*.tgz

@@ -12,11 +12,15 @@ const IGN_PLAN =
   "&TILEMATRIX={z}&TILECOL={x}&TILEROW={y}&FORMAT=image/png";
 
 const COLOURS: Record<string, string> = {
-  open: "#3fb950",
-  closed: "#f85149",
-  restricted: "#d29922",
-  unknown: "#6e7681",
+  open: "#3d8f63",
+  closed: "#b23c31",
+  restricted: "#b3831d",
+  unknown: "#6e757e",
 };
+
+// Context routes on the light basemap. The old value was #4a5563, chosen
+// against a near-black page; on IGN's pale cartography it read as a claim.
+const CONTEXT = "#9aa2ab";
 
 // "Nobody has said anything about this" and "this is shut because it is
 // night" were both being painted the same grey, which made the whole map look
@@ -38,7 +42,7 @@ function colourFor(feature: Feature): string {
   if (feature.season?.value && feature.season.value !== "unknown") {
     return COLOURS[feature.season.value] ?? COLOURS.unknown;
   }
-  if (!hasStatus(feature)) return "#4a5563";
+  if (!hasStatus(feature)) return CONTEXT;
   return COLOURS.unknown;
 }
 
@@ -87,15 +91,20 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         feature.season?.value === "restricted";
 
       const marker = document.createElement("div");
+      // Unknown is hollow and dashed — shape, not just hue, so it survives
+      // colour-blindness and never reads as a quiet "fine".
+      const isUnknown = !known || feature.season?.value === "unknown";
       Object.assign(marker.style, {
-        width: notable ? "16px" : known ? "12px" : "8px",
-        height: notable ? "16px" : known ? "12px" : "8px",
+        width: notable ? "16px" : known ? "12px" : "10px",
+        height: notable ? "16px" : known ? "12px" : "10px",
         borderRadius: "50%",
-        background: known ? colourFor(feature) : "transparent",
-        border: known
-          ? "2px solid #0e1116"
-          : "1.5px solid rgba(120,132,145,0.85)",
-        boxShadow: notable ? `0 0 0 3px ${colourFor(feature)}33` : "none",
+        background: isUnknown ? "transparent" : colourFor(feature),
+        border: isUnknown
+          ? `2px dashed ${COLOURS.unknown}`
+          : "2px solid #ffffff",
+        boxShadow: isUnknown
+          ? "none"
+          : `0 0 0 1px ${colourFor(feature)}55, 0 1px 3px rgba(34,40,46,0.35)`,
         cursor: "pointer",
       });
 
@@ -104,7 +113,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         .setPopup(
           new maplibregl.Popup({ offset: 14 }).setHTML(
             `<strong>${feature.name}</strong><br/>` +
-              `<span style="color:#57606a">${
+              `<span style="color:#5f6873">${
                 feature.status.summary ?? feature.status.value
               }</span><br/>` +
               `<a href="/${feature.type}/${feature.slug}">details</a>`,
@@ -209,7 +218,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
           .setLngLat(event.lngLat)
           .setHTML(
             `<strong>${props.name}</strong><br/>` +
-              `<span style="color:#57606a">${props.summary}</span><br/>` +
+              `<span style="color:#5f6873">${props.summary}</span><br/>` +
               `<a href="/${props.type}/${props.slug}">details</a>`,
           )
           .addTo(instance);
@@ -229,5 +238,5 @@ export default function MassifMap({ features }: { features: Feature[] }) {
     };
   }, [features]);
 
-  return <div id="map" ref={container} />;
+  return <div className="map-canvas" ref={container} />;
 }

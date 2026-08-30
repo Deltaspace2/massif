@@ -1,7 +1,7 @@
 export default function NotFound() {
   return (
-    <>
-      <h2>Not tracked</h2>
+    <main className="subpage">
+      <h1>Not tracked</h1>
       <p className="meta">
         No feature by that name. It may not be seeded yet — the massif is
         covered deliberately rather than exhaustively.
@@ -9,6 +9,6 @@ export default function NotFound() {
       <p>
         <a href="/">← Back to the map</a>
       </p>
-    </>
+    </main>
   );
 }

@@ -83,7 +83,7 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
         height: "16px",
         borderRadius: "50%",
         background: colour,
-        border: "2px solid #0e1116",
+        border: "2px solid #ffffff",
         boxShadow: `0 0 0 4px ${colour}33`,
       });
       new maplibregl.Marker({ element: marker })
@@ -92,7 +92,11 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
     }
 
     instance.on("load", () => {
-      if (isLine) {
+      // `geometry` is nullable — the Goûter route and the Grand Couloir have
+      // none on purpose, because nobody has surveyed them and a drawn line
+      // would claim a precision that does not exist. Narrow it rather than
+      // asserting: an unsurveyed feature simply has no line.
+      if (isLine && geometry) {
         instance.addSource("feature", {
           type: "geojson",
           data: { type: "Feature", geometry, properties: {} },

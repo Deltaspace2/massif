@@ -42,14 +42,17 @@ export default async function FeaturePage({ params }: { params: Params }) {
   const routine = feature.status.closure_kind === "outside_hours";
 
   return (
-    <>
+    // Not redesigned in this pass — wrapped so it inherits the new page
+    // gutters and tokens rather than sitting flush against the viewport now
+    // that the layout no longer supplies a container.
+    <main className="subpage">
       {feature.parent && (
         <p className="meta">
           <a href={`/lift/${feature.parent.slug}`}>← {feature.parent.name}</a>
         </p>
       )}
 
-      <h2 style={{ marginBottom: 4 }}>{feature.name}</h2>
+      <h1>{feature.name}</h1>
       <p className="meta">
         {feature.type}
         {feature.status.altitude_m ? ` · ${feature.status.altitude_m} m` : ""}
@@ -191,6 +194,6 @@ export default async function FeaturePage({ params }: { params: Params }) {
           ))}
         </tbody>
       </table>
-    </>
+    </main>
   );
 }
