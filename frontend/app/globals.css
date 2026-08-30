@@ -185,8 +185,11 @@ a:hover { text-decoration: underline; }
 .tbl .what.unknown { color: var(--unknown); font-style: italic; }
 /* Rule 1: the age is part of the claim, not metadata about it. The handoff set
    it in the 2.51:1 grey; here it sits at the same weight as the status text. */
-.tbl .age { font-size: 11.5px; color: var(--tertiary); text-align: right; }
+.tbl .age { font-size: 11.5px; color: var(--tertiary); text-align: right; line-height: 1.35; }
 .tbl .age.caution { color: var(--restricted-text); font-weight: 600; }
+.tbl .age__published { display: block; }
+.tbl .age__checked { display: block; font-size: 10.5px; color: var(--tertiary); font-weight: 400; }
+.what__more { color: var(--restricted-text); font-weight: 500; }
 .tbl-row:hover { background: var(--hover); }
 
 .pill-unverified {

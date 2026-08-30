@@ -10,7 +10,6 @@ from datetime import UTC, datetime
 import pytest
 
 from massif.enums import StatementType, StatusValue
-from massif.models import Document
 from massif.ingest.sources.saint_gervais import (
     GATE,
     SaintGervaisScraper,
@@ -20,6 +19,7 @@ from massif.ingest.sources.saint_gervais import (
     norm,
     statements_for,
 )
+from massif.models import Document
 
 NOW = datetime(2026, 8, 26, 9, 0, tzinfo=UTC)
 
@@ -198,7 +198,10 @@ def test_extract_published_at_tolerates_malformed_json():
 
 # ------------------------------------------------- expiry, end to end -------
 
-CLOSURE_UNDATED = "Accès au Mont-Blanc : danger mortel de chutes de pierres Fermeture des refuges de Tête Rousse et du Goûter"
+CLOSURE_UNDATED = (
+    "Accès au Mont-Blanc : danger mortel de chutes de pierres Fermeture des "
+    "refuges de Tête Rousse et du Goûter"
+)
 
 # (title, body, published_at) for the four real gouter-route notices of 2026,
 # in the order the mairie published them. Bodies are trimmed from the live
@@ -347,7 +350,61 @@ def test_reopening_reads_as_a_reopening():
 
 
 def test_undated_notice_says_so_plainly():
+    """Undated still has to SAY undated — but not at the cost of the notice.
+
+    This test used to require the summary be exactly "Closure notice — no dates
+    stated", which is what made the discard look deliberate. The requirement was
+    always that we admit we cannot date it; throwing away what the mairie
+    announced was collateral, and on the rockfall notice it cost the only
+    sentence that mattered. The admission is still mandatory below.
+    """
     statements = statements_for(
         "Fermeture des refuges de Tête Rousse et du Goûter", "", "http://x", NOW
     )
-    assert all(s.summary_en == "Closure notice — no dates stated" for s in statements)
+    assert statements
+    for statement in statements:
+        assert "no dates stated" in statement.summary_en
+        assert "Fermeture des refuges" in statement.summary_en
+        assert statement.valid_from is None and statement.valid_to is None
+
+
+# --------------------------------------------------------------------------
+# Regression: an undated closure must keep the words the mairie used.
+#
+# english_summary() returned the bare string "Closure notice — no dates stated"
+# whenever it could not find dates, discarding the title. That turned
+#
+#   "Accès au Mont-Blanc : danger mortel de chutes de pierres
+#    Fermeture des refuges de Tête Rousse et du Goûter"
+#
+# — the most serious notice in the database — into the least informative line
+# on the page, and a re-extraction is what did it: earlier rows for the same
+# document still held the French title. Fixed 30 Aug 2026.
+
+ROCKFALL = (
+    "Accès au Mont-Blanc : danger mortel de chutes de pierres "
+    "Fermeture des refuges de Tête Rousse et du Goûter"
+)
+
+
+def test_undated_closure_keeps_the_notice_text():
+    statements = statements_for(ROCKFALL, "", "https://example.org/a", NOW)
+    assert statements, "the rockfall notice must produce at least one statement"
+    for statement in statements:
+        assert statement.statement_type is StatementType.CLOSURE
+        # The danger is the point of the notice; it must survive extraction.
+        assert "danger mortel" in statement.summary_en
+        # And we still say plainly that we could not date it.
+        assert "no dates stated" in statement.summary_en
+        # An undated notice must not claim the present.
+        assert statement.valid_from is None and statement.valid_to is None
+        assert statement.status is StatusValue.UNKNOWN
+
+
+def test_dated_closure_still_summarises_in_english():
+    """The title is only borrowed when there are no dates to state instead."""
+    statements = statements_for(MAY_CLOSURE, "", "https://example.org/b", NOW)
+    assert statements
+    for statement in statements:
+        assert statement.summary_en.startswith("Closed ")
+        assert "no dates stated" not in statement.summary_en

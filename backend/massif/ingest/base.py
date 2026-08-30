@@ -304,6 +304,50 @@ def retire_replaced(session: Session, incoming: Statement) -> int:
             continue  # the stored one is newer; leave it alone
         older.superseded_at = now
         count += 1
+
+    count += _lift_undated_closures(session, incoming, now)
+    return count
+
+
+def _lift_undated_closures(
+    session: Session, incoming: Statement, now: datetime
+) -> int:
+    """An opening retires the undated closures the same authority left standing.
+
+    The type match above is deliberate — one source updating its own reading of
+    one thing — but it means a closure is never a candidate for retirement by an
+    opening, and an undated closure has no validity window to expire either. So
+    it stands forever.
+
+    Saint-Gervais shut access to Mont Blanc on 11 August over lethal rockfall
+    and reopened the Tête Rousse and Goûter refuges on the 26th. The closure was
+    still being served as "currently in force" on the 30th, under a headline
+    that correctly said the route was open. That is precisely the confidently
+    contradictory page this project exists to avoid.
+
+    Deliberately narrow: same feature, same source, closure only, undated only,
+    and only where the opening genuinely post-dates it. A closure carrying its
+    own dates expires on its own terms and is none of this function's business.
+    """
+    if incoming.statement_type != StatementType.OPENING:
+        return 0
+    if incoming.observed_at is None:
+        return 0
+
+    stale_closures = select(Statement).where(
+        Statement.feature_id == incoming.feature_id,
+        Statement.source_id == incoming.source_id,
+        Statement.statement_type == StatementType.CLOSURE,
+        Statement.valid_from.is_(None),
+        Statement.valid_to.is_(None),
+        Statement.observed_at < incoming.observed_at,
+        Statement.superseded_at.is_(None),
+        Statement.superseded_by.is_(None),
+    )
+    count = 0
+    for closure in session.scalars(stale_closures):
+        closure.superseded_at = now
+        count += 1
     return count
 
 

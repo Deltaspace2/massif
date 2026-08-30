@@ -204,7 +204,7 @@ def extract_published_at(html: str) -> datetime | None:
     return None
 
 
-def english_summary(statement_type: StatementType, dates) -> str:
+def english_summary(statement_type: StatementType, dates, title: str = "") -> str:
     """Plain English, composed from what we extracted — not translated.
 
     The notices are French and the cards were showing them verbatim, which
@@ -218,6 +218,13 @@ def english_summary(statement_type: StatementType, dates) -> str:
         return f"Reopening {window}" if window else "Reopening — no date stated"
     if window:
         return f"Closed {window}"
+    # An undated closure used to return this bare string and discard the title,
+    # which turned "Accès au Mont-Blanc : danger mortel de chutes de pierres"
+    # into boilerplate — the most serious notice in the database rendered as
+    # the least informative line on the page. We cannot date it, so we say so;
+    # what the mairie actually announced is the part worth keeping.
+    if title:
+        return f"{title.strip()} — no dates stated"
     return "Closure notice — no dates stated"
 
 
@@ -276,7 +283,7 @@ def statements_for(
                 observed_at=observed_at,
                 valid_from=dates.start if dates else None,
                 valid_to=dates.end if dates else None,
-                summary_en=english_summary(statement_type, stated),
+                summary_en=english_summary(statement_type, stated, title),
                 original_text=(title + " — " + body)[:2000],
                 original_language="fr",
                 payload={

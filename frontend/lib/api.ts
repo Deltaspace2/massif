@@ -10,7 +10,12 @@ export interface FeatureStatus {
   value: StatusValue;
   severity: number;
   summary: string | null;
+  /** When the SOURCE published it — the date on the arrêté. */
   observed_at: string | null;
+  /** When WE last fetched the source and found it still standing. */
+  last_seen_at: string | null;
+  /** The backend's own verdict, per statement type: an arrêté holds 90 days,
+   *  a reopening 30, a live lift status one. Do not re-derive this in the UI. */
   stale: boolean;
   /** "outside_hours" means routine — night, or out of season. */
   closure_kind: string | null;
@@ -58,6 +63,7 @@ export interface Notice {
   status: StatusValue;
   severity: number;
   observed_at: string;
+  last_seen_at: string | null;
   valid_from: string | null;
   valid_to: string | null;
   summary: string | null;

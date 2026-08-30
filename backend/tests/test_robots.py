@@ -129,6 +129,5 @@ def test_robots_fetch_identifies_itself():
 
 
 def test_fetch_raises_rather_than_proceeding_when_refused():
-    with serving(code=503) as root:
-        with pytest.raises(PermissionError):
-            base.fetch(f"{root}/anything")
+    with serving(code=503) as root, pytest.raises(PermissionError):
+        base.fetch(f"{root}/anything")

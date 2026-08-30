@@ -60,6 +60,7 @@ def recompute_feature(session: Session, feature_id: uuid.UUID) -> FeatureStatus:
         status.statement_id = None
         status.source_id = None
         status.observed_at = None
+        status.last_seen_at = None
         status.stale_after = None
         status.computed_at = now
         return status
@@ -80,6 +81,7 @@ def recompute_feature(session: Session, feature_id: uuid.UUID) -> FeatureStatus:
     status.statement_id = winner.id
     status.source_id = winner.source_id
     status.observed_at = winner.observed_at
+    status.last_seen_at = winner.last_seen_at
     status.stale_after = winner.observed_at + timedelta(days=stale_days)
     status.computed_at = now
     return status

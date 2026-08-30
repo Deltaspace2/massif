@@ -5,6 +5,12 @@ montblancnaturalresort.com/fr/infos-live, so a site redesign breaks these
 tests rather than silently corrupting the map.
 """
 
+# ruff: noqa: E501
+# The fixtures below are markup captured verbatim from the live lift-status
+# page. Wrapping them to satisfy the line limit would make them no longer the
+# thing that was captured, and these tests exist precisely because guessing at
+# that markup produced a lift reported closed for its lunch break.
+
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 

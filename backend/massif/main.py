@@ -134,6 +134,26 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
             "kind": "in_season",
         }
 
+    # An opening is a fact that survives the night as much as a closure does,
+    # and it was the one branch nothing consulted. A route with a currently
+    # valid reopening fell through every test to UNKNOWN, so the front page
+    # rendered "unknown — no information, not fine" about the Goûter route on
+    # a day Saint-Gervais had it explicitly open until 25 September. Saying we
+    # have no information when we have some is the same species of error as a
+    # stale open: a confident claim that is not true.
+    openings = [
+        st for st in statements
+        if str(st.statement_type) == "opening"
+        and str(st.status) == "open"
+    ]
+    if openings:
+        newest = max(openings, key=lambda st: st.observed_at)
+        return {
+            "value": StatusValue.OPEN,
+            "reason": newest.summary_en,
+            "kind": "notice",
+        }
+
     if has_schedule:
         return {
             "value": StatusValue.CLOSED,
@@ -172,6 +192,10 @@ def _feature_dict(
             "severity": status.severity if status else 0,
             "summary": status.summary_en if status else None,
             "observed_at": status.observed_at if status else None,
+            # When the source published it vs when we last saw it still
+            # standing. The UI shows both; only the second is a statement
+            # about our own diligence.
+            "last_seen_at": (status.last_seen_at if status else None),
             "stale": bool(
                 status and status.stale_after and status.stale_after < now
             ),
@@ -334,6 +358,7 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
             "status": st.status,
             "severity": st.severity,
             "observed_at": st.observed_at,
+            "last_seen_at": st.last_seen_at,
             "valid_from": st.valid_from,
             "valid_to": st.valid_to,
             "summary": st.summary_en,
@@ -368,6 +393,7 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
             "status": st.status,
             "severity": st.severity,
             "observed_at": st.observed_at,
+            "last_seen_at": st.last_seen_at,
             "valid_from": st.valid_from,
             "valid_to": st.valid_to,
             "summary": st.summary_en,
@@ -404,6 +430,7 @@ def feed(limit: int = 50, session: Session = Depends(get_session)) -> dict:
                 "severity": st.severity,
                 "summary": st.summary_en,
                 "observed_at": st.observed_at,
+                "last_seen_at": st.last_seen_at,
                 "source": {"name": src.name, "url": src.url},
             }
             for st, f, src in rows

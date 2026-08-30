@@ -195,7 +195,14 @@ class Statement(Base):
     )
     severity: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
 
+    # When the SOURCE said it. The date on the arrêté, not the date we looked.
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # When WE last fetched the source and found this still standing. A decree
+    # published a fortnight ago and re-checked a minute ago is old and current
+    # at the same time; one column could not say both.
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
     valid_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     valid_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -247,6 +254,7 @@ class FeatureStatus(Base):
     )
 
     observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     stale_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     computed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

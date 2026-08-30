@@ -9,19 +9,34 @@ import {
 
 export const revalidate = 60;
 
-/** Older than this and the status is presented as a question, not an answer. */
-const UNVERIFIED_AFTER_HOURS = 48;
+/** How long we tolerate not having re-checked a source before saying so.
+ *  This is about OUR diligence, not about the claim: it is the answer to
+ *  "when did we last look", and every source is swept far more often. */
+const UNCHECKED_AFTER_HOURS = 24;
 
 function ageHours(iso: string | null): number | null {
   if (!iso) return null;
   return (Date.now() - new Date(iso).getTime()) / 3_600_000;
 }
 
-/** Rule 1: a stale "open" must never read as clearance. Never-checked counts
- *  as unverified too — the absence of a check is not a passing check. */
+/** Rule 1: a stale "open" must never read as clearance.
+ *
+ *  This used to be a flat "older than 48 hours" test against observed_at, which
+ *  was wrong twice over. observed_at is when the MAIRIE published, not when we
+ *  looked — so a decree valid until 25 September, re-checked minutes earlier,
+ *  was badged UNVERIFIED 6 D. And the backend already answers this properly,
+ *  per statement type: an arrêté holds 90 days, a reopening 30, a live lift
+ *  status one. The UI had quietly overridden all of it with one blunt number,
+ *  which would have flagged every legally valid decree in the massif forever —
+ *  and a badge that is always on stops being read.
+ *
+ *  Two questions now, both shown: has the claim aged out (the backend's
+ *  `stale`), and have we failed to re-check it (last_seen_at). Never checked
+ *  at all counts, because the absence of a check is not a passing check. */
 function unverified(feature: Feature): boolean {
-  const hours = ageHours(feature.status.observed_at);
-  return hours === null || hours > UNVERIFIED_AFTER_HOURS || feature.status.stale;
+  if (feature.status.stale) return true;
+  const sinceCheck = ageHours(feature.status.last_seen_at);
+  return sinceCheck === null || sinceCheck > UNCHECKED_AFTER_HOURS;
 }
 
 /** Worth interrupting a trip planner for. Season, never the clock: a lift
@@ -86,13 +101,30 @@ function Row({ feature }: { feature: Feature }) {
       <span className="name">
         <a href={`/${feature.type}/${feature.slug}`}>{feature.name}</a>
         {altitude && <span className="alt"> {altitude}</span>}
-        {stale && <span className="pill-unverified">UNVERIFIED {shortAge(feature.status.observed_at).toUpperCase()}</span>}
+        {stale && <span className="pill-unverified">UNVERIFIED</span>}
       </span>
       <span className={`what${isUnknown ? " unknown" : said.quoted ? " quoted" : ""}`}>
         {isUnknown ? "unknown — no information, not “fine”" : said.text}
+        {/* The old quiet table carried this and the rewrite dropped it. It
+            matters most exactly where it went missing: the Goûter route
+            headlined OPEN on the front page while an 11 August notice about
+            lethal rockfall sat one click away with nothing to hint at it. */}
+        {feature.status.other_notices > 0 && (
+          <span className="what__more">
+            {" · "}
+            {feature.status.other_notices} other notice
+            {feature.status.other_notices === 1 ? "" : "s"} in force
+          </span>
+        )}
       </span>
+      {/* Two facts, not one. "published" is the mairie's date; "checked" is
+          ours. Conflating them is what produced "last confirmed 6 days ago"
+          for a decree we had re-read minutes earlier. */}
       <span className={`age mono${stale ? " caution" : ""}`}>
-        {shortAge(feature.status.observed_at)}
+        <span className="age__published">{shortAge(feature.status.observed_at)}</span>
+        <span className="age__checked">
+          checked {shortAge(feature.status.last_seen_at)}
+        </span>
       </span>
     </>
   );

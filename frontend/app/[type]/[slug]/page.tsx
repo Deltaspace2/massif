@@ -73,10 +73,17 @@ export default async function FeaturePage({ params }: { params: Params }) {
             </span>
           )}
         </h3>
+        {/* "Last confirmed" was doing two jobs and telling the truth about
+            neither: it printed the mairie's publication date under a label
+            claiming it was our check. Both are shown now, separately. */}
         <div className={`meta ${feature.status.stale ? "stale" : ""}`}>
-          Last confirmed {resortTime(feature.status.observed_at)} resort time (
+          Published {resortTime(feature.status.observed_at)} resort time (
           {sinceLabel(feature.status.observed_at)})
-          {feature.status.stale && " — nobody has reconfirmed this recently"}
+          {feature.status.last_seen_at && (
+            <> · source re-checked {sinceLabel(feature.status.last_seen_at)}</>
+          )}
+          {feature.status.stale &&
+            " — this has aged past the window its kind of notice holds for"}
         </div>
         {routine && (
           <div className="meta">
