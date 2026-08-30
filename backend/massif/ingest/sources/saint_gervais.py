@@ -302,6 +302,33 @@ def english_summary(statement_type: StatementType, dates, title: str = "") -> st
     return f"Closure notice — no dates stated{tail}"
 
 
+
+def quoted_source_text(title: str, body: str) -> str:
+    """What the mairie actually wrote, once.
+
+    This was stored as `title + " — " + body`, which put the headline into the
+    quotation as well — and the page already renders an English summary of that
+    same headline directly above it. Worse, these articles routinely open by
+    restating their own title, so the demolition notice quoted its title twice
+    inside one blockquote and left no room for the part nobody had read yet.
+
+    The body is the part the summary cannot carry. The title only stands in
+    when there is no body at all.
+    """
+    title = (title or "").strip()
+    body = (body or "").strip()
+    if not body:
+        return title[:2000]
+    # Articles that lead by repeating their own headline: drop the repetition,
+    # compared on the same accent-stripped basis as everything else here.
+    flat_title, flat_body = norm(title), norm(body)
+    if flat_title and flat_body.startswith(flat_title):
+        trimmed = body[len(title):].lstrip(" .—-–:")
+        if trimmed:
+            body = trimmed
+    return body[:2000]
+
+
 def statements_for(
     title: str, body: str, url: str, observed_at: datetime
 ) -> list[ExtractedStatement]:
@@ -358,7 +385,7 @@ def statements_for(
                 valid_from=dates.start if dates else None,
                 valid_to=dates.end if dates else None,
                 summary_en=english_summary(statement_type, stated, title),
-                original_text=(title + " — " + body)[:2000],
+                original_text=quoted_source_text(title, body),
                 original_language="fr",
                 payload={
                     "url": url,

@@ -342,6 +342,22 @@ table.history th { color: var(--secondary); font-weight: 500; }
   background: var(--card); border-radius: 8px; padding: 10px 13px; margin-bottom: 8px;
 }
 .notice h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+
+/* The source's own words, kept but not shouting. English is what you read;
+   this is what you check it against. */
+.original { margin-top: 8px; }
+.original > summary {
+  cursor: pointer; list-style: none;
+  font-size: 11.5px; letter-spacing: 0.04em; color: var(--tertiary);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.original > summary::-webkit-details-marker { display: none; }
+.original > summary:hover { color: var(--ink); }
+.original blockquote {
+  margin: 8px 0 0; padding-left: 12px;
+  border-left: 2px solid var(--rule);
+  font-style: italic; font-size: 13px; line-height: 1.5; color: var(--secondary);
+}
 .notice p { margin: 0; color: var(--secondary); font-size: 13px; }
 .notices { color: var(--restricted-text); font-size: 13px; }
 .feature-map-wrap { margin: 14px 0 0; }

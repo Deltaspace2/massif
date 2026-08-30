@@ -5,6 +5,15 @@ import { getFeature, resortTime, sinceLabel } from "@/lib/api";
 
 export const revalidate = 60;
 
+// Named, because "(fr)" beside a paragraph of French tells an English reader
+// nothing they had not already worked out.
+const LANGUAGE: Record<string, string> = {
+  fr: "French",
+  it: "Italian",
+  de: "German",
+  en: "English",
+};
+
 type Params = Promise<{ type: string; slug: string }>;
 
 // The SEO surface. Someone googling "aiguille du midi closed" should land
@@ -109,11 +118,23 @@ export default async function FeaturePage({ params }: { params: Params }) {
                 {notice.summary ?? notice.type}{" "}
                 <span className={`pill ${notice.status}`}>{notice.status}</span>
               </h4>
+              {/* The English line above is the one to read. The source's own
+                  words are kept verbatim — that is the whole promise of the
+                  site — but a French paragraph set at full weight under an
+                  English heading made the page look untranslated, and the
+                  reader has to get past it to reach the date and the link. */}
               {notice.original_text && (
-                <p>
-                  “{notice.original_text.slice(0, 240)}
-                  {notice.original_text.length > 240 ? "…" : ""}”
-                </p>
+                <details className="original">
+                  <summary>
+                    Read it as published
+                    {notice.original_language
+                      ? ` (in ${LANGUAGE[notice.original_language] ?? notice.original_language})`
+                      : ""}
+                  </summary>
+                  <blockquote lang={notice.original_language ?? undefined}>
+                    {notice.original_text}
+                  </blockquote>
+                </details>
               )}
               <p className="meta">
                 {resortTime(notice.observed_at)} ·{" "}
@@ -186,10 +207,17 @@ export default async function FeaturePage({ params }: { params: Params }) {
               <td>
                 {entry.summary}
                 {entry.original_text && (
-                  <div className="meta">
-                    “{entry.original_text.slice(0, 180)}”
-                    {entry.original_language && ` (${entry.original_language})`}
-                  </div>
+                  <details className="original">
+                    <summary>
+                      as published
+                      {entry.original_language
+                        ? ` (${LANGUAGE[entry.original_language] ?? entry.original_language})`
+                        : ""}
+                    </summary>
+                    <blockquote lang={entry.original_language ?? undefined}>
+                      {entry.original_text}
+                    </blockquote>
+                  </details>
                 )}
               </td>
               <td>

@@ -20,6 +20,7 @@ from massif.ingest.sources.saint_gervais import (
     features_mentioned,
     hazards_in,
     norm,
+    quoted_source_text,
     statements_for,
 )
 from massif.models import Document
@@ -445,3 +446,35 @@ def test_dated_closure_still_leads_with_the_dates():
         assert "no dates stated" not in statement.summary_en
         # No French in the English field, dated or not.
         assert "Fermeture" not in statement.summary_en
+
+
+# --------------------------------------------------------------------------
+# The quotation carries what the summary cannot, and carries it once.
+
+DEMOLITION_TITLE = (
+    "Démontage de l'ancien refuge du Goûter et interdiction temporaire "
+    "d'accès à la voie normale du Mont-Blanc"
+)
+
+
+def test_the_quote_drops_a_body_that_restates_the_title():
+    """These articles routinely open by repeating their own headline.
+
+    Stored as title + body, the demolition notice quoted its own title twice
+    inside one blockquote — under an English summary of that same title — and
+    truncated before reaching anything new.
+    """
+    body = DEMOLITION_TITLE + ". Dans le cadre de l'évolution du refuge, ..."
+    quoted = quoted_source_text(DEMOLITION_TITLE, body)
+    assert quoted.startswith("Dans le cadre")
+    assert "Démontage" not in quoted
+
+
+def test_the_quote_is_the_body_not_the_headline():
+    quoted = quoted_source_text("Fermeture des refuges", "La période de sécheresse …")
+    assert quoted == "La période de sécheresse …"
+
+
+def test_a_notice_with_no_body_still_quotes_something():
+    """Better the headline than an empty quotation."""
+    assert quoted_source_text("Fermeture des refuges", "") == "Fermeture des refuges"
