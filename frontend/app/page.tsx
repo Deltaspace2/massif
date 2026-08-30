@@ -343,7 +343,7 @@ export default async function Home() {
         <aside className="mappane" id="map">
           <div className="mappane__head">
             <b>MAP · {features.length} FEATURES</b>
-            <span>coloured by season, not by the clock</span>
+            <a href="/map" className="mappane__full">FULL SCREEN ↗</a>
           </div>
           <div className="mappane__map">
             <MassifMap features={features} />

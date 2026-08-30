@@ -11,11 +11,16 @@ const IGN_PLAN =
   "&TILEMATRIX={z}&TILECOL={x}&TILEROW={y}&FORMAT=image/png";
 
 const COLOURS: Record<string, string> = {
-  open: "#3fb950",
-  closed: "#f85149",
-  restricted: "#d29922",
-  unknown: "#6e7681",
+  open: "#3d8f63",
+  closed: "#b23c31",
+  restricted: "#b3831d",
+  unknown: "#6e757e",
 };
+
+// Fallback view when a feature has no geometry: the massif, not a guess at
+// where the feature is.
+const MASSIF_CENTRE: [number, number] = [6.87, 45.9];
+const MASSIF_ZOOM = 10.2;
 
 /** Every coordinate in a geometry, flattened — enough to fit the view. */
 function positions(geometry: GeoJSON.Geometry | null): [number, number][] {
@@ -38,8 +43,10 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
   const geometry = (feature.geometry ?? null) as GeoJSON.Geometry | null;
   const points = positions(geometry);
 
+  const plotted = points.length > 0;
+
   useEffect(() => {
-    if (!container.current || map.current || points.length === 0) return;
+    if (!container.current || map.current) return;
 
     const colour =
       feature.season?.value && feature.season.value !== "unknown"
@@ -49,10 +56,12 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
 
     const lons = points.map((p) => p[0]);
     const lats = points.map((p) => p[1]);
-    const bounds = new maplibregl.LngLatBounds(
-      [Math.min(...lons), Math.min(...lats)],
-      [Math.max(...lons), Math.max(...lats)],
-    );
+    const bounds = plotted
+      ? new maplibregl.LngLatBounds(
+          [Math.min(...lons), Math.min(...lats)],
+          [Math.max(...lons), Math.max(...lats)],
+        )
+      : null;
 
     const instance = new maplibregl.Map({
       container: container.current,
@@ -70,13 +79,13 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
       },
       // A single point has no extent to fit, so it gets a sensible zoom
       // instead; a line gets fitted with padding once the style is up.
-      center: bounds.getCenter(),
-      zoom: isLine ? 11 : 14,
+      center: bounds ? bounds.getCenter() : MASSIF_CENTRE,
+      zoom: bounds ? (isLine ? 11 : 14) : MASSIF_ZOOM,
     });
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    if (!isLine) {
+    if (plotted && !isLine) {
       const marker = document.createElement("div");
       Object.assign(marker.style, {
         width: "16px",
@@ -96,7 +105,7 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
       // none on purpose, because nobody has surveyed them and a drawn line
       // would claim a precision that does not exist. Narrow it rather than
       // asserting: an unsurveyed feature simply has no line.
-      if (isLine && geometry) {
+      if (plotted && isLine && geometry) {
         instance.addSource("feature", {
           type: "geojson",
           data: { type: "Feature", geometry, properties: {} },
@@ -115,7 +124,7 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
           layout: { "line-cap": "round", "line-join": "round" },
           paint: { "line-color": colour, "line-width": 4 },
         });
-        instance.fitBounds(bounds, { padding: 48, duration: 0, maxZoom: 14 });
+        if (bounds) instance.fitBounds(bounds, { padding: 48, duration: 0, maxZoom: 14 });
       }
     });
 
@@ -123,16 +132,23 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
       instance.remove();
       map.current = null;
     };
-  }, [feature, geometry, points]);
+  }, [feature, geometry, points, plotted]);
 
-  if (points.length === 0) {
-    return (
-      <p className="meta" style={{ marginTop: 12 }}>
-        No geometry for this feature yet — we would rather show nothing than
-        put it in the wrong place.
-      </p>
-    );
-  }
-
-  return <div className="feature-map" ref={container} />;
+  // Every feature page gets a map, including the ones we cannot draw. Showing
+  // the massif with an explicit "not plotted" band is more honest than showing
+  // nothing — nothing reads as "not tracked", and it is not: the Goûter route
+  // and the Grand Couloir are tracked carefully and simply have no surveyed
+  // line, because inventing one would claim a precision that does not exist.
+  return (
+    <figure className="feature-map-wrap">
+      <div className="feature-map" ref={container} />
+      {!plotted && (
+        <figcaption className="feature-map-note">
+          <b>Not plotted.</b> Nobody has surveyed a line for this, so the map
+          shows the massif rather than a guess. It is tracked all the same —
+          everything below is about this feature.
+        </figcaption>
+      )}
+    </figure>
+  );
 }

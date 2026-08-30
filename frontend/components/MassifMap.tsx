@@ -18,9 +18,15 @@ const COLOURS: Record<string, string> = {
   unknown: "#6e757e",
 };
 
-// Context routes on the light basemap. The old value was #4a5563, chosen
-// against a near-black page; on IGN's pale cartography it read as a claim.
-const CONTEXT = "#9aa2ab";
+// Context routes on the light basemap. This has now been wrong twice: #4a5563
+// was chosen against a near-black page and read as a claim on IGN's pale
+// cartography; #9aa2ab fixed that and went too far the other way — at 2.51:1
+// it is the token this project explicitly marks "never text", and a 1.7px
+// dashed line in it is invisible over contour lines and glacier hatching.
+// #6e757e is the same grey the unknown status uses, at 4.53:1. The dash is
+// what says "we are not claiming anything about this route"; the weight and
+// the casing are what make it findable. Those are separate jobs.
+const CONTEXT = "#6e757e";
 
 // "Nobody has said anything about this" and "this is shut because it is
 // night" were both being painted the same grey, which made the whole map look
@@ -159,7 +165,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         source: "routes",
         filter: ["==", ["get", "known"], 1],
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": 0.9 },
+        paint: { "line-color": "#ffffff", "line-width": 8.5, "line-opacity": 0.95 },
       });
 
       instance.addLayer({
@@ -175,7 +181,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
           // filtered to reported routes, per-feature width was never needed —
           // the two layers differ by filter, and each gets a plain
           // interpolate of its own.
-          "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.6, 14, 5],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 9, 3.2, 14, 6],
           "line-opacity": 1,
         },
         filter: ["==", ["get", "known"], 1],
@@ -184,6 +190,23 @@ export default function MassifMap({ features }: { features: Feature[] }) {
       // Separate layer for context routes: line-dasharray is a paint property
       // that cannot vary per feature, so "dashed when unreported" needs its
       // own layer rather than an expression.
+      // Context routes get a white casing of their own. An earlier note here
+      // said casing swamped them — that was a DARK casing, from the dark-theme
+      // era. On a pale basemap a white casing does the opposite: it clears a
+      // gap around the dashes so they survive contour lines underneath.
+      instance.addLayer({
+        id: "routes-context-casing",
+        type: "line",
+        source: "routes",
+        filter: ["!=", ["get", "known"], 1],
+        layout: { "line-cap": "butt", "line-join": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 9, 5, 14, 8],
+          "line-opacity": 0.85,
+        },
+      });
+
       instance.addLayer({
         id: "routes-context",
         type: "line",
@@ -192,11 +215,13 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         layout: { "line-cap": "butt", "line-join": "round" },
         paint: {
           "line-color": ["get", "colour"],
-          "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.7, 14, 3.2],
-          "line-opacity": 0.9,
-          // a solid line reads as a claim about the route's condition, and we
-          // are not making one
-          "line-dasharray": [2, 1.6],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.6, 14, 4.4],
+          "line-opacity": 1,
+          // A solid line would read as a claim about the route's condition and
+          // we are not making one. Longer dashes with a wider gap read as
+          // deliberately provisional at a glance, where the old [2, 1.6] at
+          // 1.7px just read as a faint smudge.
+          "line-dasharray": [2.6, 2],
         },
       });
 

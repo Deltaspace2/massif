@@ -48,8 +48,14 @@ export default function RootLayout({
           <a href="/" className="masthead__mark">
             MASSIF
           </a>
+          {/* The wordmark links home too, but only people who already know
+              that convention will try it. The front page is the site's answer,
+              so it gets a name in the nav like everything else. No active
+              state yet: knowing the current route needs a client component,
+              and three links do not justify one. */}
           <nav className="masthead__nav">
-            <a href="/#map">MAP</a>
+            <a href="/">STATUS</a>
+            <a href="/map">MAP</a>
             <a href="/feed">FEED</a>
           </nav>
         </header>

@@ -210,6 +210,8 @@ a:hover { text-decoration: underline; }
 }
 .mappane__head b { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--secondary); }
 .mappane__head span { font-size: 11.5px; color: var(--tertiary); }
+.mappane__full { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--secondary); }
+.mappane__full:hover { color: var(--ink); }
 /* MapLibre initialised into a 438x0 box and drew nothing — which looks exactly
    like a tile-server failure and is not one.
    Two causes, in order. `height: 100%` on a child of a flex item is a
@@ -229,6 +231,35 @@ a:hover { text-decoration: underline; }
   font-size: 12px; color: var(--secondary);
 }
 .mappane__legend i { font-style: normal; margin-right: 6px; }
+
+/* ------------------------------------------------------------ full map page
+   The masthead is 52px; the map takes everything else. 100dvh rather than
+   100vh so a phone's collapsing address bar does not leave a strip of page
+   below the fold. */
+.mapfull {
+  height: calc(100vh - 52px);
+  height: calc(100dvh - 52px);
+  display: grid;
+  grid-template-rows: 1fr auto;
+}
+/* Same grid trick as the map pane: a sole grid item has a definite height on
+   both axes without having to out-specify MapLibre's own positioning rule. */
+.mapfull__canvas { display: grid; min-height: 0; }
+.mapfull__canvas > .map-canvas { min-width: 0; min-height: 0; }
+.mapfull__bar {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 24px;
+  padding: 10px var(--gutter);
+  border-top: 1px solid var(--rule);
+  background: var(--card);
+  font-size: 12px; color: var(--secondary);
+}
+.mapfull__count b { color: var(--ink); }
+.mapfull__missing { color: var(--tertiary); }
+.mapfull__legend { display: flex; flex-wrap: wrap; gap: 16px; }
+.mapfull__legend i { font-style: normal; margin-right: 6px; }
+.mapfull__note { color: var(--tertiary); }
+.mapfull__sweep { margin-left: auto; font-size: 11.5px; color: var(--tertiary); }
+.mapfull__sweep a { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ------------------------------------------------------- notice cards */
 .notice-card {
@@ -310,7 +341,21 @@ table.history th { color: var(--secondary); font-weight: 500; }
 .notice h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
 .notice p { margin: 0; color: var(--secondary); font-size: 13px; }
 .notices { color: var(--restricted-text); font-size: 13px; }
-.feature-map { height: 280px; border-radius: 10px; border: 1px solid var(--rule); margin-top: 14px; }
+.feature-map-wrap { margin: 14px 0 0; }
+.feature-map {
+  height: 280px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+.feature-map-wrap:has(.feature-map-note) .feature-map { border-radius: 10px 10px 0 0; }
+.feature-map-note {
+  border: 1px solid var(--rule); border-top: 0;
+  border-radius: 0 0 10px 10px;
+  background: var(--tint-caution);
+  padding: 10px 14px;
+  font-size: 12.5px; line-height: 1.5; color: var(--body);
+}
+.feature-map-note b { color: var(--restricted-text); }
 
 /* ------------------------------------------------------------------ mobile
    Moment three from the brief: a phone, in a hut, on bad signal. Single
@@ -342,8 +387,10 @@ table.history th { color: var(--secondary); font-weight: 500; }
   .mappane__map { min-height: 220px; height: 220px; }
   /* Two competing labels on one 390px line collided; the caption is a desktop
      nicety and the count is the useful half. */
-  .mappane__head { flex-direction: column; gap: 2px; }
+  .mappane__head { flex-direction: row; gap: 12px; }
   .mappane__head span { font-size: 11px; }
+  .mapfull__sweep { margin-left: 0; width: 100%; }
+  .mapfull__bar { padding: 10px 16px; gap: 8px 16px; }
   .tbl { grid-template-columns: 14px 1fr 58px; }
   .tbl .what { grid-column: 2 / 4; padding-top: 0; border-top: 0; }
   .tbl > .name { border-bottom: 0; padding-bottom: 2px; }
