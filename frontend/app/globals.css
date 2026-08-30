@@ -210,8 +210,19 @@ a:hover { text-decoration: underline; }
 }
 .mappane__head b { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--secondary); }
 .mappane__head span { font-size: 11.5px; color: var(--tertiary); }
-.mappane__map { flex: 1; min-height: 420px; }
-.map-canvas { width: 100%; height: 100%; }
+/* MapLibre initialised into a 438x0 box and drew nothing — which looks exactly
+   like a tile-server failure and is not one.
+   Two causes, in order. `height: 100%` on a child of a flex item is a
+   percentage against an indefinite height, so it resolves to `auto`, and
+   `auto` on an empty div is zero. Switching the child to `position: absolute`
+   then lost too: MapLibre puts `.maplibregl-map { position: relative }` on the
+   very same element, same specificity, and Next injects that stylesheet after
+   this one, so it wins on source order.
+   A grid wrapper needs neither. A sole grid item stretches to fill its area on
+   both axes whatever its `position` is, so the height is definite at init and
+   nothing has to beat a third-party rule. */
+.mappane__map { flex: 1; min-height: 420px; display: grid; }
+.mappane__map > .map-canvas { min-width: 0; min-height: 0; }
 .mappane__legend {
   display: flex; flex-wrap: wrap; gap: 16px;
   padding: 12px 18px; border-top: 1px solid var(--rule);
