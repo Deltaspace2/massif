@@ -342,6 +342,10 @@ table.history th { color: var(--secondary); font-weight: 500; }
   background: var(--card); border-radius: 8px; padding: 10px 13px; margin-bottom: 8px;
 }
 .notice h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+/* Undated notices are real and quiet. They must not carry the amber of a live
+   restriction, because they are not asserting anything about today. */
+.notice--undated { border-left-color: var(--decor); background: var(--bg); }
+.notice--undated h4 { font-weight: 500; color: var(--body); }
 
 /* The source's own words, kept but not shouting. English is what you read;
    this is what you check it against. */

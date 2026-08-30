@@ -50,6 +50,15 @@ export default async function FeaturePage({ params }: { params: Params }) {
 
   const routine = feature.status.closure_kind === "outside_hours";
 
+  // A notice either asserts something about now, or it does not. Mixing the
+  // two under one heading is what made this page contradict itself.
+  const inForce = feature.other_notices.filter(
+    (n) => n.status === "closed" || n.status === "restricted",
+  );
+  const undated = feature.other_notices.filter(
+    (n) => n.status !== "closed" && n.status !== "restricted",
+  );
+
   return (
     // Not redesigned in this pass — wrapped so it inherits the new page
     // gutters and tokens rather than sitting flush against the viewport now
@@ -101,18 +110,16 @@ export default async function FeaturePage({ params }: { params: Params }) {
         )}
       </div>
 
-      {feature.other_notices.length > 0 && (
+      {inForce.length > 0 && (
         <>
-          <h3 style={{ fontSize: 15, marginTop: 26 }}>
-            Also currently in force
-          </h3>
+          <h3 style={{ fontSize: 15, marginTop: 26 }}>Also in force now</h3>
           <p className="meta">
-            Live notices about this feature that are not the headline status. A
-            route can be legally open and still carry a warning — only one of
-            them gets to be the colour of the card, so the rest are here rather
-            than buried in the history.
+            Notices that assert something about right now and are not the
+            headline status. A route can be legally open and still carry a
+            warning — only one of them gets to be the colour of the card, so
+            the rest are here rather than buried in the history.
           </p>
-          {feature.other_notices.map((notice, index) => (
+          {inForce.map((notice, index) => (
             <div className="notice" key={index}>
               <h4>
                 {notice.summary ?? notice.type}{" "}
@@ -138,6 +145,56 @@ export default async function FeaturePage({ params }: { params: Params }) {
               )}
               <p className="meta">
                 {resortTime(notice.observed_at)} ·{" "}
+                <a href={notice.source.url} rel="nofollow noopener">
+                  {notice.source.name}
+                </a>
+              </p>
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* Undated notices had been filed under "Also currently in force" — a
+          heading that asserts the present, about statements whose entire
+          definition is that they do NOT assert the present. status=unknown is
+          how this project says "real notice, no window, makes no claim about
+          today", and then the page claimed today on their behalf. The result
+          read as a flat contradiction: OPEN at the top, "currently in force"
+          closures underneath. Same statements, honest heading. */}
+      {undated.length > 0 && (
+        <>
+          <h3 style={{ fontSize: 15, marginTop: 26 }}>
+            Published about this, without dates
+          </h3>
+          <p className="meta">
+            These carry no start or end date, so we cannot tell you whether they
+            still apply — and we will not guess. They are here because a
+            published warning should not disappear merely for being open-ended.
+            Where a later notice from the same authority lifted one, it is gone
+            from this list; anything remaining has not been superseded that we
+            can see. Read the dates and judge for yourself.
+          </p>
+          {undated.map((notice, index) => (
+            <div className="notice notice--undated" key={index}>
+              <h4>
+                {notice.summary ?? notice.type}{" "}
+                <span className="pill">undated</span>
+              </h4>
+              {notice.original_text && (
+                <details className="original">
+                  <summary>
+                    Read it as published
+                    {notice.original_language
+                      ? ` (in ${LANGUAGE[notice.original_language] ?? notice.original_language})`
+                      : ""}
+                  </summary>
+                  <blockquote lang={notice.original_language ?? undefined}>
+                    {notice.original_text}
+                  </blockquote>
+                </details>
+              )}
+              <p className="meta">
+                Published {resortTime(notice.observed_at)} ·{" "}
                 <a href={notice.source.url} rel="nofollow noopener">
                   {notice.source.name}
                 </a>

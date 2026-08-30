@@ -31,6 +31,8 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from massif.db import session_scope
+from massif.enums import StatementType
+from massif.ingest.base import lift_undated_closures
 from massif.ingest.registry import SCRAPERS
 from massif.ingest.resolve import FeatureResolver
 from massif.models import Document, Source, Statement
@@ -133,11 +135,40 @@ def main(argv: list[str]) -> int:
             document.extraction_error = None
 
         session.flush()
+
+        # Cross-type retirement, which the per-document loop above cannot do.
+        # It retires by DOCUMENT and writes fresh rows, so it never passes
+        # through retire_replaced — and an opening lifting an earlier undated
+        # closure is a relationship between two different documents. Without
+        # this, every re-extraction of Saint-Gervais resurrected the 11 August
+        # rockfall closure under a headline correctly saying the route reopened
+        # on the 26th, which is the contradiction that sent Steven looking.
+        lifted = 0
+        openings = session.scalars(
+            select(Statement).where(
+                Statement.source_id == source.id,
+                Statement.statement_type == StatementType.OPENING,
+                Statement.superseded_at.is_(None),
+                Statement.superseded_by.is_(None),
+            )
+        ).all()
+        for opening in openings:
+            lifted += lift_undated_closures(
+                session,
+                opening.feature_id,
+                opening.source_id,
+                opening.observed_at,
+                now,
+            )
+            touched.add(_feature_key(opening.feature_id))
+        session.flush()
+
         recompute_many(session, touched)
 
         verb = "would retire" if args.dry_run else "retired"
         print(
             f"{args.slug}: {len(documents)} documents, {verb} {retired} "
+            f"(+{lifted} closures lifted by a later opening) "
             f"statements, wrote {created}, {len(touched)} features recomputed"
         )
         if unresolved:

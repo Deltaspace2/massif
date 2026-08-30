@@ -309,6 +309,38 @@ def retire_replaced(session: Session, incoming: Statement) -> int:
     return count
 
 
+def lift_undated_closures(
+    session: Session,
+    feature_id,
+    source_id,
+    published_at: datetime,
+    now: datetime,
+) -> int:
+    """Retire undated closures on one feature/source older than `published_at`.
+
+    Factored out of retire_replaced because re-extraction needs it too and did
+    not have it: reextract.py retires per DOCUMENT and inserts fresh rows, so
+    it never went through retire_replaced at all. Re-extracting Saint-Gervais
+    therefore resurrected the 11 August rockfall closure every time, under a
+    headline that correctly said the route reopened on the 26th.
+    """
+    stale_closures = select(Statement).where(
+        Statement.feature_id == feature_id,
+        Statement.source_id == source_id,
+        Statement.statement_type == StatementType.CLOSURE,
+        Statement.valid_from.is_(None),
+        Statement.valid_to.is_(None),
+        Statement.observed_at < published_at,
+        Statement.superseded_at.is_(None),
+        Statement.superseded_by.is_(None),
+    )
+    count = 0
+    for closure in session.scalars(stale_closures):
+        closure.superseded_at = now
+        count += 1
+    return count
+
+
 def _lift_undated_closures(
     session: Session, incoming: Statement, now: datetime
 ) -> int:
@@ -333,22 +365,13 @@ def _lift_undated_closures(
         return 0
     if incoming.observed_at is None:
         return 0
-
-    stale_closures = select(Statement).where(
-        Statement.feature_id == incoming.feature_id,
-        Statement.source_id == incoming.source_id,
-        Statement.statement_type == StatementType.CLOSURE,
-        Statement.valid_from.is_(None),
-        Statement.valid_to.is_(None),
-        Statement.observed_at < incoming.observed_at,
-        Statement.superseded_at.is_(None),
-        Statement.superseded_by.is_(None),
+    return lift_undated_closures(
+        session,
+        incoming.feature_id,
+        incoming.source_id,
+        incoming.observed_at,
+        now,
     )
-    count = 0
-    for closure in session.scalars(stale_closures):
-        closure.superseded_at = now
-        count += 1
-    return count
 
 
 class Scraper(ABC):
