@@ -305,18 +305,33 @@ def _fact_block(fact, source) -> dict | None:
     }
 
 
+def _facts_by_feature(session: Session, feature_id=None) -> dict:
+    """Fact blocks grouped by feature, in one query.
+
+    The list endpoint returns seventy-five features; asking per feature would
+    be seventy-five round trips for eighteen rows. Same block shape as the
+    detail endpoint, deliberately — the licence travels inside the block, so
+    wherever a value is rendered its credit is already in hand.
+    """
+    query = (
+        select(FeatureFact, Source)
+        .join(Source, Source.id == FeatureFact.source_id)
+        .order_by(Source.name)
+    )
+    if feature_id is not None:
+        query = query.where(FeatureFact.feature_id == feature_id)
+
+    grouped: dict = {}
+    for fact, source in session.execute(query).all():
+        block = _fact_block(fact, source)
+        if block is not None:
+            grouped.setdefault(fact.feature_id, []).append(block)
+    return grouped
+
+
 def _facts(session: Session, feature_id) -> list[dict]:
     """Directory facts for one feature, one block per source."""
-    blocks = [
-        _fact_block(fact, source)
-        for fact, source in session.execute(
-            select(FeatureFact, Source)
-            .join(Source, Source.id == FeatureFact.source_id)
-            .where(FeatureFact.feature_id == feature_id)
-            .order_by(Source.name)
-        ).all()
-    ]
-    return [block for block in blocks if block is not None]
+    return _facts_by_feature(session, feature_id).get(feature_id, [])
 
 
 @app.get("/health")
@@ -374,19 +389,22 @@ def list_features(
             .distinct()
         )
     }
-    return {
-        "count": len(rows),
-        "features": [
-            _feature_dict(
-                f, st, stmt, parent, others.get(f.id, 0),
-                _season_status(
-                    live_by_feature.get(f.id, []), f.id in schedule_features
-                ),
-            )
-            for f, st, stmt, parent in rows
-        ],
-        "disclaimer": DISCLAIMER,
-    }
+    # Grouped once, not per feature. Carried on the list as well as the detail
+    # because a hut with no notice never appears in a status listing at all —
+    # seventeen of nineteen — and its capacity and warden are the only reason
+    # anyone would find the page.
+    facts_by_feature = _facts_by_feature(session)
+
+    items = []
+    for f, st, stmt, parent in rows:
+        payload = _feature_dict(
+            f, st, stmt, parent, others.get(f.id, 0),
+            _season_status(live_by_feature.get(f.id, []), f.id in schedule_features),
+        )
+        payload["facts"] = facts_by_feature.get(f.id, [])
+        items.append(payload)
+
+    return {"count": len(rows), "features": items, "disclaimer": DISCLAIMER}
 
 
 @app.get("/features/{slug}")

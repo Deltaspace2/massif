@@ -221,6 +221,17 @@ export default async function Home() {
     .filter((f) => f.type !== "lift")
     .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 
+  // Every hut, not just the ones with a notice. Seventeen of nineteen have
+  // nothing published about them, so a status listing shows two — while their
+  // capacity, warden and phone are the only reason most people arrive at all.
+  // Highest first: it is how the massif is described and how they are climbed.
+  const hutAlt = (f: Feature): number | null =>
+    f.alt_max ?? f.alt_min ?? (f.facts ?? [])[0]?.values.altitude_m ?? null;
+  const huts = features
+    .filter((f) => f.type === "hut")
+    .sort((a, b) => (hutAlt(b) ?? -1) - (hutAlt(a) ?? -1) || a.name.localeCompare(b.name));
+  const hutSource = huts.flatMap((f) => f.facts ?? [])[0];
+
   const asleep = routine.filter(
     (f) => f.status.closure_kind === "outside_hours" && f.season.value === "open",
   ).length;
@@ -363,6 +374,93 @@ export default async function Home() {
             )}
             </div>
           </details>
+
+          {/* Outside the "everything else" drawer on purpose. That drawer is
+              about status; this is a directory, and it is the half of the site
+              that has something to say about a hut nobody has published a
+              notice for. Also the SEO surface — people search "refuge du
+              requin", not "mont blanc closures". */}
+          {huts.length > 0 && (
+            <div style={{ marginTop: 30 }}>
+              <div className="sec-head">
+                <h2>Huts &amp; refuges</h2>
+                <span>{huts.length} in the massif, highest first</span>
+              </div>
+              <div className="huts">
+                {huts.map((f) => {
+                  const values = (f.facts ?? [])[0]?.values;
+                  const alt = hutAlt(f);
+                  // Absent is not zero and not false — the same three-state
+                  // rule as the feature page. A hut we know nothing about says
+                  // so, rather than rendering a row of confident blanks.
+                  const detail = values
+                    ? [
+                        values.capacity !== undefined
+                          ? `sleeps ${values.capacity}`
+                          : null,
+                        values.guarded !== undefined
+                          ? values.guarded
+                            ? "staffed"
+                            : "unstaffed"
+                          : null,
+                        values.water === true ? "water" : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "no directory entry";
+                  return (
+                    <a className="huts__row" key={f.slug} href={`/hut/${f.slug}`}>
+                      <span className="huts__name">{f.name}</span>
+                      <span className="huts__alt mono">
+                        {alt ? `${alt} m` : "—"}
+                      </span>
+                      <span
+                        className={`huts__detail${values ? "" : " huts__detail--none"}`}
+                      >
+                        {detail}
+                      </span>
+                      {/* A hut with a live notice must not look like one
+                          without. The same omission on the status table put
+                          the Goûter route on this page as OPEN with an 11
+                          August notice about lethal rockfall one click away
+                          and nothing to hint at it — and the Goûter refuge
+                          carries those notices too. A capacity is not a
+                          reason to drop them a second time. */}
+                      {isNotice(f) ? (
+                        <span className={`pill ${f.season.value}`}>
+                          {f.season.value}
+                        </span>
+                      ) : f.status.other_notices > 0 ? (
+                        <span className="huts__notices">
+                          {f.status.other_notices} notice
+                          {f.status.other_notices === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                    </a>
+                  );
+                })}
+              </div>
+              {hutSource && (
+                <p className="meta huts__credit">
+                  Capacities, warden and water from{" "}
+                  <a href={hutSource.source.url} rel="nofollow noopener">
+                    {hutSource.source.name}
+                  </a>
+                  , under{" "}
+                  {hutSource.licence_url ? (
+                    <a href={hutSource.licence_url} rel="license noopener">
+                      {hutSource.licence}
+                    </a>
+                  ) : (
+                    hutSource.licence
+                  )}
+                  . Each hut&rsquo;s page links the entry its community wrote.
+                  These describe the building, not today — a hut being listed
+                  here is not a report that it is open.
+                </p>
+              )}
+            </div>
+          )}
 
           <p className="disclaimer">
             A directory of what operators and authorities have published, with a

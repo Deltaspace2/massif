@@ -56,6 +56,14 @@ export interface Feature {
   geometry: { type: string; coordinates: unknown } | null;
   geom_verified: boolean;
   status: FeatureStatus;
+  /** Directory facts, carried on the list as well as the detail.
+   *
+   *  OPTIONAL on purpose. The frontend and the read API are two separate
+   *  Vercel projects that deploy independently, so during any deploy this
+   *  renders against an API that predates the field. Typing it as required
+   *  made `feature.facts.map` a 500 on every feature page — the SEO surface
+   *  — for the length of a deploy window. Read it as `?? []`. */
+  facts?: FactBlock[];
 }
 
 export interface Notice {
@@ -107,14 +115,6 @@ export interface FeatureDetail extends Feature {
   /** Our own editorial line about this feature, shown above the directory
    *  facts. Optional for the same deploy-skew reason as `facts` below. */
   notes?: string | null;
-  /** Empty unless a source published facts AND we can attribute them.
-   *
-   *  OPTIONAL on purpose. The frontend and the read API are two separate
-   *  Vercel projects that deploy independently, so during any deploy this
-   *  renders against an API that predates the field. Typing it as required
-   *  made `feature.facts.map` a 500 on every feature page — the SEO surface
-   *  — for the length of a deploy window. Read it as `?? []`. */
-  facts?: FactBlock[];
   parent: { slug: string; name: string } | null;
   children: {
     slug: string;

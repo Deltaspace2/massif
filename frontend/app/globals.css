@@ -412,6 +412,37 @@ table.history th { color: var(--secondary); font-weight: 500; }
 .facts__credit { margin-top: 10px; line-height: 1.5; }
 .facts__credit a { text-decoration: underline; text-underline-offset: 2px; }
 
+/* Hut directory on the front page. A reference list, not a status table, so
+   it carries no glyph column and no colour — the only status it shows is a
+   pill on a hut that actually has a notice. */
+.huts { margin-top: 10px; }
+.huts__row {
+  display: grid; grid-template-columns: 1fr 72px minmax(0, 15em) auto;
+  gap: 12px; align-items: baseline;
+  padding: 9px 0; border-bottom: 1px solid var(--rule-faint);
+  font-size: 14px;
+}
+.huts__row:hover { background: var(--hover); text-decoration: none; }
+.huts__row:hover .huts__name { text-decoration: underline; }
+.huts__name { font-weight: 500; color: var(--ink); }
+.huts__alt { color: var(--secondary); font-size: 12.5px; text-align: right; }
+.huts__detail { color: var(--secondary); font-size: 13px; }
+.huts__detail--none { color: var(--unknown); font-style: italic; }
+/* Not a status pill — these huts are not shut. It says "there is something
+   published here you have not read", which is the one thing a capacity must
+   never be allowed to bury. --restricted-text is 4.74:1, safe carrying words. */
+.huts__notices {
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--restricted-text); white-space: nowrap;
+}
+.huts__credit { margin-top: 10px; line-height: 1.5; }
+.huts__credit a { text-decoration: underline; text-underline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .huts__row { grid-template-columns: 1fr auto; row-gap: 2px; }
+  .huts__alt { text-align: left; }
+}
+
 .lifts { list-style: none; padding: 0; margin: 12px 0 0; }
 .lifts li {
   display: flex; justify-content: space-between; gap: 12px;
