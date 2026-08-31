@@ -287,7 +287,12 @@ export default async function FeaturePage({ params }: { params: Params }) {
 
         return (
           <section className="facts" key={fact.permalink}>
-            <h3 style={{ fontSize: 15, marginTop: 30 }}>About this hut</h3>
+            {/* Not "hut". _facts filters on feature_id, not feature_type, so
+                this path renders for anything that has a fact row — only huts
+                do today, and only because the importer selects them. */}
+            <h3 style={{ fontSize: 15, marginTop: 30 }}>
+              About this {feature.type}
+            </h3>
             <p className="meta">
               How {fact.source.name} describes the building. These are
               properties of the hut, not a status — they do not expire, and we
