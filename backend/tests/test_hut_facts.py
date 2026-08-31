@@ -9,9 +9,11 @@ import json
 from pathlib import Path
 
 from massif.ingest.hut_facts import (
+    ALTITUDE_TOLERANCE_M,
     Candidate,
     is_decoy,
     match_candidate,
+    match_key,
     norm,
     read_candidate,
 )
@@ -116,10 +118,62 @@ def test_a_curated_id_beats_every_name():
 
 
 def test_no_match_is_a_normal_outcome():
-    """Six of our nineteen huts are Italian and this is a French project.
-    Silence is the correct answer for those, not a nearest guess."""
-    assert match_candidate("Rifugio Torino", 3375, CANDIDATES) is None
+    """Silence is the correct answer when they do not have the hut.
+
+    This test once carried the docstring "six of our nineteen huts are Italian
+    and this is a French project". That was wrong, and it was wrong in the most
+    expensive way — a story that explained a number, so nobody checked the
+    number. refuges.info had five of those six.
+    """
+    assert match_candidate("Refuge des Cosmiques", 3613, []) is None
     assert match_candidate("Bivacco della Fourche", 3682, CANDIDATES) is None
+
+
+# ------------------------------------------------- translating the generic --
+
+
+def test_rifugio_and_refuge_are_the_same_word():
+    """The bug: refuges.info is French, so our "Rifugio Torino" is their
+    "Refuge Torino". Five huts lost on that one word — Gonella by 1 m of
+    altitude, Vallot by 4, Torino by 7 — and were reported as absent."""
+    torino = Candidate("376", "Refuge Torino (nouveau)", 3382, "u", {}, None)
+    assert match_candidate("Rifugio Torino", 3375, [torino]) is not None
+    assert match_key("Rifugio Torino") == match_key("Refuge Torino")
+
+
+def test_translation_never_flattens_a_french_distinction():
+    """The near-miss that made this a translation table rather than a synonym
+    list.
+
+    refuges.info publishes BOTH "Refuge des Conscrits" (2602 m) and "Cabane des
+    Conscrits" (2730 m). They are different buildings. Folding cabane into
+    refuge scored both at 100, and the wrong one won on tie-break — and we hold
+    no altitude for that hut, so nothing downstream would have caught it. In
+    French a cabane is unstaffed and a refuge is staffed; only words that are
+    the same word in two languages may be folded.
+    """
+    assert match_key("Cabane des Conscrits") != match_key("Refuge des Conscrits")
+    refuge = Candidate("338", "Refuge des Conscrits", 2602, "u", {}, None)
+    cabane = Candidate("10483", "Cabane des Conscrits", 2730, "u", {}, None)
+    # No altitude of our own for this hut — the name is the only evidence.
+    match = match_candidate("Refuge des Conscrits", None, [cabane, refuge])
+    assert match is not None
+    assert match.candidate.external_ref == "338", "picked the wrong Conscrits hut"
+
+
+def test_the_decoy_list_still_wins_after_translation():
+    """Translation brings the demolished Torino within reach, so this is the
+    guard that has to hold.
+
+    "Refuge Torino (ancien)" is 3329 m against our 3375 — 46 m, comfortably
+    INSIDE the 120 m tolerance, so the physical check cannot reject it. The
+    decoy word list is the only thing left. The hut is pinned by external id as
+    well, but this proves the fallback rather than relying on the pin.
+    """
+    old = Candidate("10577", "Refuge Torino (ancien)", 3329, "u", {}, None)
+    assert abs(3329 - 3375) < ALTITUDE_TOLERANCE_M, "altitude alone cannot reject it"
+    assert is_decoy(old.name)
+    assert match_candidate("Rifugio Torino", 3375, [old]) is None
 
 
 def test_zero_places_is_missing_data_not_a_capacity_of_zero():

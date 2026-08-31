@@ -293,6 +293,15 @@ export default async function FeaturePage({ params }: { params: Params }) {
             <h3 style={{ fontSize: 15, marginTop: 30 }}>
               About this {feature.type}
             </h3>
+            {/* Ours, above theirs, because a directory fact can mislead on its
+                own: refuges.info lists 12 places at Abri Vallot, which is true
+                and reads as a bunkroom, and it is a shelter of last resort at
+                4362 m. Deliberately rendered only here, where facts are — most
+                curated notes are bookkeeping ("auto-created from an operator
+                feed") and belong nowhere near a reader. */}
+            {feature.notes && (
+              <p className="facts__note">{feature.notes}</p>
+            )}
             <p className="meta">
               How {fact.source.name} describes the building. These are
               properties of the hut, not a status — they do not expire, and we

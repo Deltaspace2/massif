@@ -317,10 +317,21 @@
   aliases: [Torino hut, Refuge Torino, Rifugio Torino Nuovo]
   alt_max: 3375
   country: IT
+  # Pinned, not matched. refuges.info carries both "Refuge Torino (nouveau)"
+  # and "Refuge Torino (ancien)", and the old one sits at 3329 m — 46 m from
+  # ours, well inside the 120 m tolerance. Name scoring alone would leave the
+  # decoy word list as the only thing between us and publishing a replaced
+  # refuge's beds and phone number as if they were this one's.
+  external_ids: {refuges-info: 376}
 
 - slug: rifugio-gonella
   feature_type: hut
   name_default: Rifugio Gonella
+  # They publish it as "Refuge Francesco Gonella". The given name holds the
+  # score at 85.5 against a floor of 88 no matter how the generic is folded,
+  # while the altitude is 1 m from ours. Pinned rather than lowering a floor
+  # that protects every other hut.
+  external_ids: {refuges-info: 365}
   aliases: [Gonella, Refuge Gonella]
   alt_max: 3071
   country: IT
@@ -372,6 +383,10 @@
   name_default: Rifugio Monzino
   aliases: [Monzino]
   country: IT
+  # Matches "Refuge Monzino" at 100 once the generic is translated, but we
+  # hold no altitude for this hut, so the physical check that backs every
+  # other match cannot run. Pinned so it does not rest on the name alone.
+  external_ids: {refuges-info: 1590}
 
 - slug: refuge-durier
   feature_type: hut
@@ -397,7 +412,19 @@
   aliases: [Vallot, Vallot hut, Refuge Vallot, Cabane Vallot]
   alt_max: 4362
   country: FR
-  notes: Emergency shelter only. Never present as accommodation.
+  # Reader-facing, because it is now rendered above the directory facts.
+  # refuges.info lists 12 places here, which is true and reads as a bunkroom;
+  # this is a shelter of last resort on the summit ridge. Never let the page
+  # present it as somewhere to plan to sleep.
+  notes: >-
+    An emergency shelter, not accommodation: no warden, no booking, no
+    supplies. The places below are refuge-of-last-resort space, not beds.
+  # "Refuge Vallot", 4362 m — the same metre as ours. Not matched by name
+  # because abri and refuge are a real distinction in French and folding them
+  # together is what put the wrong Conscrits hut on this site for one commit.
+  # Their "Observatoire Vallot" (4358 m) is the building next door, and is
+  # close enough in both name and height to be picked by accident.
+  external_ids: {refuges-info: 345}
 
 - slug: bivacco-della-fourche
   feature_type: hut

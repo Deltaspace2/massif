@@ -104,6 +104,9 @@ export interface FactBlock {
 export interface FeatureDetail extends Feature {
   /** The detail endpoint returns the notices themselves, not just a count. */
   other_notices: Notice[];
+  /** Our own editorial line about this feature, shown above the directory
+   *  facts. Optional for the same deploy-skew reason as `facts` below. */
+  notes?: string | null;
   /** Empty unless a source published facts AND we can attribute them.
    *
    *  OPTIONAL on purpose. The frontend and the read API are two separate

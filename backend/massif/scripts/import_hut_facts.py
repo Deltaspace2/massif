@@ -121,8 +121,11 @@ def main() -> int:
         verb = "wrote" if args.apply else "would write"
         print(
             f"{SOURCE_SLUG}: {verb} {matched} of {len(huts)} huts, "
-            f"{unmatched} with no entry (the Italian side is not covered — "
-            "refuges.info is a French project, and saying so beats a nearest guess)"
+            f"{unmatched} with no entry. This line used to explain a shortfall "
+            "of six as the Italian side being uncovered. It was not: their "
+            "French generic ('Refuge Torino' for our Rifugio) held five huts "
+            "just under the name floor. Report a number, and check it before "
+            "believing a story about it."
         )
         return 0
 

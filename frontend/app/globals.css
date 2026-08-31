@@ -393,6 +393,14 @@ table.history th { color: var(--secondary); font-weight: 500; }
 /* Directory facts. No status colour, no left accent bar, no caution tint —
    every one of those means "a source is telling you something about now", and
    these describe a building. It reads as a spec table on purpose. */
+/* Our line, not the source's — so it carries a little weight, but stays short
+   of the caution styling a live notice earns. */
+.facts__note {
+  margin: 10px 0 0; padding: 9px 13px; font-size: 13.5px; line-height: 1.55;
+  color: var(--body); background: var(--card);
+  border: 1px solid var(--rule); border-left: 3px solid var(--restricted);
+  border-radius: 8px;
+}
 .facts__list { margin: 12px 0 0; }
 .facts__row {
   display: flex; justify-content: space-between; gap: 12px;

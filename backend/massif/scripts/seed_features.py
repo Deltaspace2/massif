@@ -116,6 +116,16 @@ def seed_features(session) -> tuple[int, int]:
         existing.country = row.get("country")
         existing.notes = row.get("notes")
 
+        # A human decided these, so they outrank anything matching can infer.
+        # Merged, not assigned: the OSM step below adds its own key, and the
+        # two must not overwrite each other. Values are strings because that
+        # is what the source ids are compared as.
+        for namespace, value in (row.get("external_ids") or {}).items():
+            existing.external_ids = {
+                **(existing.external_ids or {}),
+                namespace: str(value),
+            }
+
         # OSM supplies geometry only, and only to features that ARE points
         forms = (
             [row["name_default"], *existing.aliases]

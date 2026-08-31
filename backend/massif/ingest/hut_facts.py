@@ -41,6 +41,41 @@ GUARDED = {"refuge gardé": True, "gîte d'étape": True, "refuge non gardé": F
            "cabane non gardée": False, "abri": False, "bivouac": False}
 
 
+# refuges.info is a French site, so it writes Italian huts with the French
+# generic: our "Rifugio Torino" is their "Refuge Torino". The generic word
+# carries no identifying information — what tells two huts apart is always the
+# part after it — so it is folded to a single token before scoring. This was
+# worth exactly five huts. All five scored 85.5 or 82.8 against a floor of 88,
+# and lost on that one word while their altitudes sat 1, 4 and 7 m from ours:
+# Gonella, Torino, Monzino, Elisabetta and Vallot were all reported as "no
+# entry", and the importer said the Italian side was not covered. It is.
+# TRANSLATION ONLY — Italian to French. Never type-flattening. The first
+# version of this folded abri, cabane and gite into refuge as well, and
+# immediately attached "Cabane des Conscrits" (2730 m) to our Refuge des
+# Conscrits (2602 m): two different buildings, both scoring 100, the wrong one
+# winning on tie-break, and no altitude recorded for that hut to catch it. In
+# French those words are a real distinction — a cabane is unstaffed, a refuge
+# is staffed — and collapsing them invents matches. Each pair below is the
+# same word in two languages.
+GENERIC_FORMS = {
+    "rifugio": "refuge", "refugio": "refuge",
+    "bivacco": "bivouac", "biwak": "bivouac",
+    "capanna": "cabane",
+    "riparo": "abri",
+}
+
+
+def match_key(text: str) -> str:
+    """`norm`, with the hut-type word folded so French and Italian compare equal.
+
+    Deliberately NOT used by `is_decoy`, and not by anything that has to read a
+    name as written. Fold the generic there and "Refuge Torino (ancien)" stops
+    being recognisable as the old refuge it is — which is the one mistake this
+    module exists to prevent.
+    """
+    return " ".join(GENERIC_FORMS.get(word, word) for word in norm(text).split())
+
+
 def norm(text: str) -> str:
     text = unicodedata.normalize("NFKD", text or "")
     text = "".join(c for c in text if not unicodedata.combining(c))
@@ -147,8 +182,11 @@ def match_candidate(
 
     Order: a curated external id always wins, because a human decided it. Then
     name similarity, floored, with decoys removed and altitude checked.
-    Returning None is a perfectly good outcome — six of our nineteen huts are
-    Italian and this is a French project.
+
+    Returning None is still a perfectly good outcome, but it used to be claimed
+    far too readily: this reported six huts as absent when refuges.info had
+    five of them, under the French generic. Only Bivacco della Fourche is
+    genuinely not there.
     """
     if curated_ref:
         for candidate in candidates:
@@ -156,12 +194,15 @@ def match_candidate(
                 return Match(candidate, 100.0, "curated")
         return None
 
-    ours = norm(our_name)
+    ours = match_key(our_name)
     best: Match | None = None
     for candidate in candidates:
+        # Read as written, never through match_key: the decoy list is the only
+        # thing separating our Torino from the demolished one 46 m below it,
+        # which is well inside the altitude tolerance.
         if is_decoy(candidate.name):
             continue
-        score = fuzz.WRatio(ours, norm(candidate.name))
+        score = fuzz.WRatio(ours, match_key(candidate.name))
         if score < FUZZY_FLOOR:
             continue
         if (

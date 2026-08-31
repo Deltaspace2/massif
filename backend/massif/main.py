@@ -473,6 +473,11 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
     ]
 
     payload["facts"] = _facts(session, feature.id)
+    # Our own editorial line about the thing, shown beside the directory facts.
+    # It exists because those facts can mislead on their own: refuges.info lists
+    # 12 places at Abri Vallot, which is true and reads as a bunkroom, and it is
+    # an emergency shelter at 4362 m.
+    payload["notes"] = feature.notes or None
 
     payload["parent"] = (
         {"slug": parent.slug, "name": parent.name_default} if parent else None
