@@ -84,6 +84,11 @@ export default function MassifMap({ features }: { features: Feature[] }) {
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl(), "top-right");
 
+    // Locator dots for features nothing has been published about. Collected
+    // so a zoom handler can stand them down once IGN starts drawing its own
+    // hut symbols.
+    const contextDots: HTMLElement[] = [];
+
     // ---- points: huts, lift sectors, glaciers
     for (const feature of features) {
       if (feature.geometry?.type !== "Point") continue;
@@ -99,30 +104,50 @@ export default function MassifMap({ features }: { features: Feature[] }) {
       const marker = document.createElement("div");
       const isUnknown = !known || feature.season?.value === "unknown";
 
-      // IGN already draws a hut symbol at every one of these points. Anything
-      // we put there too is a second icon for one building, and there is no
-      // styling that makes two symbols look like one — a filled disc hid
-      // theirs, and a ring around it just made the doubling obvious.
-      //
-      // So we do not depict huts. The basemap does that, better, and it is
-      // what cartographers are for. We mark what we have something to SAY
-      // about, which is 2 features of 59: a marker means a source has
-      // published, not that a building exists. Everything else keeps a
-      // transparent hit area at the same size, so every hut is still
-      // clickable through to its page — invisible to look at, solid to hit.
+      // The outer element is only ever a hit area: constant size, never
+      // styled, so a hut stays clickable at every zoom regardless of what is
+      // drawn inside it.
       Object.assign(marker.style, {
         width: notable ? "16px" : "14px",
         height: notable ? "16px" : "14px",
         borderRadius: "50%",
         cursor: "pointer",
-        ...(isUnknown
-          ? { background: "transparent", border: "none", boxShadow: "none" }
-          : {
-              background: colourFor(feature),
-              border: "2px solid #ffffff",
-              boxShadow: `0 0 0 1px ${colourFor(feature)}55, 0 1px 3px rgba(34,40,46,0.35)`,
-            }),
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       });
+
+      const dot = document.createElement("div");
+      if (isUnknown) {
+        // Nothing published about it, so this is a locator, not a status.
+        // It exists because IGN only starts drawing hut glyphs at z13 —
+        // measured, not assumed — and this map opens at 10.2. Suppressing
+        // these outright made every hut vanish from the view everyone lands
+        // on. Below z13 we say where the huts are; at z13 and above IGN says
+        // it better and ours gets out of the way, which is what stops the
+        // two-symbols problem.
+        contextDots.push(dot);
+        Object.assign(dot.style, {
+          width: "8px",
+          height: "8px",
+          borderRadius: "50%",
+          background: "rgba(255,255,255,0.92)",
+          border: `1.5px solid ${COLOURS.unknown}`,
+          transition: "opacity 120ms linear",
+        });
+      } else {
+        // A source has published something. IGN cannot know this, so it is
+        // ours to draw and it stays drawn at every zoom.
+        Object.assign(dot.style, {
+          width: notable ? "16px" : "14px",
+          height: notable ? "16px" : "14px",
+          borderRadius: "50%",
+          background: colourFor(feature),
+          border: "2px solid #ffffff",
+          boxShadow: `0 0 0 1px ${colourFor(feature)}55, 0 1px 3px rgba(34,40,46,0.35)`,
+        });
+      }
+      marker.appendChild(dot);
 
       new maplibregl.Marker({ element: marker })
         .setLngLat([lon, lat])
@@ -140,6 +165,21 @@ export default function MassifMap({ features }: { features: Feature[] }) {
 
     // ---- lines: routes and couloirs, from camptocamp
     const lines = features.filter(isLine);
+
+    // IGN's PLANIGNV2 begins drawing its refuge glyph at z13 — measured by
+    // fetching tiles over the Goûter and the Cosmiques at z11 to z16 and
+    // counting the glyph's green: nothing at 11 or 12, present from 13 on.
+    // This map opens at 10.2, which is why removing our dots outright made
+    // every hut disappear from the default view.
+    const BASEMAP_DRAWS_HUTS_FROM = 13;
+    const syncContextDots = () => {
+      const ours = instance.getZoom() < BASEMAP_DRAWS_HUTS_FROM;
+      for (const dot of contextDots) dot.style.opacity = ours ? "1" : "0";
+    };
+    // Opacity, not display: the hit area is the parent and is untouched, so a
+    // hut stays clickable at high zoom even though our dot has stepped aside.
+    instance.on("zoom", syncContextDots);
+    syncContextDots();
 
     instance.on("load", () => {
       if (lines.length === 0) return;
