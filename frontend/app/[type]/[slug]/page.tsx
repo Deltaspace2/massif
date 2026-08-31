@@ -64,11 +64,18 @@ export default async function FeaturePage({ params }: { params: Params }) {
     // gutters and tokens rather than sitting flush against the viewport now
     // that the layout no longer supplies a container.
     <main className="subpage">
-      {feature.parent && (
-        <p className="meta">
-          <a href={`/lift/${feature.parent.slug}`}>← {feature.parent.name}</a>
-        </p>
-      )}
+      {/* A link, not history.back(). This is the SEO surface — people arrive
+          here from a search for "aiguille du midi closed" with no back stack
+          at all, and a control that does nothing for them is worse than none.
+          It names where it goes: the parent sector when there is one, since
+          that is more useful than the front page from inside a lift. */}
+      <a
+        className="back"
+        href={feature.parent ? `/lift/${feature.parent.slug}` : "/"}
+      >
+        <span aria-hidden="true">←</span>
+        {feature.parent ? feature.parent.name : "All statuses"}
+      </a>
 
       <h1>{feature.name}</h1>
       <p className="meta">

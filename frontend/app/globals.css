@@ -73,6 +73,15 @@ html, body {
 a { color: inherit; text-decoration: none; }
 a:hover { text-decoration: underline; }
 
+/* Keyboard focus was invisible everywhere — an omission of mine, not a
+   decision. :focus-visible only, so a mouse click does not leave a ring. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.masthead :focus-visible { outline-color: #ffffff; }
+
 .mono {
   font-family: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
   font-variant-numeric: tabular-nums;
@@ -338,6 +347,20 @@ a:hover { text-decoration: underline; }
    Not redesigned in this pass — given the new tokens so it does not look
    like a different website while it waits its turn. */
 .subpage { padding: 26px var(--gutter) 64px; max-width: 900px; }
+
+/* Sized as a control rather than set as a line of small print: it is the only
+   way out of this page for someone who arrived from a search engine. */
+.back {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-bottom: 18px;
+  padding: 6px 12px 6px 10px;
+  border: 1px solid var(--rule); border-radius: 999px;
+  background: var(--card);
+  font-size: 13px; font-weight: 500; color: var(--secondary);
+  text-decoration: none;
+}
+.back:hover { color: var(--ink); border-color: var(--secondary); text-decoration: none; }
+.back span { font-size: 14px; line-height: 1; }
 .subpage h1 { font-size: 28px; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 4px; }
 .meta { color: var(--secondary); font-size: 12px; }
 .meta.stale { color: var(--restricted-text); font-weight: 600; }

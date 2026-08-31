@@ -7,7 +7,9 @@ export default function NotFound() {
         covered deliberately rather than exhaustively.
       </p>
       <p>
-        <a href="/">← Back to the map</a>
+        <a className="back" href="/">
+          <span aria-hidden="true">←</span>All statuses
+        </a>
       </p>
     </main>
   );
