@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 const REPO = "https://github.com/Deltaspace2/massif";
-const CONTACT = "steven.innes8@gmail.com";
+const CONTACT = "steven@innes.io";
 
 /** Build a prefilled "new issue" link.
  *
