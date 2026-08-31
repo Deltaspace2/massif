@@ -97,21 +97,31 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         feature.season?.value === "restricted";
 
       const marker = document.createElement("div");
-      // Unknown is hollow and dashed — shape, not just hue, so it survives
-      // colour-blindness and never reads as a quiet "fine".
       const isUnknown = !known || feature.season?.value === "unknown";
+
+      // IGN already draws a hut symbol at every one of these points. Anything
+      // we put there too is a second icon for one building, and there is no
+      // styling that makes two symbols look like one — a filled disc hid
+      // theirs, and a ring around it just made the doubling obvious.
+      //
+      // So we do not depict huts. The basemap does that, better, and it is
+      // what cartographers are for. We mark what we have something to SAY
+      // about, which is 2 features of 59: a marker means a source has
+      // published, not that a building exists. Everything else keeps a
+      // transparent hit area at the same size, so every hut is still
+      // clickable through to its page — invisible to look at, solid to hit.
       Object.assign(marker.style, {
-        width: notable ? "16px" : known ? "12px" : "10px",
-        height: notable ? "16px" : known ? "12px" : "10px",
+        width: notable ? "16px" : "14px",
+        height: notable ? "16px" : "14px",
         borderRadius: "50%",
-        background: isUnknown ? "transparent" : colourFor(feature),
-        border: isUnknown
-          ? `2px dashed ${COLOURS.unknown}`
-          : "2px solid #ffffff",
-        boxShadow: isUnknown
-          ? "none"
-          : `0 0 0 1px ${colourFor(feature)}55, 0 1px 3px rgba(34,40,46,0.35)`,
         cursor: "pointer",
+        ...(isUnknown
+          ? { background: "transparent", border: "none", boxShadow: "none" }
+          : {
+              background: colourFor(feature),
+              border: "2px solid #ffffff",
+              boxShadow: `0 0 0 1px ${colourFor(feature)}55, 0 1px 3px rgba(34,40,46,0.35)`,
+            }),
       });
 
       new maplibregl.Marker({ element: marker })

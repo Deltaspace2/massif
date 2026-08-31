@@ -197,10 +197,16 @@ def main() -> int:
                 geom=f"SRID=4326;POINT({hut['lon']} {hut['lat']})",
                 geom_verified=False,
                 external_ids={"osm": hut["osm_id"]},
+                # Reader-facing: curated notes render above the directory
+                # facts on the feature page. The first draft of this line was
+                # written for whoever maintains the importer ("because the
+                # basemap draws it and we did not") and it went straight onto
+                # a public page. It also repeated what the status card already
+                # says about nothing being published. This says the one thing
+                # the reader cannot see: where the pin came from.
                 notes=(
-                    "Imported from OpenStreetMap because the basemap draws it and we "
-                    "did not. Nothing has been published about it by any source we "
-                    "watch — it is here to be found, not because it is in the news."
+                    "Position and altitude come from OpenStreetMap and have not been "
+                    "checked against IGN. The pin may be approximate."
                 ),
             )
             session.add(feature)

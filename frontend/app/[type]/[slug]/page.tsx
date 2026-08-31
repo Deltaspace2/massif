@@ -122,16 +122,31 @@ export default async function FeaturePage({ params }: { params: Params }) {
         </h3>
         {/* "Last confirmed" was doing two jobs and telling the truth about
             neither: it printed the mairie's publication date under a label
-            claiming it was our check. Both are shown now, separately. */}
-        <div className={`meta ${feature.status.stale ? "stale" : ""}`}>
-          Published {resortTime(feature.status.observed_at)} resort time (
-          {sinceLabel(feature.status.observed_at)})
-          {feature.status.last_seen_at && (
-            <> · source re-checked {sinceLabel(feature.status.last_seen_at)}</>
-          )}
-          {feature.status.stale &&
-            " — this has aged past the window its kind of notice holds for"}
-        </div>
+            claiming it was our check. Both are shown now, separately.
+
+            And when there is no notice at all, both dates are null and this
+            line read "Published never resort time (never checked)" — which is
+            not a sentence. That is the common case now, not the rare one: 78
+            of 115 features have had nothing published about them. It gets
+            plain words instead. */}
+        {feature.status.observed_at ? (
+          <div className={`meta ${feature.status.stale ? "stale" : ""}`}>
+            Published {resortTime(feature.status.observed_at)} resort time (
+            {sinceLabel(feature.status.observed_at)})
+            {feature.status.last_seen_at && (
+              <> · source re-checked {sinceLabel(feature.status.last_seen_at)}</>
+            )}
+            {feature.status.stale &&
+              " — this has aged past the window its kind of notice holds for"}
+          </div>
+        ) : (
+          <div className="meta">
+            No source this site watches has published anything about{" "}
+            {feature.name}. That is a gap in our coverage, not a report that
+            all is well — and it is why the status above says unknown rather
+            than open.
+          </div>
+        )}
         {routine && (
           <div className="meta">
             Routine: shut because of the hour or the season, not an incident.

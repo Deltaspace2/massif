@@ -87,13 +87,20 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
 
     if (plotted && !isLine) {
       const marker = document.createElement("div");
+      // This map shows ONE feature and is centred on it, so there is no
+      // question which building the page is about — the basemap's own symbol
+      // is already sitting there saying so. A second icon on top of it adds
+      // nothing and reads as a duplicate, which is exactly what it is.
+      //
+      // A soft halo instead: it draws the eye to the right point without
+      // claiming to be the symbol for it. Where a source has actually
+      // published something the halo takes that status colour, so the one
+      // piece of information we hold is the one thing we draw.
       Object.assign(marker.style, {
-        width: "16px",
-        height: "16px",
+        width: "30px",
+        height: "30px",
         borderRadius: "50%",
-        background: colour,
-        border: "2px solid #ffffff",
-        boxShadow: `0 0 0 4px ${colour}33`,
+        background: `radial-gradient(circle, ${colour}00 42%, ${colour}44 60%, ${colour}00 78%)`,
       });
       new maplibregl.Marker({ element: marker })
         .setLngLat(points[0])
