@@ -224,8 +224,9 @@ export default function Feedback() {
         about a notice, not permission. It is not a rota: this is one person,
         answering when they can. And it is not a way to reach a hut guardian, a
         lift operator or the mairie — for anything that needs a person on the
-        ground, their own contact details are on the page for that feature,
-        alongside the notice they published.
+        ground, look for their own details on the page for that feature,
+        alongside the notice they published — though not every feature has
+        them. Six of the nineteen huts have no source we watch at all.
       </p>
     </main>
   );
