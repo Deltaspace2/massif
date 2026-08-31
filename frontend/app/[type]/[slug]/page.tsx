@@ -85,9 +85,20 @@ export default async function FeaturePage({ params }: { params: Params }) {
       </a>
 
       <h1>{feature.name}</h1>
+      {/* Our curated altitude first, and only falling back to the one carried
+          on a statement. This line read `status.altitude_m`, which is null for
+          every hut — so the Goûter showed no altitude of its own and the only
+          figure on the page was refuges.info's 3815 m, inside the facts block,
+          against our 3835. Theirs stays where it is, attributed; ours is the
+          one in our own voice, and it is the number the hut matcher uses to
+          tell this refuge from the demolished one at 3817 m. */}
       <p className="meta">
         {feature.type}
-        {feature.status.altitude_m ? ` · ${feature.status.altitude_m} m` : ""}
+        {(() => {
+          const altitude =
+            feature.alt_max ?? feature.alt_min ?? feature.status.altitude_m;
+          return altitude ? ` · ${altitude} m` : "";
+        })()}
         {feature.country ? ` · ${feature.country}` : ""}
       </p>
 
@@ -306,7 +317,8 @@ export default async function FeaturePage({ params }: { params: Params }) {
               How {fact.source.name} describes the building. These are
               properties of the hut, not a status — they do not expire, and we
               have not verified them. Any altitude below is their survey, not
-              ours, and the two do not always agree.
+              ours — where it differs from the figure at the top of this page,
+              the one at the top is ours.
             </p>
             <dl className="facts__list">
               {rows.map((row) => (
