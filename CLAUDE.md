@@ -18,18 +18,20 @@ Unattended sessions (scheduled overnight runs) have their own contract in
 
 cd backend && source .venv/bin/activate
 python -m massif.scripts.migrate            # apply db/migrations/*.sql in order
-pytest -q                                   # ~60 tests
+pytest -q                                   # 186 tests, no DB needed
 python -m massif.scripts.seed_features      # load seeds/, merge OSM geometry
 python -m massif.scripts.run_ingest [slug]  # all due sources, or one
 python -m massif.scripts.reextract <slug> [--dry-run]  # re-parse stored docs
 python -m massif.scripts.review_queue       # names that did not resolve
 python -m massif.scripts.recompute          # rebuild feature_status from scratch
+python -m massif.scripts.import_hut_facts [--apply]  # refuges.info directory facts
 uvicorn massif.main:app --reload            # API on :8000
 
 # any scraper, dry run, no DB writes:
 python -m massif.ingest.sources.<name>
 
 cd ../frontend && npm run dev               # :3000
+npx tsc --noEmit                            # typecheck; CI runs this + next build
 ```
 
 ## Architecture
@@ -117,12 +119,67 @@ wrong answer**; none crashed. The pattern is the lesson.
    direction. `find_objects` looped `while start > 0`, which only failed on an
    object at index 0, which only a test fixture ever produces.
 
+8. **A name score cannot tell you which mountain something is on.** Altitude
+   can. `"Voie normale"` matched the Goûter route at 95 and topped out at
+   2965 m, 20 km north. Every geographic import validates against altitude and
+   span, and keeps a decoy list: `"Ancien refuge du Goûter"` clears both the
+   score floor *and* altitude tolerance (3817 m vs 3835 m), and is the hut the
+   mairie demolished.
+9. **A stored sentence does not stay true.** `summary_en` is composed once at
+   extraction. "Reopening 26 Aug 2026" was correct when published and absurd
+   five days later beside a green dot. Anything whose truth depends on *now*
+   is phrased at read time — see `phrase_for_now` in `main.py`.
+10. **Two clocks, two columns.** `observed_at` is when the source published;
+    `last_seen_at` is when we last fetched and found it still standing. The UI
+    once labelled the first as the second, badging a decree valid till
+    September as UNVERIFIED. Do not let one column carry both.
+11. **Every migration registers itself.** `migrate.py` does not record what it
+    ran; each file ends with `INSERT INTO schema_migrations`. Two of them
+    forgot, applied cleanly, printed ok, and failed on the *next* run against
+    a database that already had their changes. `test_migrations.py` enforces
+    it now.
+12. **Do not re-implement a backend rule in the UI.** `STALE_DAYS` answers
+    staleness per statement type — an arrêté holds 90 days, a live lift status
+    one. The front page overrode all of it with a flat 48 hours and would have
+    flagged every valid decree in the massif forever.
+
 Also: **no silent caps.** If a run bounds coverage, log what was dropped.
+
+## Facts vs statements
+
+A **statement** is a claim from a source, valid over a window, that can be in
+force. A **fact** (`feature_facts`) is a property of a thing: hut capacity,
+whether there is water. Facts never enter the status pipeline — they would
+compete for the status slot and age with `STALE_DAYS`, neither of which means
+anything for how many bunks a building has. The warden *season* is a statement;
+the bunk count is a fact.
+
+## LLM extraction
+
+`massif/ingest/llm.py` is phase 1 and offline: no API key, no network. Rules
+stay on structured sources forever; the model is for prose only (arrêté PDFs,
+OHM bulletins). Four guards on its output, all tested via cassettes in
+`tests/cassettes/`:
+
+1. **Evidence** — every statement carries the verbatim span it came from and
+   that span must be in the document. Whitespace forgiven, accents not.
+2. **Dates read twice** — the model returns the French phrase, never a parsed
+   range; `fr_dates.parse_range` reads it independently and they must agree.
+3. **No feature picking** — it returns a mention that must appear in the
+   document; `FeatureResolver` does the matching at the usual 88 floor.
+4. **The gate** — `payload.needs_review` is set inside the writer, so no caller
+   can opt out by forgetting.
+
+Phase 2 (live client, cache keyed on content hash + prompt version + model)
+needs a decision on `ANTHROPIC_API_KEY`. Model to default to `claude-sonnet-5`.
 
 ## Sources
 
 Live: `mbnr-live` (lift status, 30 min), `mbnr-openings` (seasonal calendar,
-daily), `mairie-saint-gervais` (municipal notices — Goûter route regulation).
+daily), `mairie-saint-gervais` (municipal notices — Goûter route regulation),
+`refuges-info` (hut directory facts, weekly, API client not a scraper —
+CC BY-SA 2.0, so the permalink is a licence condition and every hut links back).
+Covers 13 of 19 huts; the Italian side is not in it.
 
 Next: `mairie-chamonix` at **chamonix.fr** (not chamonix-mont-blanc.fr, which
 is the tourist office). WordPress, permissive robots.txt, publishes
