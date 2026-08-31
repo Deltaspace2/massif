@@ -164,8 +164,21 @@ export function getFeature(slug: string) {
   return get<FeatureDetail>(`/features/${slug}`);
 }
 
+/** One published statement, newest first. What changed, not what is. */
+export interface FeedItem {
+  feature: { slug: string; name: string; type: string };
+  status: StatusValue;
+  severity: number;
+  summary: string | null;
+  /** When the SOURCE published it. */
+  observed_at: string;
+  /** When WE last fetched and still found it. Two clocks, two columns. */
+  last_seen_at: string | null;
+  source: { name: string; url: string };
+}
+
 export function getFeed(limit = 50) {
-  return get<{ items: unknown[]; disclaimer: string }>(`/feed?limit=${limit}`);
+  return get<{ items: FeedItem[]; disclaimer: string }>(`/feed?limit=${limit}`);
 }
 
 export function getHealth() {

@@ -53,10 +53,17 @@ export default function RootLayout({
               so it gets a name in the nav like everything else. No active
               state yet: knowing the current route needs a client component,
               and three links do not justify one. */}
+          {/* REPORT is in the nav because it was reachable from one text link
+              buried in the front-page disclaimer and from the 404 page, and
+              from nowhere else — not the map, and not the feature pages, which
+              are where most people arrive and the only place they can see that
+              a status is wrong. A report channel you have to hunt for collects
+              nothing. */}
           <nav className="masthead__nav">
             <a href="/">STATUS</a>
             <a href="/map">MAP</a>
             <a href="/feed">FEED</a>
+            <a href="/feedback">REPORT</a>
           </nav>
         </header>
         {children}

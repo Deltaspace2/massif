@@ -415,6 +415,41 @@ table.history th { color: var(--secondary); font-weight: 500; }
 /* Hut directory on the front page. A reference list, not a status table, so
    it carries no glyph column and no colour — the only status it shows is a
    pill on a hut that actually has a notice. */
+/* ------------------------------------------------------------------- feed
+   What changed, newest first. A record of publications, not a status board —
+   so the status word is a small label, not a pill, and nothing is tinted. */
+.feed { margin-top: 14px; }
+.feed__row {
+  display: grid; grid-template-columns: 84px 1fr 150px 190px;
+  gap: 14px; align-items: baseline;
+  padding: 10px 0; border-bottom: 1px solid var(--rule-faint); font-size: 13.5px;
+}
+.feed__status {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--unknown);
+}
+.feed__status.closed { color: var(--closed); }
+.feed__status.restricted { color: var(--restricted-text); }
+.feed__status.open { color: var(--open); }
+.feed__what a { font-weight: 500; color: var(--ink); }
+.feed__what a:hover { text-decoration: underline; }
+.feed__summary { display: block; color: var(--secondary); font-size: 13px; margin-top: 2px; }
+.feed__when { font-size: 11.5px; color: var(--tertiary); }
+.feed__published { display: block; white-space: nowrap; }
+.feed__checked { display: block; white-space: nowrap; }
+.feed__source { font-size: 12px; color: var(--secondary); }
+.feed__source a:hover { text-decoration: underline; }
+
+@media (max-width: 720px) {
+  .feed__row { grid-template-columns: 1fr auto; row-gap: 4px; }
+  .feed__when, .feed__source { grid-column: 1 / -1; }
+}
+
+/* The report prompt on a feature page — quiet, but present, which is more
+   than it was. */
+.report-inline { margin-top: 26px; }
+.report-inline a { text-decoration: underline; text-underline-offset: 2px; }
+
 /* Country flag. Sized down slightly because emoji render larger than the text
    around them, and nudged so it sits on the baseline rather than riding it.
    Never a status colour: which side of the border a hut is on is not a claim

@@ -358,6 +358,15 @@ export default async function FeaturePage({ params }: { params: Params }) {
         );
       })}
 
+      {/* The report link belongs on THIS page above all others: someone who
+          knows a status is wrong knows it while looking at the thing, and this
+          is the page they arrive on from a search. It carried no way to say so. */}
+      <p className="meta report-inline">
+        Is any of this wrong?{" "}
+        <a href="/feedback">Tell us</a> — a green dot on something shut is the
+        failure this site exists to avoid.
+      </p>
+
       <h3 style={{ fontSize: 15, marginTop: 30 }}>
         Everything published about this
       </h3>
