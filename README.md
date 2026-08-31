@@ -9,12 +9,14 @@ closures, glacier route closures after rockfall.
 This is a directory of published notices. It is **not** a safety service. It
 reports what sources have said; it does not tell anyone whether to go.
 
-See the project docs for the full spec (`opportunity-brief.md`,
-`v1-technical-spec.md`).
+`CLAUDE.md` is the working spec: architecture, conventions, and the hard-won
+rules that each cost a bug.
 
 ## Status
 
-v1, pre-alpha. Schema and scaffold only.
+v1, in development. The pipeline runs end to end: four sources ingest, the API
+serves, and the frontend renders the map, the feed and a page per feature. Not
+deployed yet.
 
 ## Stack
 
@@ -22,7 +24,7 @@ v1, pre-alpha. Schema and scaffold only.
 |---|---|
 | Ingest + API | Python 3.12, FastAPI |
 | Database | Postgres 16 + PostGIS |
-| Frontend | Next.js + MapLibre GL JS (not started) |
+| Frontend | Next.js (server-rendered) + MapLibre GL JS |
 | Basemap | IGN Géoplateforme WMTS (free, key-less) |
 | Scheduling | GitHub Actions cron |
 
@@ -55,6 +57,14 @@ python -m massif.scripts.seed_features
 uvicorn massif.main:app --reload
 ```
 
+The frontend server-renders against that API, so start the API first:
+
+```bash
+cd frontend
+npm install
+npm run dev                       # :3000, expects the API on :8000
+```
+
 ## Architecture
 
 Four ingest stages, each independently re-runnable. Never fuse them:
@@ -74,6 +84,9 @@ re-hammering someone's website.
 - `documents` — raw fetched artifacts, immutable, hash-deduped
 - `statements` — the normalised unit; closures *and* (later) conditions
 - `feature_status` — materialised current state, what the map reads
+- `feature_facts` — properties of a thing, not claims about it: hut capacity,
+  whether there is water. Never enters the status pipeline
+- `ingest_runs` — one row per source per run, so a source going quiet is visible
 - `unresolved_mentions` — review queue for names that didn't match a feature
 
 ## Scraping conduct
