@@ -195,16 +195,33 @@ Live: `mbnr-live` (lift status, 30 min), `mbnr-openings` (seasonal calendar,
 daily), `mairie-saint-gervais` (municipal notices — Goûter route regulation),
 `refuges-info` (hut directory facts, weekly, API client not a scraper —
 CC BY-SA 2.0, so the permalink is a licence condition and every hut links back).
-Covers 18 of 19 huts; only Bivacco della Fourche is absent. It read as 13 for a
-day, because refuges.info writes Italian huts under the French generic — their
-"Refuge Torino" is our "Rifugio Torino" — and five huts sat just under the name
-floor. The importer explained that shortfall as the Italian side being
-uncovered, which was a story that fitted the number and stopped anyone checking
-it. **A tool's own summary of its coverage is a claim like any other.**
+Covers all 19 huts. It read as 13 for most of a day, then 18, because
+refuges.info writes Italian huts under the French generic — their "Refuge
+Torino" is our "Rifugio Torino" — and five sat just under the name floor, while
+the Fourche bivouac is filed under its dedication ("Bivouac Alberico Borgna")
+and scores 54 against the location name we chose. The importer explained the
+shortfall as the Italian side being uncovered: a story that fitted the number
+and stopped anyone checking it, and it survived two rounds of correction
+because each round fixed the count and kept the story.
+**A tool's own summary of its coverage is a claim like any other.** "No entry"
+means we failed to match, never that they do not have it.
 
 Next: `mairie-chamonix` at **chamonix.fr** (not chamonix-mont-blanc.fr, which
 is the tourist office). WordPress, permissive robots.txt, publishes
-`sitemaps.xml`. Then Fondazione Montagna Sicura for the Italian side.
+`sitemaps.xml`.
+
+The Italian side has no source and is **blocked, not unstarted**. Fondazione
+Montagna Sicura was the plan and does not survive recon: its conditions page
+was abandoned in January 2025, and what is there is OHM Chamonix's French-side
+bulletins republished — the parked source, one hop away. The equivalent of
+`mairie-saint-gervais` is `comune.courmayeur.ao.it`, which currently does not
+resolve at all; an unreachable robots.txt is a refusal, so we wait rather than
+work around it. `courmayeurmontblanc.it` is reachable and does publish the Val
+Veny and Val Ferret road closures that gate the Italian huts, and was declined
+anyway: it is the tourist office, and that is the same distinction as the line
+about chamonix.fr above. Until the commune answers, the Italian huts carry
+directory facts and no notices, which is the honest state. Detail in the task
+queue, so nobody repeats the recon.
 
 Conduct: honour robots.txt, real User-Agent with a contact URL, rate-limit
 hard, attribute everything, link every displayed statement to its original.
