@@ -73,9 +73,39 @@ export interface Notice {
   source: { name: string; url: string; type: string };
 }
 
+/** A directory description of the building itself, with its credit attached.
+ *
+ *  Not a Notice: facts have no status, no severity and no staleness. A bunk
+ *  count does not expire, so nothing here may be styled as a warning. Every
+ *  value is optional and absent means "the source does not say" — which is a
+ *  different thing from `false`, and must render differently. */
+export interface FactBlock {
+  source: { name: string; url: string; type: string };
+  /** The specific entry their community wrote. Per hut, never one shared
+   *  footer — the link back is a condition of the licence. */
+  permalink: string;
+  licence: string;
+  licence_url: string | null;
+  /** When THEY last edited the entry. Routinely months old; that is normal
+   *  for a directory and is context, not a freshness flag. */
+  source_modified_at: string | null;
+  /** When WE last pulled it. */
+  fetched_at: string | null;
+  values: {
+    capacity?: number;
+    guarded?: boolean;
+    water?: boolean;
+    latrines?: boolean;
+    altitude_m?: number;
+    phone?: string;
+  };
+}
+
 export interface FeatureDetail extends Feature {
   /** The detail endpoint returns the notices themselves, not just a count. */
   other_notices: Notice[];
+  /** Empty unless a source published facts AND we can attribute them. */
+  facts: FactBlock[];
   parent: { slug: string; name: string } | null;
   children: {
     slug: string;
@@ -146,6 +176,22 @@ export function resortTime(iso: string | null): string {
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+  });
+}
+
+/** Month and year — for dates that are context rather than freshness.
+ *
+ *  Deliberately NOT `sinceLabel`. A directory entry last edited in Oct 2024 is
+ *  a perfectly good description of a building, but "672 days ago" states it in
+ *  this site's staleness vocabulary, where that number always means something
+ *  is wrong. It also cannot drift into a false present tense the way a
+ *  relative phrase can, which is why it is safe to compose here. */
+export function monthYear(iso: string | null): string | null {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("en-GB", {
+    timeZone: "Europe/Paris",
+    month: "short",
+    year: "numeric",
   });
 }
 
