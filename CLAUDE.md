@@ -195,7 +195,12 @@ Live: `mbnr-live` (lift status, 30 min), `mbnr-openings` (seasonal calendar,
 daily), `mairie-saint-gervais` (municipal notices — Goûter route regulation),
 `refuges-info` (hut directory facts, weekly, API client not a scraper —
 CC BY-SA 2.0, so the permalink is a licence condition and every hut links back).
-Covers 13 of 19 huts; the Italian side is not in it.
+Covers 18 of 19 huts; only Bivacco della Fourche is absent. It read as 13 for a
+day, because refuges.info writes Italian huts under the French generic — their
+"Refuge Torino" is our "Rifugio Torino" — and five huts sat just under the name
+floor. The importer explained that shortfall as the Italian side being
+uncovered, which was a story that fitted the number and stopped anyone checking
+it. **A tool's own summary of its coverage is a claim like any other.**
 
 Next: `mairie-chamonix` at **chamonix.fr** (not chamonix-mont-blanc.fr, which
 is the tourist office). WordPress, permissive robots.txt, publishes

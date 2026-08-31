@@ -76,8 +76,8 @@ const REPORTS: Report[] = [
     id: "missing",
     heading: "Something is missing",
     lede:
-      "The massif is covered deliberately rather than exhaustively — 13 of 19 " +
-      "huts, and the Italian side is thin. A name and a link is enough.",
+      "The massif is covered deliberately rather than exhaustively, and the " +
+      "Italian side is thinner than the French. A name and a link is enough.",
     title: "Missing feature: ",
     body: [
       "What is missing (hut, lift, railway, route): ",
@@ -226,7 +226,7 @@ export default function Feedback() {
         lift operator or the mairie — for anything that needs a person on the
         ground, look for their own details on the page for that feature,
         alongside the notice they published — though not every feature has
-        them. Six of the nineteen huts have no source we watch at all.
+        them, and some carry no contact details at all.
       </p>
     </main>
   );

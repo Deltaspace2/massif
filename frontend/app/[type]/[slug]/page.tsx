@@ -346,10 +346,11 @@ export default async function FeaturePage({ params }: { params: Params }) {
         Everything published about this
       </h3>
       {/* An empty table under a heading that promises content reads as a
-          broken page, not as an empty one. Six of the nineteen huts are in
-          exactly this state — no source we watch publishes about the Italian
-          side yet — and "we have found nothing" is information, where a blank
-          grid is just an absence the reader has to interpret. */}
+          broken page, not as an empty one. This is the common case, not the
+          rare one: 17 of the 19 huts have no notice at all, because the only
+          municipal source we watch is Saint-Gervais and it publishes about
+          two of them. "We have found nothing" is information; a blank grid is
+          an absence the reader has to interpret. */}
       {feature.history.length === 0 ? (
         <p className="meta">
           Nothing. No source this site watches has published about{" "}
