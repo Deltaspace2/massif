@@ -40,6 +40,16 @@ POINT_LIKE = {"hut", "lift", "lift_station", "peak"}
 SEEDS = Path(__file__).resolve().parents[2] / "seeds"
 
 
+def metres(value: object) -> int | None:
+    """OSM `ele` is a free-text tag, not a number. "3678", "3678 m", "3678.5",
+    "" and a missing key all occur, and a hut is not worth crashing a seed run
+    over. Anything unreadable is no altitude, which is what we had before."""
+    try:
+        return int(float(str(value).split()[0]))
+    except (AttributeError, IndexError, TypeError, ValueError):
+        return None
+
+
 def load(name: str) -> list[dict]:
     path = SEEDS / name
     if not path.exists():
@@ -143,6 +153,14 @@ def seed_features(session) -> tuple[int, int]:
                     **(existing.external_ids or {}),
                     "osm": candidate["osm_id"],
                 }
+                # Elevation is geometry, so OSM may supply it — but only where
+                # the curated file is silent, which is the rule for everything
+                # else here. Twelve of nineteen huts had no altitude at all,
+                # and altitude is the physical check that stops a name match
+                # attaching one building's facts to another; without it those
+                # twelve rested on the name alone.
+                if existing.alt_min is None and existing.alt_max is None:
+                    existing.alt_max = metres(candidate.get("ele"))
                 matched += 1
                 break
 

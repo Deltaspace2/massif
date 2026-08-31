@@ -119,14 +119,16 @@ def main() -> int:
             session.add(row)
 
         verb = "wrote" if args.apply else "would write"
-        print(
-            f"{SOURCE_SLUG}: {verb} {matched} of {len(huts)} huts, "
-            f"{unmatched} with no entry. This line used to explain a shortfall "
-            "of six as the Italian side being uncovered. It was not: their "
-            "French generic ('Refuge Torino' for our Rifugio) held five huts "
-            "just under the name floor. Report a number, and check it before "
-            "believing a story about it."
-        )
+        print(f"{SOURCE_SLUG}: {verb} {matched} of {len(huts)} huts, {unmatched} unmatched")
+        if unmatched:
+            # No theory about why. This line once read "the Italian side is not
+            # covered — refuges.info is a French project", which explained a
+            # shortfall of six so convincingly that nobody checked it. They had
+            # all six: five under the French generic, and the Fourche bivouac
+            # under a dedication name scoring 54 against ours. Unmatched means
+            # WE did not find it, never that they do not have it.
+            print("  unmatched means we could not match it, not that they lack it —")
+            print("  check names and altitudes before concluding anything about coverage")
         return 0
 
 

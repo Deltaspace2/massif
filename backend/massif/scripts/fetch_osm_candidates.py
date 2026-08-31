@@ -28,6 +28,13 @@ QUERY = f"""
 (
   node["tourism"~"^(alpine_hut|wilderness_hut)$"]{BBOX};
   way["tourism"~"^(alpine_hut|wilderness_hut)$"]{BBOX};
+  // Bivouacs are amenity=shelter + shelter_type=basic_hut, not tourism=*, so
+  // the query above never asked for them and the Bivacco della Fourche read as
+  // "not in OSM" when it has been a node since 2015. Same mistake as the rack
+  // railways below. shelter_type is required: bare amenity=shelter is also
+  // every bus stop and picnic roof in the valley.
+  node["amenity"="shelter"]["shelter_type"="basic_hut"]{BBOX};
+  way["amenity"="shelter"]["shelter_type"="basic_hut"]{BBOX};
   node["natural"="peak"]["ele"]{BBOX};
   way["aerialway"~"^(cable_car|gondola)$"]{BBOX};
   // Mountain railways are not tagged railway=rail + usage=tourism. The
@@ -56,6 +63,11 @@ TYPE_MAP = {
 
 def classify(tags: dict) -> str | None:
     if tags.get("tourism") in ("alpine_hut", "wilderness_hut"):
+        return "hut"
+    # An unstaffed bivouac is a hut for our purposes: a building people shelter
+    # in, that a source can close. Whether it has a warden is a fact about it,
+    # not a different kind of thing.
+    if tags.get("amenity") == "shelter" and tags.get("shelter_type") == "basic_hut":
         return "hut"
     if tags.get("natural") == "peak":
         return "peak"

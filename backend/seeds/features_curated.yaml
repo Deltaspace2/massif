@@ -403,7 +403,10 @@
 - slug: rifugio-elisabetta
   feature_type: hut
   name_default: Rifugio Elisabetta
-  aliases: [Elisabetta, Elisabetta Soldini]
+  # OSM carries the full dedication. Our shorter forms matched none of its
+  # keys, so the hut had no geometry and could not be drawn.
+  aliases: [Elisabetta, Elisabetta Soldini, Rifugio Elisabetta Soldini,
+            Rifugio Elisabetta Soldini Montanaro]
   country: IT
 
 - slug: abri-vallot
@@ -429,7 +432,15 @@
 - slug: bivacco-della-fourche
   feature_type: hut
   name_default: Bivacco della Fourche
-  aliases: [Fourche, Bivouac de la Fourche, Fourche bivouac]
+  # The hut has two unrelated names: its dedication and its location. We chose
+  # the location; OSM and refuges.info both use the dedication, which scores
+  # 54.5 against ours — unmatchable by name in either direction, and it read as
+  # "nobody has this hut" when both do. The alias earns its OSM geometry; the
+  # id is on the OSM node as ref:refuges.info, so the two agree independently.
+  aliases: [Fourche, Bivouac de la Fourche, Fourche bivouac,
+            Bivacco Alberico e Borgna, Bivouac Alberico Borgna,
+            Trident-Biwak Col de la Fourche]
+  external_ids: {refuges-info: 380}
   country: IT
 
 # ---------------------------------------------------------- access roads ---
