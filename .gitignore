@@ -1,4 +1,8 @@
-.env
+# .env* not .env: there was a .env.bak sitting here untracked, which one
+# `git add -A` would have published. The negation keeps the template visible,
+# and it is committed, so it must stay matchable.
+.env*
+!.env.example
 .venv/
 __pycache__/
 *.py[cod]
