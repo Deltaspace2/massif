@@ -1,27 +1,70 @@
-# Scheduled ingest. GitHub Actions cron is the correct boring answer for a
-# side project: nothing to keep warm, free, and the run log is your scraper
-# observability for nothing.
+# Scheduled ingest.
 #
+# OFF BY DEFAULT, and deliberately. This workflow needs a DATABASE_URL secret
+# pointing at a deployed Postgres, and there isn't one yet — the database lives
+# on a laptop. Left on a */30 cron against a secret that does not exist, it
+# failed forty-eight times a day and emailed every time, which is not
+# monitoring. It is training yourself to ignore the emails that will matter.
+#
+# TO TURN ON, once there is a database:
+#   1. Settings > Secrets and variables > Actions > Secrets:   DATABASE_URL
+#   2. Same page, Variables tab:                               USER_AGENT
+#   3. Same page, Variables tab:                               INGEST_ENABLED = true
+#
+# Nothing here changes. The switch is a repository variable so enabling it is
+# not a commit, and so the reason it is off stays written down.
+
 name: ingest
 
 on:
   workflow_dispatch:
   schedule:
-    # Every 30 min. Per-source fetch_interval_minutes decides what actually
-    # runs, so this cadence is a ceiling, not a promise.
-    - cron: "*/30 * * * *"
+    # Hourly, not half-hourly. Scheduled runs on Actions are queued rather than
+    # guaranteed and get dropped under load, so a tight cron buys unreliability
+    # rather than freshness — and seeds/sources.yaml sets a real per-source
+    # fetch_interval_minutes anyway, which this only puts a ceiling on.
+    - cron: "0 * * * *"
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
+    # workflow_dispatch always runs, so the switch can be tested by hand before
+    # anyone trusts the schedule.
+    if: github.event_name == 'workflow_dispatch' || vars.INGEST_ENABLED == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Check the configuration before doing anything
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          USER_AGENT: ${{ vars.USER_AGENT }}
+        run: |
+          # Fail with a sentence rather than a stack trace forty minutes later.
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not set. Ingest has nothing" \
+                 "to write to. See the comment at the top of this workflow."
+            exit 1
+          fi
+          if [ -z "$USER_AGENT" ]; then
+            echo "::error::USER_AGENT variable is not set. This project does" \
+                 "not fetch anyone's site without identifying itself and" \
+                 "giving them a contact address."
+            exit 1
+          fi
+
       - name: Install
         working-directory: backend
         run: pip install -e .
+
+      - name: Migrate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m massif.scripts.migrate
+
       - name: Run ingest
         working-directory: backend
         env:
@@ -29,3 +72,12 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           USER_AGENT: ${{ vars.USER_AGENT }}
         run: python -m massif.scripts.run_ingest
+
+      - name: Review queue
+        if: always()
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        # Names that did not resolve are the highest-leverage maintenance task
+        # on this project, and the run log is free observability for them.
+        run: python -m massif.scripts.review_queue || true
