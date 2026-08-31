@@ -18,7 +18,9 @@ Unattended sessions (scheduled overnight runs) have their own contract in
 
 cd backend && source .venv/bin/activate
 python -m massif.scripts.migrate            # apply db/migrations/*.sql in order
-pytest -q                                   # 186 tests, no DB needed
+pytest -q                                   # no DB needed (186 -> 204 in one
+                                            # day; the count is not worth
+                                            # keeping current here)
 python -m massif.scripts.seed_features      # load seeds/, merge OSM geometry
 python -m massif.scripts.run_ingest [slug]  # all due sources, or one
 python -m massif.scripts.reextract <slug> [--dry-run]  # re-parse stored docs
@@ -77,6 +79,12 @@ touched; run `recompute` after anything that edits statements out of band.
   and writes nothing. Use it before touching the database.
 - **Recon before writing a parser.** Every assumption made without looking at
   the real page has been wrong so far.
+- **The frontend cannot assume the API's version.** They deploy separately, so
+  for the length of every deploy the frontend renders against an API that
+  predates its newest field. New fields
+  are typed optional and read as `?? []`. `facts` was typed required once, and
+  `feature.facts.map` turned every feature page — the SEO surface — into a 500
+  for that window.
 
 ## Resolution rules
 
@@ -153,6 +161,14 @@ whether there is water. Facts never enter the status pipeline — they would
 compete for the status slot and age with `STALE_DAYS`, neither of which means
 anything for how many bunks a building has. The warden *season* is a statement;
 the bunk count is a fact.
+
+**Attribution is data, not a string in the renderer.** A facts source carries
+`licence` and `licence_url` in `seeds/sources.yaml`; `seed_features` puts them
+in `sources.fetch_config`, and the API reads them from there. A source without
+them renders **nothing** — no heading, no table, no credit. That is deliberate:
+refuges.info is CC BY-SA 2.0, so a block we cannot attribute is one we must not
+show, and a missing block is visible where a missing credit is not. Every fact
+row links to its own entry, never one shared footer.
 
 ## LLM extraction
 
