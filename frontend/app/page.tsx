@@ -368,7 +368,12 @@ export default async function Home() {
             A directory of what operators and authorities have published, with a
             source for every line. Statuses may be out of date — every row shows
             when it was last confirmed. Not a safety service. Verify locally
-            before committing to anything.
+            before committing to anything.{" "}
+            {/* Deliberately here and not in the masthead: people report a wrong
+                status at the moment they notice one, which is while they are
+                reading the statuses — not from a nav item they saw on the way
+                in. */}
+            <a href="/feedback">Something wrong? Report it.</a>
           </p>
         </div>
 
