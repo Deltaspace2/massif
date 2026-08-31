@@ -38,6 +38,19 @@
 
   --scrim-ink: 26, 31, 36;   /* #1a1f24, as rgb parts for alpha ramps */
 
+  /* Frosted chrome. 0.90 over the worst backdrop there is — pure black —
+     leaves ink at 11.9:1 and secondary at 4.5:1, so a glass surface is safe
+     over any map tile, any photograph, without measuring the backdrop.
+     Tertiary is NOT safe on it and never goes there: that token sits at
+     exactly 4.54:1 on solid, so it has no headroom to give away. Which is the
+     whole rule — glass carries labels and headings, never metadata. */
+  --glass: rgba(255, 255, 255, 0.90);
+  /* Status swatches on glass. Only the amber needed moving: at 0.90 over pure
+     black it composites against #e6e6e6 and lands at 2.72:1, under the 3:1
+     floor for a non-text indicator. #a97c1b is 3.01 and indistinguishable to
+     the eye. The other three clear it unchanged. */
+  --restricted-glass: #a97c1b;
+  --glass-edge: rgba(34, 40, 46, 0.10);
   --shadow-card: 0 2px 10px #22282e0f;
   --shadow-lift: 0 -8px 30px #22282e2b;
 
@@ -231,42 +244,60 @@ a:hover { text-decoration: underline; }
    A grid wrapper needs neither. A sole grid item stretches to fill its area on
    both axes whatever its `position` is, so the height is definite at init and
    nothing has to beat a third-party rule. */
-.mappane__map { flex: 1; min-height: 420px; display: grid; }
+.mappane__map { flex: 1; min-height: 420px; display: grid; position: relative; }
 .mappane__map > .map-canvas { min-width: 0; min-height: 0; }
+/* Floated onto the map rather than stacked beneath it: the legend explains
+   what is on the map, so it belongs on the map, and the card gets 44px of
+   cartography back. This is the one place translucency does information work
+   — it says the map continues underneath — rather than decorating a surface
+   with nothing behind it. */
 .mappane__legend {
-  display: flex; flex-wrap: wrap; gap: 16px;
-  padding: 12px 18px; border-top: 1px solid var(--rule);
+  position: absolute; left: 10px; right: 10px; bottom: 10px;
+  display: flex; flex-wrap: wrap; gap: 14px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  box-shadow: 0 2px 12px rgba(34, 40, 46, 0.14);
   font-size: 12px; color: var(--secondary);
 }
 .mappane__legend i { font-style: normal; margin-right: 6px; }
+.mappane__legend span { display: inline-flex; align-items: center; }
 
 /* ------------------------------------------------------------ full map page
    The masthead is 52px; the map takes everything else. 100dvh rather than
    100vh so a phone's collapsing address bar does not leave a strip of page
    below the fold. */
 .mapfull {
+  position: relative;
   height: calc(100vh - 52px);
   height: calc(100dvh - 52px);
   display: grid;
-  grid-template-rows: 1fr auto;
 }
 /* Same grid trick as the map pane: a sole grid item has a definite height on
    both axes without having to out-specify MapLibre's own positioning rule. */
 .mapfull__canvas { display: grid; min-height: 0; }
 .mapfull__canvas > .map-canvas { min-width: 0; min-height: 0; }
 .mapfull__bar {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 24px;
-  padding: 10px var(--gutter);
-  border-top: 1px solid var(--rule);
-  background: var(--card);
+  position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 2;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  backdrop-filter: blur(20px) saturate(1.15);
+  -webkit-backdrop-filter: blur(20px) saturate(1.15);
+  box-shadow: 0 4px 20px rgba(34, 40, 46, 0.16);
   font-size: 12px; color: var(--secondary);
 }
 .mapfull__count b { color: var(--ink); }
-.mapfull__missing { color: var(--tertiary); }
+.mapfull__missing { color: var(--secondary); }
 .mapfull__legend { display: flex; flex-wrap: wrap; gap: 16px; }
 .mapfull__legend i { font-style: normal; margin-right: 6px; }
-.mapfull__note { color: var(--tertiary); }
-.mapfull__sweep { margin-left: auto; font-size: 11.5px; color: var(--tertiary); }
+.mapfull__note { color: var(--secondary); }
+.mapfull__sweep { margin-left: auto; font-size: 11.5px; color: var(--secondary); }
 .mapfull__sweep a { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ------------------------------------------------------- notice cards */
@@ -438,4 +469,26 @@ table.history th { color: var(--secondary); font-weight: 500; }
   .remainder > summary { display: none; }
   .remainder > .remainder__body { display: block; }
   .remainder::details-content { content-visibility: visible; block-size: auto; }
+}
+
+
+/* ------------------------------------------------------------------- glass
+   Two fallbacks, both mandatory.
+
+   Without backdrop-filter the surface is simply solid: a 0.90 white with no
+   blur behind it is a washed-out panel over a busy map, which is worse than
+   no effect at all.
+
+   And prefers-reduced-transparency is a real accessibility setting, not a
+   nicety — translucent chrome over moving cartography is exactly what people
+   turn it on for. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .mappane__legend, .mapfull__bar { background: var(--card); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .mappane__legend, .mapfull__bar {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }

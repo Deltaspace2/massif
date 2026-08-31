@@ -385,7 +385,7 @@ export default async function Home() {
               <i style={{ color: "var(--open)" }}>●</i>open
             </span>
             <span>
-              <i style={{ color: "var(--restricted)" }}>▲</i>restricted
+              <i style={{ color: "var(--restricted-glass)" }}>▲</i>restricted
             </span>
             <span>
               <i style={{ color: "var(--closed)" }}>■</i>closed
