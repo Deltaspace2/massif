@@ -205,14 +205,23 @@ Actions.
 ## 5. USER_AGENT
 
 ```bash
-gh variable set USER_AGENT --body 'massif/0.1 (+https://<project>.vercel.app/about; steven.innes8@gmail.com)'
+gh variable set USER_AGENT --body 'massif/0.1 (+https://github.com/Deltaspace2/massif; steven.innes8@gmail.com)'
 ```
 
 The workflow hard-fails without it, by design: this project does not touch
 anyone's server without identifying itself and giving them a way to complain.
-Set the same string on the Vercel API project. The URL has to resolve to a
-real page before the first ingest run — it is the contact address, not a
-label.
+Set the same string on the Vercel API project.
+
+**Use the repo URL, not the Vercel one, at least to begin with.** The contact
+address has to resolve to a real page *before* the first request goes out, and
+the repo is public and has an issues tab today. Pointing it at
+`<project>.vercel.app/about` means the first ingest run advertises a contact
+page that does not exist yet — which is the one thing a sysadmin reading their
+logs cannot forgive. Switch it to the site once `/about` is actually up.
+
+The `example.org` placeholder that ships in `.env.example` is not a
+placeholder in the harmless sense: it is a fake contact on every request. The
+local `.env` has been moved to the repo URL for the same reason.
 
 ## 6. Verify, in this order
 
