@@ -155,3 +155,21 @@
     Admin-entered statements — hut closures phoned in, things seen in person.
     Keeps low-yield sources (refuge socials) out of scope for v1 without
     losing the data.
+
+# Community wiki for mountain shelters, France and the Pyrenees. CC BY-SA 2.0
+# with a documented read-only API, which is why this is an API client and not a
+# scraper. Their robots.txt is a long, fair complaint about bots consuming
+# resources a volunteer pays for; we answer it by fetching the whole massif in
+# one request a week, keeping only structured fields, and linking every hut
+# back to the entry whose community wrote it.
+#
+# NOT a scraper: produces feature_facts, never statements. Capacity is a
+# property of a building, not a claim in force over a window.
+- slug: refuges-info
+  name: Refuges.info
+  url: https://www.refuges.info/
+  source_type: community
+  language: fr
+  trust_weight: 0.70
+  fetch_interval_minutes: 10080
+  active: true

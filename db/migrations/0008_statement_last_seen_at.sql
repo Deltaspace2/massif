@@ -1,3 +1,5 @@
+BEGIN;
+
 -- Two different facts were being carried by one column.
 --
 -- `observed_at` is when the SOURCE said a thing: the date on the arrêté, the
@@ -12,7 +14,7 @@
 -- a mountain is worth showing; so is the fact that nobody has re-checked it.
 
 ALTER TABLE statements
-    ADD COLUMN last_seen_at timestamptz NOT NULL DEFAULT now();
+    ADD COLUMN IF NOT EXISTS last_seen_at timestamptz NOT NULL DEFAULT now();
 
 -- Existing rows: we genuinely do not know when they were last confirmed, so
 -- they inherit observed_at. That reads as "not re-checked since it was
@@ -21,7 +23,7 @@ ALTER TABLE statements
 UPDATE statements SET last_seen_at = observed_at;
 
 ALTER TABLE feature_status
-    ADD COLUMN last_seen_at timestamptz;
+    ADD COLUMN IF NOT EXISTS last_seen_at timestamptz;
 
 -- An opening lifts an undated closure from the same authority.
 --
@@ -47,3 +49,13 @@ WHERE closure.statement_type = 'closure'
   AND opening.feature_id = closure.feature_id
   AND opening.source_id = closure.source_id
   AND opening.observed_at > closure.observed_at;
+
+-- Every migration registers itself; migrate.py does not do it for you.
+-- Both 0008 and 0009 originally omitted this, so they applied once,
+-- printed ok, and then failed on the next run against a database that
+-- already had their changes. ON CONFLICT so a database that ran the
+-- unregistered version heals instead of erroring.
+INSERT INTO schema_migrations (version) VALUES ('0008_statement_last_seen_at')
+    ON CONFLICT (version) DO NOTHING;
+
+COMMIT;

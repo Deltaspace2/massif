@@ -25,6 +25,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -261,6 +262,49 @@ class FeatureStatus(Base):
     )
 
     feature: Mapped[Feature] = relationship(back_populates="status")
+
+
+class FeatureFact(Base):
+    """Directory facts about a feature — capacity, altitude, warden, water.
+
+    Not a Statement. A statement is a claim valid over a window that can be in
+    force; capacity is a property of a building. Putting these through the
+    statement pipeline would enter them into the running for the status slot
+    and age them with STALE_DAYS, neither of which means anything here.
+
+    source_url is NOT NULL because refuges.info is CC BY-SA 2.0: attribution is
+    a licence condition, not a courtesy.
+    """
+
+    __tablename__ = "feature_facts"
+    __table_args__ = (
+        UniqueConstraint("feature_id", "source_id", name="feature_facts_feature_id_source_id_key"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    feature_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("features.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sources.id", ondelete="RESTRICT"), nullable=False
+    )
+
+    external_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+    # Theirs versus ours, same distinction as a statement's observed_at and
+    # last_seen_at — and it matters more here, because directory entries are
+    # edited yearly and the UI must not imply otherwise.
+    source_modified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    match_method: Mapped[str] = mapped_column(Text, nullable=False, default="curated")
+    match_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
 
 
 class UnresolvedMention(Base):

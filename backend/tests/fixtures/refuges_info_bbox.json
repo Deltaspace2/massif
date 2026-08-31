@@ -1,0 +1,425 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     6.7995,
+     45.856
+    ]
+   },
+   "properties": {
+    "id": 1047,
+    "nom": "Refuge du Nid d'Aigle",
+    "coord": {
+     "alt": 2372,
+     "long": 6.7995,
+     "lat": 45.856,
+     "precision": {
+      "nom": "Coordonnées pointées sur photos aériennes",
+      "type": 7
+     }
+    },
+    "type": {
+     "id": 10,
+     "valeur": "refuge gardé",
+     "icone": "cabane_red_eau"
+    },
+    "places": {
+     "nom": "Capacité d'accueil",
+     "valeur": 30
+    },
+    "proprio": {
+     "nom": "Propriétaires",
+     "valeur": "Mairie de Saint-Gervais-les-Bains (anciennement FFCAM)\r\nGardienne :Marion Rivollet,\r\nTéléphone du refuge: 04 50 58 05 78 de 8 h à 17 h.\r\nPériode de gardiennage : Se référer au [url=https://montblanc.ffcam.fr/refuge-home-4.html]site de la FFCAM[/url].\r\n\r\n\r\n[b]La réservation dans les refuges de la voie normale du Mont Blanc (refuges du Nid d'Aigle, de Tête-Rousse et du Goûter) est soumise à une règlementation particulière prévue par arrêté préfectoral (merci d'en prendre connaissance ci-dessous). Elle comporte un système de réservation unique avec renseignement obligatoire de l'identité des participants au séjour.[/b]\r\n\r\nCi-dessous l'arrêté précisant les règles en vigueur pour la réservation des refuges de la voie normale du Mont Blanc:\r\n\r\n[url=https://montblanc.ffcam.fr/csx/scripts/downloader2.php?filename=T004/fichier/d5/70/gou5ru28yc57&mime=application%2Fpdf&originalname=arrete-regulation-VN-MontBlanc-2020-signe-1.pdf]Arrêté préfectoral du 15 juin 2020[/url]\r\n\r\nLe refuge du Nid d'Aigle n'est plus géré par la FFCAM. Il convient de contacter le [url=https://hautesavoie.fr/]département de la Haute-Savoie[/url] pour tout renseignements et réservations concernant ce refuge"
+    },
+    "etat": {
+     "nom": "Etat",
+     "valeur": "",
+     "id": "ouverture"
+    },
+    "lien": "https://www.refuges.info/point/1047/refuge-garde/refuge-du-Nid-d-Aigle/",
+    "date": {
+     "creation": "2006-02-23 00:00:00+01",
+     "derniere_modif": "2026-04-28 12:49:41.029209+02"
+    },
+    "info_comp": {
+     "eau": {
+      "valeur": "Oui",
+      "nom": "Eau gratuite en libre accès"
+     },
+     "latrines": {
+      "valeur": "Oui",
+      "nom": "Latrines"
+     },
+     "places": {
+      "valeur": 30,
+      "nom": "Capacité d'accueil"
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     6.88272,
+     45.90558
+    ]
+   },
+   "properties": {
+    "id": 237,
+    "nom": "Refuge du Plan de l'Aiguille",
+    "coord": {
+     "alt": 2207,
+     "long": 6.88272,
+     "lat": 45.90558,
+     "precision": {
+      "nom": "Coordonnées pointées sur photos aériennes",
+      "type": 7
+     }
+    },
+    "type": {
+     "id": 10,
+     "valeur": "refuge gardé",
+     "icone": "cabane_red_eau"
+    },
+    "places": {
+     "nom": "Capacité d'accueil",
+     "valeur": 35
+    },
+    "proprio": {
+     "nom": "Propriétaires",
+     "valeur": "Consorts de Blaitière\r\n\r\nTél : +33 6 65 64 27 53\r\nMail : hello@refuge-plan-aiguille.com\nSite officiel: https://refuge-plan-aiguille.com/hebergement"
+    },
+    "etat": {
+     "nom": "Etat",
+     "valeur": "",
+     "id": "ouverture"
+    },
+    "lien": "https://www.refuges.info/point/237/refuge-garde/refuge-du-Plan-de-l-Aiguille/",
+    "date": {
+     "creation": "2004-03-04 00:00:00+01",
+     "derniere_modif": "2023-08-18 14:38:24.052289+02"
+    },
+    "info_comp": {
+     "eau": {
+      "valeur": "Oui",
+      "nom": "Eau gratuite en libre accès"
+     },
+     "latrines": {
+      "valeur": "Oui",
+      "nom": "Latrines"
+     },
+     "places": {
+      "valeur": 35,
+      "nom": "Capacité d'accueil"
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     6.88557,
+     45.87323
+    ]
+   },
+   "properties": {
+    "id": 342,
+    "nom": "Refuge des Cosmiques",
+    "coord": {
+     "alt": 3613,
+     "long": 6.88557,
+     "lat": 45.87323,
+     "precision": {
+      "nom": "Coordonnées pointées sur photos aériennes",
+      "type": 7
+     }
+    },
+    "type": {
+     "id": 10,
+     "valeur": "refuge gardé",
+     "icone": "cabane_red"
+    },
+    "places": {
+     "nom": "Capacité d'accueil",
+     "valeur": 145
+    },
+    "proprio": {
+     "nom": "Propriétaires",
+     "valeur": "Commune de Chamonix / exploitation en délégation de service public avec la Cie des Guides de Chamonix\r\n TÉLÉPHONE DU REFUGE : 04 50 54 40 16\r\n Gardiennes: Mélanie Marcuzzi et Anna Bernicot\nSite officiel: https://www.refuge-des-cosmiques.com/"
+    },
+    "etat": {
+     "nom": "Etat",
+     "valeur": "",
+     "id": "ouverture"
+    },
+    "lien": "https://www.refuges.info/point/342/refuge-garde/refuge-des-Cosmiques/",
+    "date": {
+     "creation": "2004-10-14 00:00:00+02",
+     "derniere_modif": "2025-06-09 19:10:30.129581+02"
+    },
+    "info_comp": {
+     "eau": {
+      "valeur": "Non",
+      "nom": "Eau gratuite en libre accès"
+     },
+     "latrines": {
+      "valeur": "Oui",
+      "nom": "Latrines"
+     },
+     "places": {
+      "valeur": 145,
+      "nom": "Capacité d'accueil"
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     7.00457,
+     45.94636
+    ]
+   },
+   "properties": {
+    "id": 317,
+    "nom": "Refuge d'Argentière",
+    "coord": {
+     "alt": 2771,
+     "long": 7.00457,
+     "lat": 45.94636,
+     "precision": {
+      "nom": "Coordonnées pointées sur photos aériennes",
+      "type": 7
+     }
+    },
+    "type": {
+     "id": 10,
+     "valeur": "refuge gardé",
+     "icone": "cabane_red_eau"
+    },
+    "places": {
+     "nom": "Capacité d'accueil",
+     "valeur": 91
+    },
+    "proprio": {
+     "nom": "Propriétaires",
+     "valeur": "CAF Chamonix (refuge au 04 50 53 16 92)ou(Tél privé du gardien 06 22 04 25 00).\nSite officiel: http://www.ffcam.fr"
+    },
+    "etat": {
+     "nom": "Etat",
+     "valeur": "",
+     "id": "ouverture"
+    },
+    "lien": "https://www.refuges.info/point/317/refuge-garde/refuge-d-Argentiere/",
+    "date": {
+     "creation": "2004-08-28 00:00:00+02",
+     "derniere_modif": "2024-10-17 21:24:37.57823+02"
+    },
+    "info_comp": {
+     "eau": {
+      "valeur": "Oui",
+      "nom": "Eau gratuite en libre accès"
+     },
+     "latrines": {
+      "valeur": "Oui",
+      "nom": "Latrines"
+     },
+     "places": {
+      "valeur": 91,
+      "nom": "Capacité d'accueil"
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     6.96533,
+     45.91023
+    ]
+   },
+   "properties": {
+    "id": 143,
+    "nom": "Refuge du Couvercle",
+    "coord": {
+     "alt": 2687,
+     "long": 6.96533,
+     "lat": 45.91023,
+     "precision": {
+      "nom": "Coordonnées pointées sur photos aériennes",
+      "type": 7
+     }
+    },
+    "type": {
+     "id": 10,
+     "valeur": "refuge gardé",
+     "icone": "cabane_red_eau"
+    },
+    "places": {
+     "nom": "Capacité d'accueil",
+     "valeur": 64
+    },
+    "proprio": {
+     "nom": "Propriétaires",
+     "valeur": "FFCAM Chamonix\r\nGardien: Christophe Lelievre\r\n\r\nNouveau téléphone du refuge: 07 71 57 77 85 ou téléphone privé du gardien : 06 87 99 01 66\r\n\r\nSite de la FFCAM : [url]https://refugeducouvercle.ffcam.fr/[/url]\r\nSite du refuge : [url]https://refugeducouvercle.jimdofree.com/[/url]"
+    },
+    "etat": {
+     "nom": "Etat",
+     "valeur": "",
+     "id": "ouverture"
+    },
+    "lien": "https://www.refuges.info/point/143/refuge-garde/refuge-du-Couvercle/",
+    "date": {
+     "creation": "2003-07-15 00:00:00+02",
+     "derniere_modif": "2026-02-21 08:20:18.340004+01"
+    },
+    "info_comp": {
+     "eau": {
+      "valeur": "Oui",
+      "nom": "Eau gratuite en libre accès"
+     },
+     "latrines": {
+      "valeur": "Oui",
+      "nom": "Latrines"
+     },
+     "places": {
+      "valeur": 64,
+      "nom": "Capacité d'accueil"
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     6.9297,
+     45.88463
+    ]
+   },
+   "properties": {
+    "id": 275,
+    "nom": "Refuge du Requin",
+    "coord": {
+     "alt": 2516,
+     "long": 6.9297,
+     "lat": 45.88463,
+     "precision": {
+      "nom": "Coordonnées pointées sur photos aériennes",
+      "type": 7
+     }
+    },
+    "type": {
+     "id": 10,
+     "valeur": "refuge gardé",
+     "icone": "cabane_red"
+    },
+    "places": {
+     "nom": "Capacité d'accueil",
+     "valeur": 40
+    },
+    "proprio": {
+     "nom": "Propriétaires",
+     "valeur": "Compagnie des guides de Chamonix\r\nIl était cogéré auparavant avec la FFCAM, qui en a arrêté la gestion après la saison 2025.\r\n\r\nGardiennes : Mathilde Lagasse\r\nTél du refuge : +33 7 64 45 46 29\r\nEmail : contact@refugedurequin.fr\r\n\r\nSite internet : https://refugedurequin.fr/"
+    },
+    "etat": {
+     "nom": "Etat",
+     "valeur": "",
+     "id": "ouverture"
+    },
+    "lien": "https://www.refuges.info/point/275/refuge-garde/refuge-du-Requin/",
+    "date": {
+     "creation": "2004-06-01 00:00:00+02",
+     "derniere_modif": "2026-04-08 10:12:42.064182+02"
+    },
+    "info_comp": {
+     "eau": {
+      "valeur": "Non",
+      "nom": "Eau gratuite en libre accès"
+     },
+     "latrines": {
+      "valeur": "Oui",
+      "nom": "Latrines"
+     },
+     "places": {
+      "valeur": 40,
+      "nom": "Capacité d'accueil"
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     6.98663,
+     45.99675
+    ]
+   },
+   "properties": {
+    "id": 316,
+    "nom": "Refuge Albert 1er",
+    "coord": {
+     "alt": 2706,
+     "long": 6.98663,
+     "lat": 45.99675,
+     "precision": {
+      "nom": "Coordonnées pointées sur photos aériennes",
+      "type": 7
+     }
+    },
+    "type": {
+     "id": 10,
+     "valeur": "refuge gardé",
+     "icone": "cabane_red_eau"
+    },
+    "places": {
+     "nom": "Capacité d'accueil",
+     "valeur": 140
+    },
+    "proprio": {
+     "nom": "Propriétaires",
+     "valeur": "CAF Chamonix\r\n  Email : [email]infos@clubalpin-chamonix.com[/email]\r\n\r\nGardien: Paul Laborde\r\n  Email : [email]labordepaul@gmail.com[/email]\r\n  Tel : +33 4 50 54 06 20\r\n\r\n[u]Il est très fortement conseillé de réserver, que ce soit en période gardée ou non gardée.[/u]\r\nUne réservation peut être annulée jusqu'à la veille du séjour à minuit et les arrhes seront remboursées (moins les frais de dossier). Au delà de cette limite de temps, les arrhes seront conservées. Dans tous les cas, il est recommandé de prévenir au plus tôt le refuge en cas de modification d'une réservation.\r\n\r\n[url=https://refugealbert1er.ffcam.fr/reservation.html]Réservation en période gardée[/url]\r\n[url=https://refugealbert1er.ffcam.fr/reservation-hg.html]Réservation en période hors gardiennage[/url]\nSite officiel: https://refugealbert1er.ffcam.fr/home.html"
+    },
+    "etat": {
+     "nom": "Etat",
+     "valeur": "",
+     "id": "ouverture"
+    },
+    "lien": "https://www.refuges.info/point/316/refuge-garde/refuge-Albert-1er/",
+    "date": {
+     "creation": "2004-08-28 00:00:00+02",
+     "derniere_modif": "2025-09-26 18:36:44.310667+02"
+    },
+    "info_comp": {
+     "eau": {
+      "valeur": "Oui",
+      "nom": "Eau gratuite en libre accès"
+     },
+     "latrines": {
+      "valeur": "Oui",
+      "nom": "Latrines"
+     },
+     "places": {
+      "valeur": 140,
+      "nom": "Capacité d'accueil"
+     }
+    }
+   }
+  }
+ ]
+}
