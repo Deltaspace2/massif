@@ -217,8 +217,13 @@ export default async function Home() {
   const lifts = routine
     .filter((f) => f.type === "lift")
     .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  // Huts are excluded: they have their own complete section below, and listing
+  // the two that happen to carry a notice here as well printed each of them
+  // twice on one screen. A hut that is actually shut still appears above as an
+  // alert card, which is a different job from an index — that pairing is
+  // intentional, two rows in two routine listings was not.
   const rest = routine
-    .filter((f) => f.type !== "lift")
+    .filter((f) => f.type !== "lift" && f.type !== "hut")
     .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 
   // Every hut, not just the ones with a notice. Seventeen of nineteen have
@@ -363,7 +368,7 @@ export default async function Home() {
             {rest.length > 0 && (
               <div style={{ marginTop: 26 }}>
                 <div className="sec-head">
-                  <h2>Routes, huts &amp; access</h2>
+                  <h2>Routes &amp; access</h2>
                 </div>
                 <div className="tbl">
                   {rest.map((f) => (
