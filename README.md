@@ -10,13 +10,14 @@ This is a directory of published notices. It is **not** a safety service. It
 reports what sources have said; it does not tell anyone whether to go.
 
 `CLAUDE.md` is the working spec: architecture, conventions, and the hard-won
-rules that each cost a bug.
+rules that each cost a bug. `DEPLOY.md` covers hosting.
 
 ## Status
 
 v1, in development. The pipeline runs end to end: four sources ingest, the API
 serves, and the frontend renders the map, the feed and a page per feature. Not
-deployed yet.
+deployed yet — `DEPLOY.md` is the runbook, and the ingest cron stays gated
+behind `INGEST_ENABLED` until there is a database to write to.
 
 ## Stack
 
@@ -27,6 +28,7 @@ deployed yet.
 | Frontend | Next.js (server-rendered) + MapLibre GL JS |
 | Basemap | IGN Géoplateforme WMTS (free, key-less) |
 | Scheduling | GitHub Actions cron |
+| Hosting | Two Vercel projects, frontend and read API — see `DEPLOY.md` |
 
 ## Local setup
 
