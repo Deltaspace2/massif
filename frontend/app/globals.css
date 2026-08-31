@@ -416,8 +416,14 @@ table.history th { color: var(--secondary); font-weight: 500; }
    it carries no glyph column and no colour — the only status it shows is a
    pill on a hut that actually has a notice. */
 .huts { margin-top: 10px; }
+/* Every column fixed except the name. Each row is its own grid container, so
+   any column sized to its own content — `auto`, or a minmax that resolves to
+   content — is computed per row and lines up with nothing. The notices column
+   is the clearest case: it is present on two rows out of nineteen, and when it
+   collapsed to zero it dragged the two columns before it sideways. Fixed
+   widths mean the row a hut lands on cannot change where its text sits. */
 .huts__row {
-  display: grid; grid-template-columns: 1fr 72px minmax(0, 15em) auto;
+  display: grid; grid-template-columns: 1fr 76px 224px 68px;
   gap: 12px; align-items: baseline;
   padding: 9px 0; border-bottom: 1px solid var(--rule-faint);
   font-size: 14px;
@@ -433,14 +439,15 @@ table.history th { color: var(--secondary); font-weight: 500; }
    never be allowed to bury. --restricted-text is 4.74:1, safe carrying words. */
 .huts__notices {
   font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em;
-  color: var(--restricted-text); white-space: nowrap;
+  color: var(--restricted-text); white-space: nowrap; text-align: right;
 }
 .huts__credit { margin-top: 10px; line-height: 1.5; }
 .huts__credit a { text-decoration: underline; text-underline-offset: 2px; }
 
+/* Two columns, so a row folds to name/altitude then detail/notices. The
+   altitude stays right-aligned: it is the same column, one line down. */
 @media (max-width: 720px) {
-  .huts__row { grid-template-columns: 1fr auto; row-gap: 2px; }
-  .huts__alt { text-align: left; }
+  .huts__row { grid-template-columns: 1fr 76px; row-gap: 2px; }
 }
 
 .lifts { list-style: none; padding: 0; margin: 12px 0 0; }
