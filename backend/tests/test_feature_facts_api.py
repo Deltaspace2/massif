@@ -8,8 +8,13 @@ nothing at all. A missing block is visible. A missing credit is not.
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
+
+import yaml
 
 from massif.main import _fact_block
+
+SOURCES = Path(__file__).parents[1] / "seeds" / "sources.yaml"
 
 
 @dataclass
@@ -51,6 +56,24 @@ def test_a_source_with_no_licence_renders_nothing():
     """
     source = FakeSource(fetch_config={"notes": "some other directory"})
     assert _fact_block(FakeFact(payload=FULL), source) is None
+
+
+def test_the_seed_actually_carries_the_licence_refuges_info_needs():
+    """The other half of the guard, on the producer side.
+
+    _fact_block refusing without a licence fails safe, but it fails INVISIBLY:
+    drop the two lines from the seed and every facts block on the site quietly
+    disappears with the whole suite still green. This pins the data, which is
+    the half most likely to be edited by someone who does not know it is
+    load-bearing.
+    """
+    entry = next(
+        row
+        for row in yaml.safe_load(SOURCES.read_text(encoding="utf-8"))
+        if row["slug"] == "refuges-info"
+    )
+    assert entry["licence"] == "CC BY-SA 2.0"
+    assert entry["licence_url"].startswith("https://creativecommons.org/")
 
 
 def test_a_row_with_no_permalink_renders_nothing():
