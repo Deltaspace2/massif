@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, aliased
 from massif.db import get_session
 from massif.enums import StatusValue
 from massif.ingest.fr_dates import DateRange, describe
-from massif.models import Feature, FeatureStatus, IngestRun, Source, Statement
+from massif.models import Feature, FeatureFact, FeatureStatus, IngestRun, Source, Statement
 
 app = FastAPI(
     title="massif",
@@ -258,6 +258,67 @@ def _feature_dict(
     }
 
 
+# What a directory entry is allowed to say about a building. Deliberately NOT
+# `coord_precision` (their French prose about how they mapped the point — this
+# client keeps structured fields, never the writing) and NOT `kind`, which is
+# a French type label whose one useful bit is already read out as `guarded`.
+FACT_FIELDS = ("capacity", "guarded", "water", "latrines", "altitude_m", "phone")
+
+
+def _fact_block(fact, source) -> dict | None:
+    """One directory fact row, rendered or refused. Pure — no database.
+
+    Facts are not statements: no status, no severity, no STALE_DAYS. They do
+    not age into a warning, because a bunk count does not stop being true.
+
+    Returns None rather than a block when we cannot attribute it. A source with
+    no licence in `fetch_config`, or a row with no permalink, publishes
+    nothing: the credit and the link back are conditions of using this data, so
+    a block we cannot attribute is one we must not render. Showing nothing is a
+    visible failure; showing someone's community's work with the credit
+    silently missing is a licence breach nobody would notice.
+    """
+    config = getattr(source, "fetch_config", None) or {}
+    licence = config.get("licence")
+    if not licence or not fact.source_url:
+        return None
+    payload = fact.payload or {}
+    # Absent stays absent. `water: false` is a fact about a hut with no water;
+    # a missing `water` key is refuges.info not saying. The frontend renders
+    # those differently, which it can only do if we do not conflate them here.
+    values = {key: payload[key] for key in FACT_FIELDS if payload.get(key) is not None}
+    if not values:
+        return None
+    return {
+        "source": {"name": source.name, "url": source.url, "type": source.source_type},
+        # Per hut, never one shared footer. The licence attaches to the entry
+        # their community wrote, so the link has to reach it.
+        "permalink": fact.source_url,
+        "licence": licence,
+        "licence_url": config.get("licence_url"),
+        # Two clocks again: when THEY last edited the entry, and when WE last
+        # pulled it. Theirs is routinely months old, which is normal for a
+        # directory — it is context, not a staleness flag.
+        "source_modified_at": fact.source_modified_at,
+        "fetched_at": fact.fetched_at,
+        "values": values,
+    }
+
+
+def _facts(session: Session, feature_id) -> list[dict]:
+    """Directory facts for one feature, one block per source."""
+    blocks = [
+        _fact_block(fact, source)
+        for fact, source in session.execute(
+            select(FeatureFact, Source)
+            .join(Source, Source.id == FeatureFact.source_id)
+            .where(FeatureFact.feature_id == feature_id)
+            .order_by(Source.name)
+        ).all()
+    ]
+    return [block for block in blocks if block is not None]
+
+
 @app.get("/health")
 def health(session: Session = Depends(get_session)) -> dict:
     """Last successful ingest, front and centre. Abandonment is the real
@@ -410,6 +471,8 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
         }
         for st, src in others
     ]
+
+    payload["facts"] = _facts(session, feature.id)
 
     payload["parent"] = (
         {"slug": parent.slug, "name": parent.name_default} if parent else None

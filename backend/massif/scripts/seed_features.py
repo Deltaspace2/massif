@@ -51,6 +51,8 @@ def seed_sources(session) -> int:
     count = 0
     for row in load("sources.yaml"):
         notes = row.pop("notes", None)
+        licence = row.pop("licence", None)
+        licence_url = row.pop("licence_url", None)
         existing = session.scalar(select(Source).where(Source.slug == row["slug"]))
         if existing is None:
             existing = Source(slug=row["slug"])
@@ -63,7 +65,17 @@ def seed_sources(session) -> int:
         existing.trust_weight = Decimal(str(row.get("trust_weight", 0.5)))
         existing.fetch_interval_minutes = row.get("fetch_interval_minutes", 360)
         existing.active = row.get("active", True)
-        existing.fetch_config = {"notes": notes} if notes else {}
+        # Licence travels with the source rather than living in the renderer:
+        # the next facts source that forgets it must fail loudly by rendering
+        # no attribution block, not quietly by rendering one without a credit.
+        config: dict = {}
+        if notes:
+            config["notes"] = notes
+        if licence:
+            config["licence"] = licence
+        if licence_url:
+            config["licence_url"] = licence_url
+        existing.fetch_config = config
         count += 1
     return count
 

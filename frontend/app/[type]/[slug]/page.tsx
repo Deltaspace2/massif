@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import FeatureMap from "@/components/FeatureMap";
-import { getFeature, resortTime, sinceLabel } from "@/lib/api";
+import { getFeature, monthYear, resortTime, sinceLabel } from "@/lib/api";
 
 export const revalidate = 60;
 
@@ -49,6 +50,12 @@ export default async function FeaturePage({ params }: { params: Params }) {
   }
 
   const routine = feature.status.closure_kind === "outside_hours";
+
+  // Absent means "the source does not say"; false means "no, there isn't".
+  // Collapsing those two into one blank would invent an answer — the site's
+  // signature failure. Only an explicit boolean produces a row.
+  const yesNo = (value: boolean | undefined) =>
+    value === undefined ? null : value ? "Yes" : "No";
 
   // A notice either asserts something about now, or it does not. Mixing the
   // two under one heading is what made this page contradict itself.
@@ -247,6 +254,79 @@ export default async function FeaturePage({ params }: { params: Params }) {
           </div>
         </>
       )}
+
+      {/* Directory facts about the building. Kept well below the status and
+          the notices on purpose: this answers "what is this hut like", which
+          is a different and much less urgent question than "is it shut". It
+          carries no colour, no pill and no staleness styling, because a bunk
+          count does not expire and must never read as a warning. */}
+      {feature.facts.map((fact) => {
+        const v = fact.values;
+        const rows: { label: string; value: ReactNode }[] = [];
+        if (v.capacity !== undefined)
+          rows.push({ label: "Sleeps", value: `${v.capacity} places` });
+        if (v.guarded !== undefined)
+          rows.push({
+            label: "Warden",
+            value: v.guarded ? "Staffed refuge" : "Unstaffed",
+          });
+        if (v.water !== undefined)
+          rows.push({ label: "Water", value: yesNo(v.water) });
+        if (v.latrines !== undefined)
+          rows.push({ label: "Latrines", value: yesNo(v.latrines) });
+        if (v.altitude_m !== undefined)
+          rows.push({ label: "Altitude", value: `${v.altitude_m} m` });
+        if (v.phone !== undefined)
+          rows.push({
+            label: "Phone",
+            value: (
+              <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`}>{v.phone}</a>
+            ),
+          });
+        const edited = monthYear(fact.source_modified_at);
+
+        return (
+          <section className="facts" key={fact.permalink}>
+            <h3 style={{ fontSize: 15, marginTop: 30 }}>About this hut</h3>
+            <p className="meta">
+              How {fact.source.name} describes the building. These are
+              properties of the hut, not a status — they do not expire, and we
+              have not verified them. Any altitude below is their survey, not
+              ours, and the two do not always agree.
+            </p>
+            <dl className="facts__list">
+              {rows.map((row) => (
+                <div className="facts__row" key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+            {/* Attribution is a licence condition, not a courtesy: the credit,
+                a link to the licence, and a link to the specific entry their
+                community wrote — per hut, not one shared footer. */}
+            <p className="meta facts__credit">
+              From{" "}
+              <a href={fact.permalink} rel="nofollow noopener">
+                the {fact.source.name} entry
+              </a>
+              , written by their contributors and used under{" "}
+              {fact.licence_url ? (
+                <a href={fact.licence_url} rel="license noopener">
+                  {fact.licence}
+                </a>
+              ) : (
+                fact.licence
+              )}
+              .{/* Their clock and ours, kept apart — see the status card. */}
+              {edited && ` Last edited there ${edited}`}
+              {fact.fetched_at &&
+                `${edited ? "; " : " "}we pulled it ${sinceLabel(fact.fetched_at)}`}
+              .
+            </p>
+          </section>
+        );
+      })}
 
       <h3 style={{ fontSize: 15, marginTop: 30 }}>
         Everything published about this

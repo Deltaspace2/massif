@@ -390,6 +390,20 @@ table.history th, table.history td {
   text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top;
 }
 table.history th { color: var(--secondary); font-weight: 500; }
+/* Directory facts. No status colour, no left accent bar, no caution tint —
+   every one of those means "a source is telling you something about now", and
+   these describe a building. It reads as a spec table on purpose. */
+.facts__list { margin: 12px 0 0; }
+.facts__row {
+  display: flex; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid var(--rule-faint); font-size: 13px;
+}
+.facts__row dt { color: var(--secondary); }
+.facts__row dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+.facts__row dd a:hover { text-decoration: underline; }
+.facts__credit { margin-top: 10px; line-height: 1.5; }
+.facts__credit a { text-decoration: underline; text-underline-offset: 2px; }
+
 .lifts { list-style: none; padding: 0; margin: 12px 0 0; }
 .lifts li {
   display: flex; justify-content: space-between; gap: 12px;
