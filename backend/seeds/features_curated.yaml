@@ -528,3 +528,53 @@
   aliases: [Mont d'Arbois, Megève Mont d'Arbois, megeve-mont-arbois]
   country: FR
   notes: Outside the massif. Carried because it shares the operator's feed.
+
+# --- Swiss side -------------------------------------------------------------
+# The massif does not stop at the French and Italian borders: the Trient and
+# Saleina basins are the same mountains seen from Valais, and these are the
+# huts on them. Country is CH from OSM admin boundaries, not from the "CAS" in
+# a name — a Swiss Alpine Club hut is not the same claim as a hut in
+# Switzerland.
+#
+# Deliberately NOT added, pending a call on where the massif ends: Refuge du
+# Col de Balme (2191 m, sits on the border itself), Refuge des Petoudes
+# (2169 m) and Refuge Le Peuty — all Swiss, all valley-floor or col rather
+# than alpine, and all in seeds/osm_candidates.yaml if wanted.
+#
+# refuges.info will not cover most of these: its bbox stops at 7.05 E and
+# Orny, Saleinaz and A Neuve are east of that. They will read "no directory
+# entry" until the bbox is widened, which is one constant and one weekly pull.
+
+- slug: cabane-du-trient
+  feature_type: hut
+  name_default: Cabane du Trient
+  aliases: [Trient, Trient hut, Cabane du Trient CAS, Trienthütte]
+  country: CH
+
+- slug: bivouac-envers-des-dorees
+  feature_type: hut
+  name_default: Bivouac Envers des Dorées
+  aliases: [Envers des Dorées, Bivouac Envers des Dorées CAS, Envers des Dorees]
+  country: CH
+  # They file it as "Bivouac de l'Envers des Dorées (ou des Plines)" — the
+  # second name and the article hold it under the floor, while the altitude is
+  # identical to ours at 2983 m. Pinned rather than loosening the floor.
+  external_ids: {refuges-info: 3596}
+
+- slug: cabane-dorny
+  feature_type: hut
+  name_default: Cabane d'Orny
+  aliases: [Orny, Orny hut, Cabane d'Orny CAS, Cabane dOrny]
+  country: CH
+
+- slug: cabane-de-la-neuve
+  feature_type: hut
+  name_default: Cabane de l'A Neuve
+  aliases: [A Neuve, L'A Neuve, Cabane de l'A Neuve CAS, Cabane de la Neuve]
+  country: CH
+
+- slug: cabane-de-saleinaz
+  feature_type: hut
+  name_default: Cabane de Saleinaz
+  aliases: [Saleinaz, Saleina, Cabane de Saleinaz CAS, Cabane de Saleina]
+  country: CH

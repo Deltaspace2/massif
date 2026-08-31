@@ -30,7 +30,12 @@ from massif.models import Feature, FeatureFact, Source
 SOURCE_SLUG = "refuges-info"
 
 # The massif, generously. One box, one request.
-BBOX = "6.70,45.75,7.05,46.02"
+#
+# East edge moved 7.05 -> 7.10 when the Swiss huts went in: Orny (7.0628),
+# A Neuve (7.0669) and Saleinaz (7.0704) all sat just outside it, so they would
+# have reported "no directory entry" forever while the box, not the source, was
+# the thing missing them. Costs nothing — it is the same single request.
+BBOX = "6.70,45.75,7.10,46.05"
 API = (
     "https://www.refuges.info/api/bbox"
     f"?bbox={BBOX}&type_points=refuge,cabane,gite,abri"
