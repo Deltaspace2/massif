@@ -22,6 +22,8 @@ class Fake:
     severity: int = 0
     summary_en: str | None = None
     observed_at: datetime = datetime(2026, 8, 25, tzinfo=UTC)
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
     payload: dict = field(default_factory=dict)
 
 
@@ -94,3 +96,52 @@ def test_a_publisher_of_seasons_with_none_covering_today_is_out_of_season():
     season = _season_status([], has_schedule=True)
     assert season["value"] is StatusValue.CLOSED
     assert season["kind"] == "out_of_season"
+
+
+# --------------------------------------------------------------------------
+# Re-tensing: "Reopening 26 Aug 2026" printed on 31 August, beside a green dot.
+
+from massif.main import phrase_for_now  # noqa: E402
+
+
+@dataclass
+class FakeOpening:
+    statement_type: str = "opening"
+    summary_en: str | None = "Reopening 26 Aug 2026"
+    valid_from: datetime | None = datetime(2026, 8, 26, tzinfo=UTC)
+    valid_to: datetime | None = datetime(2026, 9, 25, tzinfo=UTC)
+
+
+def test_a_reopening_whose_day_has_passed_reads_as_open_since():
+    """summary_en is composed once at extraction and then frozen. It was true
+    when the mairie published it; it does not stay true, and no stored string
+    can. Re-tensed at read time instead."""
+    said = phrase_for_now(FakeOpening(), datetime(2026, 8, 31, tzinfo=UTC))
+    assert said == "Open since 26 Aug 2026"
+
+
+def test_a_reopening_still_ahead_stays_in_the_future():
+    said = phrase_for_now(FakeOpening(), datetime(2026, 8, 20, tzinfo=UTC))
+    assert said == "Reopening 26 Aug 2026"
+
+
+def test_the_widened_end_date_is_never_printed():
+    """Saint-Gervais stated a reopening ON the 26th. The end of the window is
+    our own staleness widening, and printing it would hand the reader a date
+    the source never gave."""
+    said = phrase_for_now(FakeOpening(), datetime(2026, 8, 31, tzinfo=UTC))
+    assert "Sep" not in said
+
+
+def test_an_undated_opening_keeps_its_stored_wording():
+    opening = FakeOpening(summary_en="Reopening — no date stated", valid_from=None)
+    said = phrase_for_now(opening, datetime(2026, 8, 31, tzinfo=UTC))
+    assert said == "Reopening — no date stated"
+
+
+def test_closures_are_never_paraphrased():
+    """A closure's dates are the claim itself."""
+    closure = Fake("closure", "closed", summary_en="Closed 26–29 May 2026")
+    closure.valid_from = datetime(2026, 5, 26, tzinfo=UTC)
+    said = phrase_for_now(closure, datetime(2026, 8, 31, tzinfo=UTC))
+    assert said == "Closed 26–29 May 2026"

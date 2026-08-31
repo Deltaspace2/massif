@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, aliased
 
 from massif.db import get_session
 from massif.enums import StatusValue
+from massif.ingest.fr_dates import DateRange, describe
 from massif.models import Feature, FeatureStatus, IngestRun, Source, Statement
 
 app = FastAPI(
@@ -150,7 +151,7 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
         newest = max(openings, key=lambda st: st.observed_at)
         return {
             "value": StatusValue.OPEN,
-            "reason": newest.summary_en,
+            "reason": phrase_for_now(newest, datetime.now(UTC)),
             "kind": "notice",
         }
 
@@ -162,6 +163,40 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
         }
 
     return {"value": StatusValue.UNKNOWN, "reason": None, "kind": None}
+
+
+
+def phrase_for_now(statement, now: datetime) -> str | None:
+    """Re-tense an opening against today, at read time.
+
+    summary_en is composed once, at extraction, and then frozen. "Reopening 26
+    Aug 2026" was true when the mairie published it on the 24th; on the 31st it
+    is a sentence about the future describing something that already happened,
+    printed beside a green dot. Steven: "Reopening when already opened???"
+
+    The fix has to be at read time, not extraction — the sentence does not
+    become wrong on a particular date, it becomes wrong continuously, and no
+    stored string survives that. Everything else keeps its stored wording:
+    a closure's dates are the claim itself and must not be paraphrased.
+
+    The end date is deliberately not mentioned. What Saint-Gervais stated was a
+    reopening ON the 26th; the window's end is our own staleness widening, and
+    printing it would hand the reader a date the source never gave.
+    """
+    if statement is None:
+        return None
+    if str(statement.statement_type) != "opening":
+        return statement.summary_en
+    start = statement.valid_from
+    if start is None:
+        return statement.summary_en
+    # A single day, not an open-ended range: describe() renders end=None as
+    # "from 26 Aug 2026", which would read "Open since from 26 Aug". Caught by
+    # the test, not by me.
+    when = describe(DateRange(start=start, end=start, rule="stored"))
+    if start <= now:
+        return f"Open since {when}"
+    return f"Reopening {when}"
 
 
 def _feature_dict(
@@ -190,7 +225,13 @@ def _feature_dict(
         "status": {
             "value": status.status if status else StatusValue.UNKNOWN,
             "severity": status.severity if status else 0,
-            "summary": status.summary_en if status else None,
+            # Re-tensed against now for openings; every other kind keeps the
+            # wording it was extracted with.
+            "summary": (
+                phrase_for_now(statement, now)
+                if statement is not None
+                else (status.summary_en if status else None)
+            ),
             "observed_at": status.observed_at if status else None,
             # When the source published it vs when we last saw it still
             # standing. The UI shows both; only the second is a statement
