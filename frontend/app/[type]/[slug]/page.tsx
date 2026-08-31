@@ -260,7 +260,7 @@ export default async function FeaturePage({ params }: { params: Params }) {
           is a different and much less urgent question than "is it shut". It
           carries no colour, no pill and no staleness styling, because a bunk
           count does not expire and must never read as a warning. */}
-      {feature.facts.map((fact) => {
+      {(feature.facts ?? []).map((fact) => {
         const v = fact.values;
         const rows: { label: string; value: ReactNode }[] = [];
         if (v.capacity !== undefined)
@@ -336,6 +336,19 @@ export default async function FeaturePage({ params }: { params: Params }) {
       <h3 style={{ fontSize: 15, marginTop: 30 }}>
         Everything published about this
       </h3>
+      {/* An empty table under a heading that promises content reads as a
+          broken page, not as an empty one. Six of the nineteen huts are in
+          exactly this state — no source we watch publishes about the Italian
+          side yet — and "we have found nothing" is information, where a blank
+          grid is just an absence the reader has to interpret. */}
+      {feature.history.length === 0 ? (
+        <p className="meta">
+          Nothing. No source this site watches has published about{" "}
+          {feature.name}, so there is no history to show — which is a gap in
+          our coverage, not a statement that all is well.
+        </p>
+      ) : (
+        <>
       <p className="meta">
         Never our own claim — each row links to whoever said it.
       </p>
@@ -378,6 +391,8 @@ export default async function FeaturePage({ params }: { params: Params }) {
           ))}
         </tbody>
       </table>
+        </>
+      )}
     </main>
   );
 }

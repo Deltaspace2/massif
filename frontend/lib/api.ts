@@ -104,8 +104,14 @@ export interface FactBlock {
 export interface FeatureDetail extends Feature {
   /** The detail endpoint returns the notices themselves, not just a count. */
   other_notices: Notice[];
-  /** Empty unless a source published facts AND we can attribute them. */
-  facts: FactBlock[];
+  /** Empty unless a source published facts AND we can attribute them.
+   *
+   *  OPTIONAL on purpose. The frontend and the read API are two separate
+   *  Vercel projects that deploy independently, so during any deploy this
+   *  renders against an API that predates the field. Typing it as required
+   *  made `feature.facts.map` a 500 on every feature page — the SEO surface
+   *  — for the length of a deploy window. Read it as `?? []`. */
+  facts?: FactBlock[];
   parent: { slug: string; name: string } | null;
   children: {
     slug: string;
