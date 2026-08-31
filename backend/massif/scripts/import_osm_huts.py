@@ -1,0 +1,216 @@
+"""Create hut features from the OSM candidates, for the core massif.
+
+    python -m massif.scripts.import_osm_huts            # dry run
+    python -m massif.scripts.import_osm_huts --apply
+
+WHY THIS EXISTS. Every hut was hand-written in features_curated.yaml, which
+gave us 24 while OSM knows 108 in the same bbox — and the IGN basemap draws all
+of them. So the map showed green hut symbols with no marker on them, which is
+the site admitting a coverage gap in the one place nobody can miss it. Steven
+noticed exactly that.
+
+WHAT IT DOES NOT DO. It does not touch a curated feature, ever: the yaml is
+identity and wins. It only creates huts that are not already ours, and once
+created a hut is a normal row that can be curated by hand afterwards.
+
+THE RADIUS IS THE JUDGEMENT. Measured from the summit of Mont Blanc, because
+"the massif" has no boundary in any dataset we hold. 12 km was chosen by
+reading the margin rather than picking a round number:
+
+    12 km   39 new   edge: Bivacco Mario Jachia, Refuge du Couvercle d'hiver
+    14 km   47 new   edge: Refuge de Nant Borrant, Refuge du Mont-Joly
+    20 km   73 new   edge: Chalet alpin du Tour, Refuge d'Anterne
+
+At 12 km everything inside is massif. By 14 the Beaufortain and the Tour du
+Mont Blanc start arriving, and those are a different mountain range. Real
+massif huts DO sit outside it — Dalmazzi at 15 km, Comino at 15 — and the
+answer for those is a hand-written entry, which is what the curated file is
+for. A radius cannot know where a massif ends; it can only be honest about
+where it stopped.
+"""
+
+from __future__ import annotations
+
+import argparse
+import math
+import time
+
+import httpx
+import yaml
+from sqlalchemy import select, text
+
+from massif.db import session_scope
+from massif.ingest.base import slugify
+from massif.ingest.hut_facts import is_decoy
+from massif.models import Feature
+from massif.scripts.seed_features import SEEDS, geo_key, metres
+
+SUMMIT = (45.8326, 6.8652)
+RADIUS_KM = 12.0
+
+# Two huts 120 m apart are one hut under two names. Name matching alone put
+# OSM's "Rifugio Francesco Gonella" down as missing when we hold it as
+# "Rifugio Gonella", and importing it would have produced a second marker on
+# the same roof.
+DEDUPE_METRES = 150
+
+OVERPASS = "https://overpass-api.de/api/interpreter"
+
+
+def km_from_summit(lat: float, lon: float) -> float:
+    return math.hypot(
+        (lat - SUMMIT[0]) * 111,
+        (lon - SUMMIT[1]) * 111 * math.cos(math.radians(lat)),
+    )
+
+
+def metres_between(a: tuple[float, float], b: tuple[float, float]) -> float:
+    return (
+        math.hypot((a[0] - b[0]) * 111_000, (a[1] - b[1]) * 111_000 * math.cos(math.radians(a[0])))
+    )
+
+
+def countries(points: list[tuple[str, float, float]]) -> dict[str, str | None]:
+    """Which country each point is in, from OSM admin boundaries.
+
+    One request for all of them. Asked rather than inferred: three of the Swiss
+    huts are not named "CAS", and a hut's language is not its jurisdiction.
+    """
+    if not points:
+        return {}
+    query = "[out:json][timeout:180];\n"
+    for index, (_, lat, lon) in enumerate(points):
+        query += f'is_in({lat},{lon})->.a{index};area.a{index}["admin_level"="2"];out tags;\n'
+    for attempt in range(3):
+        response = httpx.post(
+            OVERPASS,
+            data={"data": query},
+            timeout=240,
+            headers={"User-Agent": "massif/0.1 hut country lookup (+https://github.com/Deltaspace2/massif)"},
+        )
+        if response.status_code == 200 and response.text.lstrip().startswith("{"):
+            break
+        print(f"  overpass attempt {attempt + 1}: HTTP {response.status_code}")
+        time.sleep(10)
+    else:
+        raise RuntimeError("overpass would not answer; nothing written")
+
+    elements = response.json()["elements"]
+    if len(elements) != len(points):
+        # Every is_in must answer, or the answers are silently misaligned with
+        # the points and every country after the gap is wrong.
+        raise RuntimeError(
+            f"asked about {len(points)} points, got {len(elements)} answers — "
+            "refusing to guess which is which"
+        )
+    return {
+        slug: (element.get("tags", {}).get("ISO3166-1"))
+        for (slug, _, _), element in zip(points, elements, strict=True)
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--apply", action="store_true", help="write; otherwise dry run")
+    parser.add_argument("--radius", type=float, default=RADIUS_KM, help="km from the summit")
+    args = parser.parse_args()
+
+    candidates = yaml.safe_load((SEEDS / "osm_candidates.yaml").read_text(encoding="utf-8")) or []
+    huts = [
+        c for c in candidates
+        if c.get("feature_type") == "hut" and c.get("lat") and c.get("lon")
+    ]
+
+    with session_scope() as session:
+        existing = session.scalars(select(Feature)).all()
+        known_names = {
+            geo_key(form)
+            for f in existing
+            for form in [f.name_default, *(f.aliases or [])]
+        }
+        # Positions come out of PostGIS rather than off the model: geom is a
+        # geometry, not a pair of columns.
+        known_points = [
+            (slug, lat, lon)
+            for slug, lat, lon in session.execute(
+                # Points only. Routes are LINESTRINGs, which ST_Y refuses
+                # outright — and taking their centroid instead would let a
+                # route passing near a hut suppress that hut as a duplicate.
+                text(
+                    "SELECT slug, ST_Y(geom::geometry), ST_X(geom::geometry) "
+                    "FROM features WHERE geom IS NOT NULL "
+                    "AND GeometryType(geom::geometry) = 'POINT'"
+                )
+            ).all()
+        ]
+
+        selected, skipped = [], {"far": 0, "decoy": 0, "known": 0, "nearby": 0}
+        for hut in huts:
+            if km_from_summit(hut["lat"], hut["lon"]) > args.radius:
+                skipped["far"] += 1
+                continue
+            # A superseded building must not become a hut anyone can plan around.
+            if is_decoy(hut["name_default"]):
+                skipped["decoy"] += 1
+                print(f"  --   superseded, skipped: {hut['name_default']}")
+                continue
+            if any(geo_key(f) in known_names
+                   for f in [hut["name_default"], *(hut.get("aliases") or [])]):
+                skipped["known"] += 1
+                continue
+            near = [
+                slug for slug, lat, lon in known_points
+                if metres_between((hut["lat"], hut["lon"]), (lat, lon)) < DEDUPE_METRES
+            ]
+            if near:
+                skipped["nearby"] += 1
+                print(f"  --   {hut['name_default'][:38]:40} is {near[0]} under another name")
+                continue
+            selected.append(hut)
+
+        print(
+            f"\n{len(huts)} hut candidates; within {args.radius:g} km: "
+            f"{len(huts) - skipped['far']}. Skipped {skipped['decoy']} superseded, "
+            f"{skipped['known']} already ours by name, {skipped['nearby']} already "
+            f"ours by position.\n{len(selected)} to create.\n"
+        )
+        if not selected:
+            return 0
+
+        found = countries([(slugify(h["name_default"]), h["lat"], h["lon"]) for h in selected])
+
+        for hut in sorted(selected, key=lambda h: -(metres(h.get("ele")) or 0)):
+            slug = slugify(hut["name_default"])
+            country = found.get(slug)
+            altitude = metres(hut.get("ele"))
+            print(f"  ok   {slug[:40]:42} {str(country):4} {str(altitude):>5} m")
+            if not args.apply:
+                continue
+            feature = Feature(
+                slug=slug,
+                feature_type="hut",
+                name_default=hut["name_default"],
+                names=hut.get("names") or {},
+                aliases=hut.get("aliases") or [],
+                alt_max=altitude,
+                country=country,
+                geom=f"SRID=4326;POINT({hut['lon']} {hut['lat']})",
+                geom_verified=False,
+                external_ids={"osm": hut["osm_id"]},
+                notes=(
+                    "Imported from OpenStreetMap because the basemap draws it and we "
+                    "did not. Nothing has been published about it by any source we "
+                    "watch — it is here to be found, not because it is in the news."
+                ),
+            )
+            session.add(feature)
+
+        verb = "created" if args.apply else "would create"
+        print(f"\n{verb} {len(selected)} huts")
+        if not args.apply:
+            print("dry run — nothing written")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

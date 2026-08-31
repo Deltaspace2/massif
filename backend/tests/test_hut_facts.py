@@ -85,6 +85,29 @@ def test_the_old_gouter_refuge_is_refused():
     assert match_candidate("Refuge du Goûter", 3835, [decoy]) is None
 
 
+def test_decoys_are_recognised_in_italian_and_german_too():
+    """The list was French-only, and nobody noticed because the French half
+    worked.
+
+    "Refuge Torino (ancien)" was caught, so the guard looked healthy — while
+    "Rifugio Torino Vecchio" and "Bivacco Fiorio (vecchio)", both real OSM
+    entries for superseded buildings, went straight through it. That only
+    surfaced when the hut importer started reading OSM names rather than
+    refuges.info's French ones.
+    """
+    assert is_decoy("Rifugio Torino Vecchio")
+    assert is_decoy("Bivacco Fiorio (vecchio)")
+    assert is_decoy("Vecchia capanna")
+    assert is_decoy("Ruderi del rifugio")
+    assert is_decoy("Alte Hütte")
+    assert is_decoy("Ehemalige Berghütte")
+    # The new one is "nuovo", and it is the hut that still stands.
+    assert not is_decoy("Rifugio Torino Nuovo")
+    # Bare "alt" is deliberately NOT a decoy word: it is a fragment of too
+    # many real Alpine names to spend on a guess.
+    assert not is_decoy("Refuge de l'Alt")
+
+
 def test_decoys_are_recognised_by_word_not_substring():
     assert is_decoy("Ancienne cabane des Évettes")
     assert is_decoy("Ruines du refuge de Presset")

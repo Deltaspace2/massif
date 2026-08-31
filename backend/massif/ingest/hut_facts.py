@@ -34,7 +34,19 @@ FUZZY_FLOOR = 88.0
 # the physical check catches it. The old Goûter refuge is the one the mairie's
 # 10 April notice is about DEMOLISHING. Hanging its capacity on the current
 # hut would be this project's signature failure: plausible, silent, wrong.
-DECOYS = re.compile(r"\b(ancien|ancienne|ruine|ruines|ex|vestiges?|projet)\b")
+# Italian and German added when the Italian huts went in: the list was French
+# only, so "Rifugio Torino Vecchio" and "Bivacco Fiorio (vecchio)" — both real
+# entries in OSM, both superseded buildings — sailed straight through the guard
+# that exists to stop exactly that. The French half caught "Refuge Torino
+# (ancien)" and everyone assumed the rule was covered.
+#
+# Declined German forms only (alte/alter/altes), never bare "alt": that is a
+# fragment of too many real Alpine place names to spend on a guess.
+DECOYS = re.compile(
+    r"\b(ancien|ancienne|ruine|ruines|ex|vestiges?|projet"
+    r"|vecchio|vecchia|ruderi|rudere|diroccat[oa]"
+    r"|alte|alter|altes|ehemalig\w*)\b"
+)
 
 # Their type vocabulary, reduced to the one thing we render.
 GUARDED = {"refuge gardé": True, "gîte d'étape": True, "refuge non gardé": False,
