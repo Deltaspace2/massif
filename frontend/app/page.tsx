@@ -1,3 +1,4 @@
+import Flag from "@/components/Flag";
 import MassifMap from "@/components/MassifMap";
 import {
   listFeatures,
@@ -100,6 +101,7 @@ function Row({ feature }: { feature: Feature }) {
       </span>
       <span className="name">
         <a href={`/${feature.type}/${feature.slug}`}>{feature.name}</a>
+        <Flag code={feature.country} />
         {altitude && <span className="alt"> {altitude}</span>}
         {stale && <span className="pill-unverified">UNVERIFIED</span>}
       </span>
@@ -149,7 +151,8 @@ function NoticeCard({ feature }: { feature: Feature }) {
         </span>
       </div>
       <h3>
-        <a href={`/${feature.type}/${feature.slug}`}>{feature.name}</a>{" "}
+        <a href={`/${feature.type}/${feature.slug}`}>{feature.name}</a>
+        <Flag code={feature.country} />{" "}
         {altitude && <span className="alt">{altitude}</span>}
       </h3>
       {feature.season.reason && <p>{feature.season.reason}</p>}
@@ -415,7 +418,10 @@ export default async function Home() {
                     : "no directory entry";
                   return (
                     <a className="huts__row" key={f.slug} href={`/hut/${f.slug}`}>
-                      <span className="huts__name">{f.name}</span>
+                      <span className="huts__name">
+                        {f.name}
+                        <Flag code={f.country} />
+                      </span>
                       <span className="huts__alt mono">
                         {alt ? `${alt} m` : "—"}
                       </span>

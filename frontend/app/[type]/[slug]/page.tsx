@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import FeatureMap from "@/components/FeatureMap";
+import Flag from "@/components/Flag";
 import { getFeature, monthYear, resortTime, sinceLabel } from "@/lib/api";
 
 export const revalidate = 60;
@@ -99,7 +100,10 @@ export default async function FeaturePage({ params }: { params: Params }) {
             feature.alt_max ?? feature.alt_min ?? feature.status.altitude_m;
           return altitude ? ` · ${altitude} m` : "";
         })()}
-        {feature.country ? ` · ${feature.country}` : ""}
+        {/* Was the bare code "FR". The flag carries an accessible country
+            name, so this reads as "France" rather than two letters. */}
+        {feature.country ? " · " : ""}
+        <Flag code={feature.country} />
       </p>
 
       <FeatureMap feature={feature} />

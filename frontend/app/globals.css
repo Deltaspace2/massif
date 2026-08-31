@@ -415,6 +415,21 @@ table.history th { color: var(--secondary); font-weight: 500; }
 /* Hut directory on the front page. A reference list, not a status table, so
    it carries no glyph column and no colour — the only status it shows is a
    pill on a hut that actually has a notice. */
+/* Country flag. Sized down slightly because emoji render larger than the text
+   around them, and nudged so it sits on the baseline rather than riding it.
+   Never a status colour: which side of the border a hut is on is not a claim
+   about whether it is open. */
+.flag {
+  margin-left: 6px; font-size: 0.9em; line-height: 1;
+  vertical-align: baseline; white-space: nowrap;
+}
+/* The fallback when we have a code but no flag for it — reads as a label
+   rather than pretending to be a glyph. */
+.flag--code {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  color: var(--tertiary);
+}
+
 .huts { margin-top: 10px; }
 /* Every column fixed except the name. Each row is its own grid container, so
    any column sized to its own content — `auto`, or a minmax that resolves to
