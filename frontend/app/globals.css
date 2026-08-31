@@ -529,3 +529,51 @@ table.history th { color: var(--secondary); font-weight: 500; }
     -webkit-backdrop-filter: none;
   }
 }
+
+
+/* ------------------------------------------------------------------ report
+   The report page is the only place on the site that asks the reader for
+   something rather than telling them something, so it gets slightly wider
+   measure and more air between blocks than a feature page. */
+.report-intro { color: var(--body); font-size: 14.5px; line-height: 1.65; max-width: 640px; }
+
+/* The emergency note. Red, because it is the one block on this page that is
+   about people rather than data — but a left rule and a tint rather than a
+   filled red panel, which would outrank the page's own heading and train
+   people to skip it. --closed is 5.70:1, so it is safe carrying words. */
+.report-alert {
+  margin: 18px 0 22px; padding: 12px 16px; max-width: 640px;
+  background: var(--card); border: 1px solid var(--rule);
+  border-left: 3px solid var(--closed); border-radius: 8px;
+  box-shadow: var(--shadow-card);
+}
+.report-alert b { color: var(--closed); font-size: 14px; }
+.report-alert p { margin: 4px 0 0; color: var(--body); font-size: 13.5px; line-height: 1.6; }
+.report-alert p b { color: var(--ink); font-size: inherit; }
+
+.report-grid { margin: 22px 0 8px; max-width: 640px; }
+.report-opt h3 { color: var(--ink); }
+.report-opt p { line-height: 1.6; }
+/* Two classes rather than !important: this has to beat `.card p { margin: 0 }`
+   at (0,1,1), and (0,2,0) does it without starting an arms race. */
+.report-opt .report-actions { margin-top: 10px; }
+
+/* Sized as a control, like .back — these are the point of the page and a
+   text link buried in a paragraph reads as a footnote. */
+.btn-report {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid var(--rule); border-radius: 999px;
+  background: var(--card);
+  font-size: 13px; font-weight: 500; color: var(--secondary);
+  text-decoration: none;
+}
+.btn-report:hover { color: var(--ink); border-color: var(--secondary); text-decoration: none; }
+
+.report-h2 { font-size: 17px; font-weight: 500; color: var(--ink); margin: 30px 0 6px; }
+.report-list {
+  max-width: 640px; padding-left: 18px; margin: 8px 0 0;
+  color: var(--body); font-size: 14px; line-height: 1.65;
+}
+.report-list li { margin-bottom: 8px; }
+.report-list b { color: var(--ink); font-weight: 600; }

@@ -1,0 +1,19 @@
+# Vercel installs the serverless function's dependencies from this file.
+# pyproject.toml stays the source of truth for local dev, CI and the ingest
+# job; this is the READ API's subset and nothing else.
+#
+# Deliberately excludes httpx, selectolax, rapidfuzz, pyyaml and anthropic.
+# The API never fetches, parses or resolves anything — it reads rows that
+# ingest already wrote. Keeping them out keeps the bundle small and makes it
+# structurally impossible to scrape someone's website from a page request.
+#
+# If massif.main grows an import that is not listed here, the function will
+# fail at cold start with ModuleNotFoundError. Keep the two in step.
+
+fastapi>=0.115
+sqlalchemy>=2.0.36
+geoalchemy2>=0.15
+psycopg[binary]>=3.2
+pydantic>=2.9
+pydantic-settings>=2.6
+shapely>=2.0
