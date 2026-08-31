@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, FastAPI, HTTPException
 from geoalchemy2.shape import to_shape
@@ -199,6 +199,38 @@ def phrase_for_now(statement, now: datetime) -> str | None:
     return f"Reopening {when}"
 
 
+# How far past a source's OWN cadence a check may slip before we say so.
+#
+# Not a flat number of hours. The UI used 24, which is exactly
+# mbnr-openings' fetch interval — so a perfectly healthy daily source drifted
+# into UNVERIFIED before every single run, and a badge that is on every day
+# stops being read. The sources run from every 30 minutes to weekly; one
+# threshold cannot be right for all of them. Two intervals means a run has
+# been missed, not merely that one is due.
+UNCHECKED_INTERVALS = 2
+
+# Only used when a source somehow carries no cadence. Judging by nothing would
+# mean never flagging, so this errs towards saying so.
+FALLBACK_INTERVAL_MINUTES = 1440
+
+
+def _unchecked(
+    last_seen: datetime | None, interval_minutes: int | None, now: datetime
+) -> bool:
+    """Have we failed to re-check this within the source's own rhythm?
+
+    Separate from `stale`, which asks whether the CLAIM has aged out. This asks
+    about our diligence, and the two are independent: a decree valid until
+    September is not stale, but if we have not looked in a week we should say
+    so. Never checked at all counts — the absence of a check is not a passing
+    check.
+    """
+    if last_seen is None:
+        return True
+    minutes = interval_minutes or FALLBACK_INTERVAL_MINUTES
+    return last_seen < now - timedelta(minutes=minutes * UNCHECKED_INTERVALS)
+
+
 def _feature_dict(
     feature: Feature,
     status: FeatureStatus | None,
@@ -206,6 +238,7 @@ def _feature_dict(
     parent_slug: str | None = None,
     other_notices: int = 0,
     season: dict | None = None,
+    source_interval_minutes: int | None = None,
 ) -> dict:
     now = datetime.now(UTC)
     payload = (statement.payload if statement else None) or {}
@@ -239,6 +272,15 @@ def _feature_dict(
             "last_seen_at": (status.last_seen_at if status else None),
             "stale": bool(
                 status and status.stale_after and status.stale_after < now
+            ),
+            # Our diligence, judged against the source's own cadence rather
+            # than a number the UI picked. Computed here because the cadence
+            # is a backend fact, and the last thing that re-derived one of
+            # those in the frontend flagged every valid decree in the massif.
+            "unchecked": _unchecked(
+                status.last_seen_at if status else None,
+                source_interval_minutes,
+                now,
             ),
             # "outside_hours" means routine: shut because it is night or out
             # of season. The map must render that quietly. Anything else is
@@ -302,6 +344,20 @@ def _fact_block(fact, source) -> dict | None:
         "source_modified_at": fact.source_modified_at,
         "fetched_at": fact.fetched_at,
         "values": values,
+    }
+
+
+def _source_intervals(session: Session) -> dict:
+    """How often each source is supposed to be fetched, by source id.
+
+    Ten rows, read once per request rather than joined onto every feature —
+    the list endpoint returns seventy-five of them.
+    """
+    return {
+        source_id: minutes
+        for source_id, minutes in session.execute(
+            select(Source.id, Source.fetch_interval_minutes)
+        ).all()
     }
 
 
@@ -395,11 +451,14 @@ def list_features(
     # anyone would find the page.
     facts_by_feature = _facts_by_feature(session)
 
+    intervals = _source_intervals(session)
+
     items = []
     for f, st, stmt, parent in rows:
         payload = _feature_dict(
             f, st, stmt, parent, others.get(f.id, 0),
             _season_status(live_by_feature.get(f.id, []), f.id in schedule_features),
+            intervals.get(stmt.source_id) if stmt else None,
         )
         payload["facts"] = facts_by_feature.get(f.id, [])
         items.append(payload)
@@ -470,6 +529,7 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
     payload = _feature_dict(
         feature, status, current, parent.slug if parent else None, len(others),
         _season_status(live_here, publishes_seasons),
+        _source_intervals(session).get(current.source_id) if current else None,
     )
 
     payload["other_notices"] = [

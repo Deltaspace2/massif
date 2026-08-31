@@ -17,6 +17,11 @@ export interface FeatureStatus {
   /** The backend's own verdict, per statement type: an arrêté holds 90 days,
    *  a reopening 30, a live lift status one. Do not re-derive this in the UI. */
   stale: boolean;
+  /** Whether WE have failed to re-check within the source's own cadence —
+   *  also the backend's verdict, and for the same reason. The UI used to ask
+   *  this with a flat 24 hours, which is exactly mbnr-openings' fetch
+   *  interval, so a healthy daily source was badged before every run. */
+  unchecked?: boolean;
   /** "outside_hours" means routine — night, or out of season. */
   closure_kind: string | null;
   counts: Record<string, { open: number; total: number }> | null;

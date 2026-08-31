@@ -10,11 +10,6 @@ import {
 
 export const revalidate = 60;
 
-/** How long we tolerate not having re-checked a source before saying so.
- *  This is about OUR diligence, not about the claim: it is the answer to
- *  "when did we last look", and every source is swept far more often. */
-const UNCHECKED_AFTER_HOURS = 24;
-
 function ageHours(iso: string | null): number | null {
   if (!iso) return null;
   return (Date.now() - new Date(iso).getTime()) / 3_600_000;
@@ -31,13 +26,21 @@ function ageHours(iso: string | null): number | null {
  *  which would have flagged every legally valid decree in the massif forever —
  *  and a badge that is always on stops being read.
  *
- *  Two questions now, both shown: has the claim aged out (the backend's
- *  `stale`), and have we failed to re-check it (last_seen_at). Never checked
- *  at all counts, because the absence of a check is not a passing check. */
+ *  Two questions, both the backend's to answer: has the claim aged out
+ *  (`stale`, per statement type), and have we failed to re-check it
+ *  (`unchecked`, against the source's own cadence).
+ *
+ *  The second used to be asked here, with a flat 24 hours — which is EXACTLY
+ *  mbnr-openings' fetch interval, so a perfectly healthy daily source drifted
+ *  into UNVERIFIED before every single run. Same mistake as the flat 48 hours
+ *  above, one layer down: a number chosen in the UI standing in for a fact the
+ *  backend holds. The sources run from every 30 minutes to weekly and no single
+ *  threshold fits them.
+ *
+ *  `unchecked` is optional because the API may predate it; absent means the
+ *  question was not asked, which is not the same as answered "no". */
 function unverified(feature: Feature): boolean {
-  if (feature.status.stale) return true;
-  const sinceCheck = ageHours(feature.status.last_seen_at);
-  return sinceCheck === null || sinceCheck > UNCHECKED_AFTER_HOURS;
+  return Boolean(feature.status.stale || feature.status.unchecked);
 }
 
 /** Worth interrupting a trip planner for. Season, never the clock: a lift
