@@ -11,6 +11,8 @@ import math
 
 from massif.scripts.import_osm_huts import (
     DEDUPE_METRES,
+    NOT_MOUNTAIN_HUTS,
+    OTHER_RANGES,
     RADIUS_KM,
     km_from_summit,
     metres_between,
@@ -22,19 +24,46 @@ TORINO = (45.8451, 6.9337)
 MONT_JOLY = (45.8018, 6.6539)
 GONELLA_OURS = (45.8193, 6.8322)
 GONELLA_OSM = (45.81934, 6.83224)
+LAC_BLANC = (45.9760, 6.8880)
+DALMAZZI = (45.8930, 7.0080)
 
 
-def test_the_radius_keeps_the_massif_and_drops_the_beaufortain():
-    """12 km was chosen by reading the margin, not by rounding.
+def test_the_radius_reaches_the_whole_massif():
+    """The radius is the coarse filter, and it has to be generous enough.
 
-    At 12 km everything inside is massif; by 14 the Refuge du Mont-Joly and
-    Nant Borrant arrive, and those are a different range. This pins the
-    decision, so raising the radius has to be a deliberate act rather than a
-    quiet one.
+    It was 12 km, which cut off real massif huts: Flégère at 14.2, Dalmazzi at
+    15.2, Elena at 16.5, Lac Blanc at 16.7. Keeping it small to exclude the
+    Beaufortain traded a wrong exclusion for a wrong inclusion, and the missing
+    huts were the ones people asked about.
     """
     assert km_from_summit(*GOUTER) < RADIUS_KM
     assert km_from_summit(*TORINO) < RADIUS_KM
-    assert km_from_summit(*MONT_JOLY) > RADIUS_KM
+    assert km_from_summit(*LAC_BLANC) < RADIUS_KM, "17 km must reach the Aiguilles Rouges side"
+    assert km_from_summit(*DALMAZZI) < RADIUS_KM, "17 km must reach the Italian Val Ferret"
+
+
+def test_a_circle_is_not_a_massif_so_other_ranges_are_named():
+    """What the radius cannot do, and why the exclusion list exists.
+
+    Mont-Joly is 13.4 km from the summit — inside any radius wide enough to
+    reach Lac Blanc — and it is in the Val Montjoie, a different range. There
+    is no distance that includes one and excludes the other, so the ranges are
+    named and each carries the range it actually belongs to.
+    """
+    assert km_from_summit(*MONT_JOLY) < RADIUS_KM, "inside the circle"
+    assert "Refuge du Mont-Joly" in OTHER_RANGES, "and excluded anyway, by name"
+    assert OTHER_RANGES["Refuge du Mont-Joly"], "with a reason recorded"
+    # Every exclusion must say which range it belongs to, or the list becomes
+    # a place to hide a hut somebody could not be bothered to classify.
+    assert all(reason.strip() for reason in OTHER_RANGES.values())
+    assert all(reason.strip() for reason in NOT_MOUNTAIN_HUTS.values())
+
+
+def test_a_hotel_called_a_refuge_is_not_always_a_refuge():
+    """The OSM query now asks for refuge-NAMED hotels, because the Refuge du
+    Montenvers is tagged tourism=hotel and was invisible without it. That same
+    net catches "Le Refuge des Aiglons", a hotel in Chamonix town."""
+    assert "Le Refuge des Aiglons" in NOT_MOUNTAIN_HUTS
 
 
 def test_two_names_for_one_roof_are_one_hut():

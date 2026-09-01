@@ -46,13 +46,58 @@ from massif.models import Feature
 from massif.scripts.seed_features import SEEDS, geo_key, metres
 
 SUMMIT = (45.8326, 6.8652)
-RADIUS_KM = 12.0
+RADIUS_KM = 17.0
 
 # Two huts 120 m apart are one hut under two names. Name matching alone put
 # OSM's "Rifugio Francesco Gonella" down as missing when we hold it as
 # "Rifugio Gonella", and importing it would have produced a second marker on
 # the same roof.
 DEDUPE_METRES = 150
+
+# A circle is not a massif. At 17 km it reaches the huts on the Italian and
+# Swiss flanks and the Chamonix side — Elena, Dalmazzi, Comino, Fiorio,
+# Gervasutti, Bonatti, Flégère, Lac Blanc — but it also reaches over the
+# watershed into ranges that are not this one. Those are named here with the
+# range they actually belong to, rather than the radius being kept small enough
+# to exclude them, which is what left Flégère and Lac Blanc out before.
+#
+# Wrong in either direction is visible: a missing hut, or a Beaufortain hut
+# presented as Mont Blanc. Correct one by editing this list, not the radius.
+OTHER_RANGES = {
+    "Refuge du Mont-Joly": "Mont Joly, Val Montjoie",
+    "Refuge de Moëde Anterne": "Fiz",
+    "Refuge d'Anterne Alfred Wills": "Fiz",
+    "Abri de berger d'Alfred Wills": "Fiz",
+    "Refuge de Platé": "Fiz",
+    "Refuge de Varan": "Fiz",
+    "Refuge de Sales": "Fiz",
+    "Refuge Le Châtelet d'Ayères": "Fiz, above Passy",
+    "Refuge du Col de la Croix du Bonhomme": "Beaufortain",
+    "Chalet - Refuge de Nant Borrant": "Contamines, Beaufortain side",
+    "Refuge de la Balme": "Contamines, Beaufortain side",
+    "Refuge La Roselette": "Beaufortain",
+    "Refuge de la Gittaz": "Beaufortain",
+    "Auberge Refuge de la Nova": "Beaufortain",
+    "Rifugio Albert Deffeyes": "Valgrisenche",
+    "Abri de Villy": "Aravis side",
+    "Abri de la Pierre à l'Ours": "Fiz, west of the Chamonix valley",
+    "Refuge des prés": "Val Montjoie",
+    # Over the Col de la Seigne in the Vallée des Glaciers, so Tarentaise side
+    # rather than the massif — unlike Elena and Bonatti, which sit in the
+    # Italian Val Ferret on the massif's own flank.
+    "Refuge des Mottets": "Vallée des Glaciers, over the Col de la Seigne",
+}
+
+# Named "refuge" and tagged as lodging, but valley accommodation rather than a
+# mountain hut. They only reach us because the OSM query now asks for
+# refuge-named hotels, which is how the Refuge du Montenvers was found.
+NOT_MOUNTAIN_HUTS = {
+    "Le Refuge des Aiglons": "hotel in Chamonix town",
+    "Refuge de Porcherey": "valley guest house",
+    "rifugiolilla": "valley guest house",
+    "Les Péchots": "valley shelter",
+    "Le vieux Chéppy": "valley building",
+}
 
 OVERPASS = "https://overpass-api.de/api/interpreter"
 
@@ -144,10 +189,23 @@ def main() -> int:
             ).all()
         ]
 
-        selected, skipped = [], {"far": 0, "decoy": 0, "known": 0, "nearby": 0}
+        selected = []
+        skipped = {
+            "far": 0, "decoy": 0, "known": 0,
+            "nearby": 0, "range": 0, "lodging": 0,
+        }
         for hut in huts:
             if km_from_summit(hut["lat"], hut["lon"]) > args.radius:
                 skipped["far"] += 1
+                continue
+            name = hut["name_default"]
+            if name in OTHER_RANGES:
+                skipped["range"] += 1
+                print(f"  --   {name[:38]:40} not this massif: {OTHER_RANGES[name]}")
+                continue
+            if name in NOT_MOUNTAIN_HUTS:
+                skipped["lodging"] += 1
+                print(f"  --   {name[:38]:40} {NOT_MOUNTAIN_HUTS[name]}")
                 continue
             # A superseded building must not become a hut anyone can plan around.
             if is_decoy(hut["name_default"]):
@@ -172,7 +230,9 @@ def main() -> int:
             f"\n{len(huts)} hut candidates; within {args.radius:g} km: "
             f"{len(huts) - skipped['far']}. Skipped {skipped['decoy']} superseded, "
             f"{skipped['known']} already ours by name, {skipped['nearby']} already "
-            f"ours by position.\n{len(selected)} to create.\n"
+            f"ours by position, {skipped['range']} in another range, "
+            f"{skipped['lodging']} valley lodging."
+            f"\n{len(selected)} to create.\n"
         )
         if not selected:
             return 0

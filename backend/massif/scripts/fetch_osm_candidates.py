@@ -35,6 +35,13 @@ QUERY = f"""
   // every bus stop and picnic roof in the valley.
   node["amenity"="shelter"]["shelter_type"="basic_hut"]{BBOX};
   way["amenity"="shelter"]["shelter_type"="basic_hut"]{BBOX};
+  // Some refuges are legally hotels and tagged as such — the Refuge du
+  // Montenvers is tourism=hotel, sat 11.9 km from the summit, and was invisible
+  // to every query above. THIRD time this has bitten: the rack railways and
+  // the bivouacs were both "not in OSM" when we had simply never asked for
+  // their tag. Restricted by NAME, or every hotel in Chamonix arrives.
+  node["tourism"~"^(hotel|chalet|guest_house|hostel)$"]["name"~"refuge|rifugio|cabane|capanna|bivacco|bivouac|h(ü|u)tte|hospice",i]{BBOX};
+  way["tourism"~"^(hotel|chalet|guest_house|hostel)$"]["name"~"refuge|rifugio|cabane|capanna|bivacco|bivouac|h(ü|u)tte|hospice",i]{BBOX};
   node["natural"="peak"]["ele"]{BBOX};
   way["aerialway"~"^(cable_car|gondola)$"]{BBOX};
   // Mountain railways are not tagged railway=rail + usage=tourism. The
@@ -68,6 +75,10 @@ def classify(tags: dict) -> str | None:
     # in, that a source can close. Whether it has a warden is a fact about it,
     # not a different kind of thing.
     if tags.get("amenity") == "shelter" and tags.get("shelter_type") == "basic_hut":
+        return "hut"
+    # Only reachable for the name-filtered hotel/chalet query above: a building
+    # called a refuge, serving as one, that happens to be tagged as lodging.
+    if tags.get("tourism") in ("hotel", "chalet", "guest_house", "hostel"):
         return "hut"
     if tags.get("natural") == "peak":
         return "peak"
