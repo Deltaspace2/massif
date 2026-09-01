@@ -108,6 +108,88 @@ two.
 """
 
 
+# A translation is not an extraction, so it gets its own slot in the cache.
+# Sharing a version with the reading prompt would mean improving one silently
+# re-billed the other, and a cache hit would return the wrong KIND of answer.
+TRANSLATION_VERSION = "translate-1"
+
+TRANSLATION_PROMPT = """\
+Translate the text that follows into plain English.
+
+Return ONLY the translation. No preamble, no notes, no quotation marks around \
+it, and no commentary about what the text is.
+
+Keep every date, time, price, phone number, altitude and proper name exactly \
+as written — a hut's name is its name in any language. Preserve the order and \
+the paragraph breaks, so a reader comparing the two can follow along. Where a \
+phrase is ambiguous, translate it plainly rather than interpreting it: this \
+sits beside the original and the original is what counts.
+"""
+
+
+def translate(text: str, session: Session, model: str = DEFAULT_MODEL) -> str | None:
+    """One page of prose in English, cached, or None if we cannot ask.
+
+    Machine translation of somebody else's page, offered next to the original
+    and never instead of it. The original is what the extraction guards check
+    against and what a reviewer is finally deciding about; this exists so a
+    reader who does not have French can follow what a card is about.
+
+    Cached on the same content-hash table as the readings, under its own
+    version, so a page is translated once however often the queue is opened.
+    """
+    if not settings.anthropic_api_key:
+        return None
+    key = cache_key(text, TRANSLATION_VERSION, model)
+    row = session.execute(
+        sql_text("SELECT response FROM llm_cache WHERE key = :key"), {"key": key}
+    ).first()
+    if row is not None:
+        stored = row[0]
+        return stored[0] if isinstance(stored, list) and stored else None
+
+    try:
+        import anthropic
+
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+        reply = client.messages.create(
+            model=model,
+            max_tokens=MAX_TOKENS,
+            system=TRANSLATION_PROMPT,
+            # Untrusted text from someone else's website, in the user turn.
+            messages=[{"role": "user", "content": text}],
+        )
+    except Exception:  # noqa: BLE001 — a failed translation is not a failed page
+        return None
+
+    english = "".join(
+        block.text for block in reply.content if getattr(block, "type", "") == "text"
+    ).strip()
+    if not english:
+        return None
+    usage = getattr(reply, "usage", None)
+    session.execute(
+        sql_text(
+            "INSERT INTO llm_cache "
+            "(key, content_hash, prompt_version, model, response, "
+            " input_tokens, output_tokens) "
+            "VALUES (:key, :hash, :version, :model, CAST(:response AS jsonb), "
+            " :in_tokens, :out_tokens) "
+            "ON CONFLICT (key) DO NOTHING"
+        ),
+        {
+            "key": key,
+            "hash": content_hash(text),
+            "version": TRANSLATION_VERSION,
+            "model": model,
+            "response": json.dumps([english], ensure_ascii=False),
+            "in_tokens": getattr(usage, "input_tokens", None),
+            "out_tokens": getattr(usage, "output_tokens", None),
+        },
+    )
+    return english
+
+
 class ModelReturnedNoJson(RuntimeError):
     """The response was not a JSON array.
 
