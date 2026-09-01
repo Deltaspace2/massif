@@ -296,6 +296,7 @@ def read_document(
             )
             continue
 
+        demoted = None
         dates, complaint = cross_check_dates(
             dates_text, item.get("valid_from"), item.get("valid_to")
         )
@@ -304,6 +305,22 @@ def read_document(
         if not isinstance(severity, int) or not 0 <= severity <= 3:
             reject("bad-severity", f"{severity!r} is not 0-3")
             continue
+
+        # RULE 3, ENFORCED HERE RATHER THAN ASKED FOR.
+        #
+        # The prompt tells the model that an undated closure must be "unknown".
+        # Pointing it at hut websites showed how little that is worth: the
+        # Rifugio Torino's own page says it closes on 11 October and the model
+        # returned `closed` with no parseable dates, which would have painted a
+        # hut that is open today red — and the Cosmiques returned `open` with
+        # no dates, which recompute_feature treats as valid forever.
+        #
+        # A claim about the present needs a window it is the present of. This
+        # is the one guard the model cannot talk its way past, and unlike the
+        # other three it is about misreading rather than fabrication: every
+        # span above was real and correctly quoted.
+        if dates is None and status is not StatusValue.UNKNOWN:
+            demoted, status = status, StatusValue.UNKNOWN
 
         payload: dict = {
             # The gate. Set here rather than by the caller so no future source
@@ -315,6 +332,10 @@ def read_document(
         }
         if source_url:
             payload["url"] = source_url
+        if dates is None and demoted is not None:
+            # Say what it wanted to claim, so a reviewer can see the reading
+            # rather than a bare "unknown" with no explanation.
+            payload["undated_status"] = demoted.value
         if complaint:
             # An undated statement whose dates we threw away is not the same as
             # one that never had any. Say which, in the row itself.

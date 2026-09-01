@@ -132,7 +132,7 @@ def test_dates_drawn_from_outside_the_quoted_span_are_refused():
 
 
 def test_a_tidied_up_feature_name_is_refused():
-    """"Goûter Route" is our name for it. The document says "voie normale du
+    """ "Goûter Route" is our name for it. The document says "voie normale du
     Mont-Blanc". Letting the model hand a canonical name straight to the fuzzy
     resolver gives it more confidence than the source ever expressed — and
     unscoped fuzzy matching is what once resolved TC MER DE GLACE to the
@@ -186,9 +186,7 @@ def test_a_claimed_iso_date_must_match_the_phrase():
     _, complaint = cross_check_dates("du 26 au 29 mai 2026", "2026-05-26", "2026-06-29")
     assert complaint and "2026-06-29" in complaint
 
-    dates, complaint = cross_check_dates(
-        "du 26 au 29 mai 2026", "2026-05-26", "2026-05-29"
-    )
+    dates, complaint = cross_check_dates("du 26 au 29 mai 2026", "2026-05-26", "2026-05-29")
     assert complaint is None and dates is not None
 
 
@@ -199,3 +197,83 @@ def test_normalise_space_keeps_accents():
 def test_a_missing_cassette_fails_loudly():
     with pytest.raises(FileNotFoundError, match="record one"):
         CassetteExtractor(CASSETTES).extract_keyed("no-such-cassette")
+
+
+# ------------------------------------------- rule 3, enforced not requested
+
+
+def test_an_undated_claim_cannot_be_about_the_present():
+    """Found by pointing the model at hut websites.
+
+    The Rifugio Torino's own page says it closes on 11 October; the model
+    returned `closed` with no parseable dates, which would have painted a hut
+    that is open today red. The Refuge des Cosmiques returned `open` with no
+    dates, which `recompute_feature` treats as valid forever.
+
+    The prompt already asks for this. Asking is not enough — and unlike the
+    other three guards this one is about MISREADING rather than fabrication:
+    every evidence span in both cases was real and correctly quoted.
+    """
+    reading = read_document(
+        [
+            {
+                "statement_type": "closure",
+                "status": "closed",
+                "severity": 2,
+                "feature_mention": "il rifugio",
+                "evidence": "il rifugio chiude",
+                "summary_en": "Closing on 11 October",
+            }
+        ],
+        "Comunichiamo che il rifugio chiude per la stagione 2026.",
+        NOW,
+        model="test",
+    )
+    assert len(reading.statements) == 1
+    assert reading.statements[0].status is StatusValue.UNKNOWN
+    # The reading is kept, not thrown away — a reviewer needs to see what it
+    # wanted to say, not a bare "unknown".
+    assert reading.statements[0].payload["undated_status"] == "closed"
+
+
+def test_a_dated_claim_keeps_the_status_it_came_with():
+    """The guard must bite on the missing window, not on the status."""
+    reading = read_document(
+        [
+            {
+                "statement_type": "closure",
+                "status": "closed",
+                "severity": 2,
+                "feature_mention": "La voie normale",
+                "evidence": "La voie normale sera fermée du 26 mai 2026 au 29 mai 2026",
+                "dates_text": "du 26 mai 2026 au 29 mai 2026",
+                "summary_en": "Closed 26-29 May",
+            }
+        ],
+        "La voie normale sera fermée du 26 mai 2026 au 29 mai 2026.",
+        NOW,
+        model="test",
+    )
+    assert reading.statements[0].status is StatusValue.CLOSED
+    assert "undated_status" not in reading.statements[0].payload
+
+
+def test_an_unknown_with_no_dates_is_left_alone():
+    """Already honest; there is nothing to demote."""
+    reading = read_document(
+        [
+            {
+                "statement_type": "closure",
+                "status": "unknown",
+                "severity": 3,
+                "feature_mention": "refuges",
+                "evidence": "Fermeture des refuges",
+                "summary_en": "Closed, no end date",
+            }
+        ],
+        "Fermeture des refuges de Tête Rousse.",
+        NOW,
+        model="test",
+    )
+    assert reading.statements[0].status is StatusValue.UNKNOWN
+    assert "undated_status" not in reading.statements[0].payload
