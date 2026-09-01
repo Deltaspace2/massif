@@ -73,6 +73,27 @@ jobs:
           USER_AGENT: ${{ vars.USER_AGENT }}
         run: python -m massif.scripts.run_ingest
 
+      # Facts are not statements and do not go through the scraper registry, so
+      # run_ingest never touched them. Until this step existed, both directory
+      # importers were things a human ran by hand — a deployed site would have
+      # frozen its hut facts on launch day. Each carries a weekly cadence in the
+      # data, so this does nothing 167 hours out of 168.
+      - name: Refresh directory facts
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          USER_AGENT: ${{ vars.USER_AGENT }}
+        run: python -m massif.scripts.run_facts
+
+      # Facts and statements both feed the status cache, and the facts step can
+      # move a hut's altitude, which the matchers read. Cheap, and it keeps the
+      # cache honest after anything that edited rows out of band.
+      - name: Recompute status
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m massif.scripts.recompute
+
       - name: Review queue
         if: always()
         working-directory: backend

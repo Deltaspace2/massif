@@ -266,6 +266,18 @@ export default async function Home() {
     .sort((a, b) => (hutAlt(b) ?? -1) - (hutAlt(a) ?? -1) || a.name.localeCompare(b.name));
   const hutSource = huts.flatMap((f) => f.facts ?? [])[0];
 
+  // Every route and couloir, for the same reason as the huts: the status
+  // listings only show what a source has published about, and Saint-Gervais
+  // publishes about the Goûter and nothing else — so twelve of thirteen routes
+  // were reachable only by typing the URL. Summit-first, because that is the
+  // order anyone thinks about them in.
+  const routes = features
+    .filter((f) => f.type === "route" || f.type === "couloir")
+    .sort(
+      (a, b) =>
+        (b.alt_max ?? 0) - (a.alt_max ?? 0) || a.name.localeCompare(b.name),
+    );
+
   const asleep = routine.filter(
     (f) => f.status.closure_kind === "outside_hours" && f.season.value === "open",
   ).length;
@@ -504,6 +516,59 @@ export default async function Home() {
                   here is not a report that it is open.
                 </p>
               )}
+            </div>
+          )}
+
+          {routes.length > 0 && (
+            <div style={{ marginTop: 30 }}>
+              <div className="sec-head">
+                <h2>Routes &amp; couloirs</h2>
+                <span>{routes.length} tracked, highest first</span>
+              </div>
+              <div className="huts">
+                {routes.map((f) => {
+                  const span =
+                    f.alt_min && f.alt_max && f.alt_min !== f.alt_max
+                      ? `${f.alt_min}–${f.alt_max} m`
+                      : f.alt_max
+                        ? `${f.alt_max} m`
+                        : null;
+                  return (
+                    <a className="huts__row" key={f.slug} href={`/${f.type}/${f.slug}`}>
+                      <span className="huts__name">
+                        {f.name}
+                        <Flag code={f.country} />
+                      </span>
+                      <span className="huts__alt mono">{span ?? "—"}</span>
+                      {/* A route with nothing published says so, rather than
+                          leaving a blank the reader has to interpret. */}
+                      <span
+                        className={`huts__detail${
+                          f.season.reason || f.status.summary ? "" : " huts__detail--none"
+                        }`}
+                      >
+                        {f.season.reason ??
+                          f.status.summary ??
+                          "nothing published about this route"}
+                      </span>
+                      {isNotice(f) ? (
+                        <span className={`pill ${f.season.value}`}>{f.season.value}</span>
+                      ) : f.status.other_notices > 0 ? (
+                        <span className="huts__notices">
+                          {f.status.other_notices} notice
+                          {f.status.other_notices === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
+                    </a>
+                  );
+                })}
+              </div>
+              <p className="meta huts__credit">
+                Only the Goûter route has a source that publishes about it —
+                Saint-Gervais, which regulates it. The rest are tracked and
+                findable, and will carry a status the day anybody publishes one.
+                Absence here is our coverage, not a report that a route is fine.
+              </p>
             </div>
           )}
 

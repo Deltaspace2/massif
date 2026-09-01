@@ -132,6 +132,10 @@
     - Giant's Tooth
     - Voie normale de la Dent du Géant
   alt_max: 4013
+  # On the border, and approached from Torino on the Italian side. It was the
+  # only feature on the site with no country at all, which rendered as a
+  # missing flag beside twelve that had one.
+  country: IT
 
 - slug: arete-du-diable
   feature_type: route
