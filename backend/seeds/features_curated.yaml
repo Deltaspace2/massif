@@ -93,6 +93,10 @@
     - Papa route
   alt_max: 4808
   country: IT
+  # camptocamp 54151 — 4810 m, Mont Blanc. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 54151, camptocamp_title: "Via delle Aguilles Grises - Via del Papa"}
 
 - slug: cosmiques-arete
   feature_type: route
@@ -109,6 +113,10 @@
   alt_min: 3613
   alt_max: 3842
   country: FR
+  # camptocamp 53884 — 3842 m, Aiguille du Midi. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 53884, camptocamp_title: "Arête des Cosmiques"}
 
 - slug: arete-midi-plan
   feature_type: route
@@ -119,6 +127,10 @@
     - Traversée Midi-Plan
     - Arete Midi Plan
   country: FR
+  # camptocamp 53804 — 3776 m. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 53804, camptocamp_title: "Traversée Midi - Plan"}
 
 - slug: dent-du-geant
   feature_type: route
@@ -146,6 +158,10 @@
     - Arete du Diable
     - Cresta del Diavolo
   country: FR
+  # camptocamp 54098 — 4248 m; the other candidate sits at 300 m. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 54098, camptocamp_title: "Arête du Diable"}
 
 - slug: frendo-spur
   feature_type: route
@@ -155,6 +171,10 @@
     - Eperon Frendo
     - Frendo
   country: FR
+  # camptocamp 54021 — 3842 m; their Spanish locale of the Éperon Frendo. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 54021, camptocamp_title: "Espolón Frendo"}
 
 - slug: chere-couloir
   feature_type: route
@@ -164,6 +184,10 @@
     - Chere couloir
     - Goulotte Chere
   country: FR
+  # camptocamp 54159 — 4248 m, Mont Blanc du Tacul. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 54159, camptocamp_title: "Goulotte Chéré"}
 
 - slug: petite-aiguille-verte
   feature_type: route
@@ -172,6 +196,10 @@
     - Petite Verte
     - Petite Aiguille Verte
   country: FR
+  # camptocamp 53783 — 3512 m; their Slovenian locale of the normal route. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 53783, camptocamp_title: "po normalki (SZ greben)"}
 
 - slug: aiguille-du-tour-normal
   feature_type: route
@@ -180,6 +208,10 @@
     - Aiguille du Tour
     - Tour normal route
   country: FR
+  # camptocamp 56749 — 3542 m. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 56749, camptocamp_title: "Voie normale depuis l'Envers des Dorées"}
 
 - slug: vallee-blanche
   feature_type: route
@@ -195,6 +227,10 @@
   country: FR
 
 # -------------------------------------------------------------- glaciers ---
+  # camptocamp 50892 — 3795 m; the classic line, not the Envers variants. Pinned by hand: their search ranks
+  # strings, and matching by name put our Goûter route on the
+  # Kungsleden in Sweden.
+  external_ids: {camptocamp_route: 50892, camptocamp_title: "Vallée Blanche classique"}
 
 - slug: mer-de-glace
   feature_type: glacier

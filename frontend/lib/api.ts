@@ -22,6 +22,13 @@ export interface FeatureStatus {
    *  this with a flat 24 hours, which is exactly mbnr-openings' fetch
    *  interval, so a healthy daily source was badged before every run. */
   unchecked?: boolean;
+  /** The entry whose author wrote this, where the source publishes one.
+   *
+   *  For camptocamp this is a LICENCE CONDITION — CC BY-SA attaches to the
+   *  individual report — so a statement carrying one must render it. Optional
+   *  for the usual deploy-skew reason, and absent for sources whose page is
+   *  itself the statement. */
+  permalink?: string | null;
   /** "outside_hours" means routine — night, or out of season. */
   closure_kind: string | null;
   counts: Record<string, { open: number; total: number }> | null;
@@ -83,6 +90,8 @@ export interface Notice {
   original_text: string | null;
   original_language: string | null;
   advisory: boolean;
+  /** See FeatureStatus.permalink — a licence condition where present. */
+  permalink?: string | null;
   source: { name: string; url: string; type: string };
 }
 

@@ -320,6 +320,13 @@ def _feature_dict(
             # "outside_hours" means routine: shut because it is night or out
             # of season. The map must render that quietly. Anything else is
             # a closure worth shouting about.
+            # The entry whose author wrote this, where the source publishes
+            # one. For camptocamp it is a licence condition, not a courtesy:
+            # CC BY-SA attaches to the individual report, so a statement we
+            # cannot link back to is one we must not show. Absent for sources
+            # whose page IS the statement, where the source URL already is the
+            # original.
+            "permalink": payload.get("permalink"),
             "closure_kind": payload.get("closure_kind"),
             "counts": payload.get("counts"),
             "altitude_m": payload.get("altitude_m"),
@@ -597,6 +604,7 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
             "original_text": st.original_text,
             "original_language": st.original_language,
             "advisory": bool((st.payload or {}).get("advisory")),
+            "permalink": (st.payload or {}).get("permalink"),
             "source": {"name": src.name, "url": src.url, "type": src.source_type},
         }
         for st, src in others

@@ -1,0 +1,1624 @@
+{
+ "feature_slug": "cosmiques-arete",
+ "route_id": 53884,
+ "route_title": "Arête des Cosmiques",
+ "outings": [
+  {
+   "document_id": 1938453,
+   "version": 1,
+   "locales": [
+    {
+     "version": 1,
+     "lang": "fr",
+     "title": "Aiguille du Midi : Arête des Cosmiques",
+     "summary": null
+    }
+   ],
+   "geometry": {
+    "version": 1,
+    "geom": "{\"type\": \"Point\", \"coordinates\": [766650.703959, 5760683.130874]}",
+    "has_geom_detail": false
+   },
+   "quality": "fine",
+   "activities": [
+    "mountain_climbing",
+    "snow_ice_mixed"
+   ],
+   "condition_rating": "average",
+   "date_end": "2026-08-10",
+   "date_start": "2026-08-10",
+   "elevation_max": 3842,
+   "height_diff_up": 300,
+   "public_transport": false,
+   "global_rating": "AD",
+   "height_diff_difficulties": 240,
+   "engagement_rating": "II",
+   "available_langs": [
+    "fr"
+   ],
+   "areas": [
+    {
+     "document_id": 14274,
+     "version": 12,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "法国"
+      },
+      {
+       "version": 1,
+       "lang": "sl",
+       "title": "Francija"
+      },
+      {
+       "version": 6,
+       "lang": "fr",
+       "title": "France"
+      },
+      {
+       "version": 3,
+       "lang": "ca",
+       "title": "França"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Frankreich"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Francia"
+      },
+      {
+       "version": 2,
+       "lang": "eu",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "it",
+       "title": "Francia"
+      }
+     ],
+     "area_type": "country",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14366,
+     "version": 3,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "上萨瓦省"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Alta Saboya"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Savoia Garaia"
+      },
+      {
+       "version": 3,
+       "lang": "fr",
+       "title": "Haute-Savoie"
+      }
+     ],
+     "area_type": "admin_limits",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14410,
+     "version": 19,
+     "locales": [
+      {
+       "version": 7,
+       "lang": "sl",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 44,
+       "lang": "fr",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "勃朗峰山块"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Monte Bianco"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Montblanc"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Mont-Blanc"
+      }
+     ],
+     "area_type": "range",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    }
+   ],
+   "author": {
+    "name": "Keagan B.",
+    "user_id": 1910408
+   },
+   "protected": false,
+   "type": "o",
+   "img_count": 6
+  },
+  {
+   "document_id": 1931394,
+   "version": 1,
+   "locales": [
+    {
+     "version": 1,
+     "lang": "fr",
+     "title": "Aiguille du Midi : Arête des Cosmiques",
+     "summary": null
+    }
+   ],
+   "geometry": {
+    "version": 1,
+    "geom": "{\"type\": \"Point\", \"coordinates\": [766650.703959, 5760683.130874]}",
+    "has_geom_detail": false
+   },
+   "quality": "empty",
+   "activities": [
+    "rock_climbing"
+   ],
+   "condition_rating": null,
+   "date_end": "2026-07-24",
+   "date_start": "2026-07-24",
+   "elevation_max": 3842,
+   "height_diff_up": 300,
+   "public_transport": false,
+   "global_rating": "AD",
+   "equipment_rating": "P2",
+   "rock_free_rating": "4a",
+   "available_langs": [
+    "fr"
+   ],
+   "areas": [
+    {
+     "document_id": 14274,
+     "version": 12,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "法国"
+      },
+      {
+       "version": 1,
+       "lang": "sl",
+       "title": "Francija"
+      },
+      {
+       "version": 6,
+       "lang": "fr",
+       "title": "France"
+      },
+      {
+       "version": 3,
+       "lang": "ca",
+       "title": "França"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Frankreich"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Francia"
+      },
+      {
+       "version": 2,
+       "lang": "eu",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "it",
+       "title": "Francia"
+      }
+     ],
+     "area_type": "country",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14366,
+     "version": 3,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "上萨瓦省"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Alta Saboya"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Savoia Garaia"
+      },
+      {
+       "version": 3,
+       "lang": "fr",
+       "title": "Haute-Savoie"
+      }
+     ],
+     "area_type": "admin_limits",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14410,
+     "version": 19,
+     "locales": [
+      {
+       "version": 7,
+       "lang": "sl",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 44,
+       "lang": "fr",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "勃朗峰山块"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Monte Bianco"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Montblanc"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Mont-Blanc"
+      }
+     ],
+     "area_type": "range",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    }
+   ],
+   "author": {
+    "name": "JRoman97",
+    "user_id": 1931389
+   },
+   "protected": false,
+   "type": "o",
+   "img_count": 0
+  },
+  {
+   "document_id": 1931998,
+   "version": 3,
+   "locales": [
+    {
+     "version": 1,
+     "lang": "fr",
+     "title": "Aiguille du Midi : Arête des Cosmiques",
+     "summary": null
+    }
+   ],
+   "geometry": {
+    "version": 1,
+    "geom": "{\"type\": \"Point\", \"coordinates\": [766650.703959, 5760683.130874]}",
+    "has_geom_detail": false
+   },
+   "quality": "fine",
+   "activities": [
+    "snow_ice_mixed"
+   ],
+   "condition_rating": "excellent",
+   "date_end": "2026-07-20",
+   "date_start": "2026-07-20",
+   "elevation_max": 3842,
+   "height_diff_up": 300,
+   "public_transport": false,
+   "global_rating": "AD",
+   "height_diff_difficulties": 240,
+   "engagement_rating": "II",
+   "available_langs": [
+    "fr"
+   ],
+   "areas": [
+    {
+     "document_id": 14410,
+     "version": 19,
+     "locales": [
+      {
+       "version": 44,
+       "lang": "fr",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "勃朗峰山块"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Monte Bianco"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Montblanc"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 7,
+       "lang": "sl",
+       "title": "Mont-Blanc"
+      }
+     ],
+     "area_type": "range",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14274,
+     "version": 12,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "法国"
+      },
+      {
+       "version": 1,
+       "lang": "sl",
+       "title": "Francija"
+      },
+      {
+       "version": 6,
+       "lang": "fr",
+       "title": "France"
+      },
+      {
+       "version": 3,
+       "lang": "ca",
+       "title": "França"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Frankreich"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Francia"
+      },
+      {
+       "version": 2,
+       "lang": "eu",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "it",
+       "title": "Francia"
+      }
+     ],
+     "area_type": "country",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14366,
+     "version": 3,
+     "locales": [
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 3,
+       "lang": "fr",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Savoia Garaia"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Alta Saboya"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "上萨瓦省"
+      }
+     ],
+     "area_type": "admin_limits",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    }
+   ],
+   "author": {
+    "name": "Gaetan N",
+    "user_id": 1110683
+   },
+   "protected": false,
+   "type": "o",
+   "img_count": 0
+  },
+  {
+   "document_id": 1923287,
+   "version": 2,
+   "locales": [
+    {
+     "version": 2,
+     "lang": "fr",
+     "title": "Aiguille du Midi : Arête des Cosmiques",
+     "summary": null
+    }
+   ],
+   "geometry": {
+    "version": 2,
+    "geom": "{\"type\": \"Point\", \"coordinates\": [766499.2781035111, 5760421.024139185]}",
+    "has_geom_detail": true
+   },
+   "quality": "fine",
+   "activities": [
+    "snow_ice_mixed"
+   ],
+   "condition_rating": "excellent",
+   "date_end": "2026-07-05",
+   "date_start": "2026-07-05",
+   "elevation_max": 3842,
+   "height_diff_up": 300,
+   "public_transport": false,
+   "global_rating": "AD",
+   "height_diff_difficulties": 240,
+   "engagement_rating": "II",
+   "available_langs": [
+    "fr"
+   ],
+   "areas": [
+    {
+     "document_id": 14274,
+     "version": 12,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "法国"
+      },
+      {
+       "version": 1,
+       "lang": "sl",
+       "title": "Francija"
+      },
+      {
+       "version": 6,
+       "lang": "fr",
+       "title": "France"
+      },
+      {
+       "version": 3,
+       "lang": "ca",
+       "title": "França"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Frankreich"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Francia"
+      },
+      {
+       "version": 2,
+       "lang": "eu",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "it",
+       "title": "Francia"
+      }
+     ],
+     "area_type": "country",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14366,
+     "version": 3,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "上萨瓦省"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Alta Saboya"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Savoia Garaia"
+      },
+      {
+       "version": 3,
+       "lang": "fr",
+       "title": "Haute-Savoie"
+      }
+     ],
+     "area_type": "admin_limits",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14410,
+     "version": 19,
+     "locales": [
+      {
+       "version": 7,
+       "lang": "sl",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 44,
+       "lang": "fr",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "勃朗峰山块"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Monte Bianco"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Montblanc"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Mont-Blanc"
+      }
+     ],
+     "area_type": "range",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    }
+   ],
+   "author": {
+    "name": "NiFo73",
+    "user_id": 1706362
+   },
+   "protected": false,
+   "type": "o",
+   "img_count": 13
+  },
+  {
+   "document_id": 1929582,
+   "version": 1,
+   "locales": [
+    {
+     "version": 1,
+     "lang": "fr",
+     "title": "Aiguille du Midi : Arête des Cosmiques",
+     "summary": null
+    }
+   ],
+   "geometry": {
+    "version": 1,
+    "geom": "{\"type\": \"Point\", \"coordinates\": [766650.703959, 5760683.130874]}",
+    "has_geom_detail": false
+   },
+   "quality": "empty",
+   "activities": [
+    "mountain_climbing"
+   ],
+   "condition_rating": null,
+   "date_end": "2026-07-03",
+   "date_start": "2026-07-03",
+   "elevation_max": 3842,
+   "height_diff_up": 300,
+   "public_transport": false,
+   "global_rating": "AD",
+   "height_diff_difficulties": 240,
+   "engagement_rating": "II",
+   "available_langs": [
+    "fr"
+   ],
+   "areas": [
+    {
+     "document_id": 14274,
+     "version": 12,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "法国"
+      },
+      {
+       "version": 1,
+       "lang": "sl",
+       "title": "Francija"
+      },
+      {
+       "version": 6,
+       "lang": "fr",
+       "title": "France"
+      },
+      {
+       "version": 3,
+       "lang": "ca",
+       "title": "França"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Frankreich"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Francia"
+      },
+      {
+       "version": 2,
+       "lang": "eu",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "it",
+       "title": "Francia"
+      }
+     ],
+     "area_type": "country",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14366,
+     "version": 3,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "上萨瓦省"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Alta Saboya"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Savoia Garaia"
+      },
+      {
+       "version": 3,
+       "lang": "fr",
+       "title": "Haute-Savoie"
+      }
+     ],
+     "area_type": "admin_limits",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14410,
+     "version": 19,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 7,
+       "lang": "sl",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 44,
+       "lang": "fr",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "勃朗峰山块"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Monte Bianco"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Montblanc"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Mont-Blanc"
+      }
+     ],
+     "area_type": "range",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    }
+   ],
+   "author": {
+    "name": "Francesca7",
+    "user_id": 1895755
+   },
+   "protected": false,
+   "type": "o",
+   "img_count": 0
+  },
+  {
+   "document_id": 1921975,
+   "version": 1,
+   "locales": [
+    {
+     "version": 1,
+     "lang": "fr",
+     "title": "Aiguille du Midi : Arête des Cosmiques",
+     "summary": null
+    }
+   ],
+   "geometry": {
+    "version": 1,
+    "geom": "{\"type\": \"Point\", \"coordinates\": [766650.703959, 5760683.130874]}",
+    "has_geom_detail": false
+   },
+   "quality": "fine",
+   "activities": [
+    "snow_ice_mixed"
+   ],
+   "condition_rating": "average",
+   "date_end": "2026-06-30",
+   "date_start": "2026-06-30",
+   "elevation_max": 3842,
+   "height_diff_up": 300,
+   "public_transport": false,
+   "global_rating": "AD",
+   "height_diff_difficulties": 240,
+   "engagement_rating": "II",
+   "available_langs": [
+    "fr"
+   ],
+   "areas": [
+    {
+     "document_id": 14274,
+     "version": 12,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "it",
+       "title": "Francia"
+      },
+      {
+       "version": 2,
+       "lang": "eu",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Francia"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Frankreich"
+      },
+      {
+       "version": 3,
+       "lang": "ca",
+       "title": "França"
+      },
+      {
+       "version": 6,
+       "lang": "fr",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "sl",
+       "title": "Francija"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "法国"
+      }
+     ],
+     "area_type": "country",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14366,
+     "version": 3,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "上萨瓦省"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Alta Saboya"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Savoia Garaia"
+      },
+      {
+       "version": 3,
+       "lang": "fr",
+       "title": "Haute-Savoie"
+      }
+     ],
+     "area_type": "admin_limits",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14410,
+     "version": 19,
+     "locales": [
+      {
+       "version": 7,
+       "lang": "sl",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 44,
+       "lang": "fr",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "勃朗峰山块"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Monte Bianco"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Montblanc"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Mont-Blanc"
+      }
+     ],
+     "area_type": "range",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    }
+   ],
+   "author": {
+    "name": "Valier Galy",
+    "user_id": 8348
+   },
+   "protected": false,
+   "type": "o",
+   "img_count": 0
+  },
+  {
+   "document_id": 1921097,
+   "version": 1,
+   "locales": [
+    {
+     "version": 1,
+     "lang": "fr",
+     "title": "Aiguille du Midi : Arête des Cosmiques",
+     "summary": null
+    }
+   ],
+   "geometry": {
+    "version": 1,
+    "geom": "{\"type\": \"Point\", \"coordinates\": [766650.703959, 5760683.130874]}",
+    "has_geom_detail": false
+   },
+   "quality": "empty",
+   "activities": [
+    "snow_ice_mixed"
+   ],
+   "condition_rating": null,
+   "date_end": "2026-06-28",
+   "date_start": "2026-06-28",
+   "elevation_max": 3842,
+   "height_diff_up": 300,
+   "public_transport": false,
+   "global_rating": "AD",
+   "height_diff_difficulties": 240,
+   "engagement_rating": "II",
+   "available_langs": [
+    "fr"
+   ],
+   "areas": [
+    {
+     "document_id": 14274,
+     "version": 12,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "it",
+       "title": "Francia"
+      },
+      {
+       "version": 2,
+       "lang": "eu",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Francia"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Frankreich"
+      },
+      {
+       "version": 3,
+       "lang": "ca",
+       "title": "França"
+      },
+      {
+       "version": 6,
+       "lang": "fr",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "sl",
+       "title": "Francija"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "法国"
+      }
+     ],
+     "area_type": "country",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14366,
+     "version": 3,
+     "locales": [
+      {
+       "version": 3,
+       "lang": "fr",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Savoia Garaia"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Alta Saboya"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "上萨瓦省"
+      }
+     ],
+     "area_type": "admin_limits",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14410,
+     "version": 19,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Montblanc"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Monte Bianco"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "勃朗峰山块"
+      },
+      {
+       "version": 44,
+       "lang": "fr",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 7,
+       "lang": "sl",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Mont-Blanc"
+      }
+     ],
+     "area_type": "range",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    }
+   ],
+   "author": {
+    "name": "Francesca7",
+    "user_id": 1895755
+   },
+   "protected": false,
+   "type": "o",
+   "img_count": 0
+  },
+  {
+   "document_id": 1925124,
+   "version": 2,
+   "locales": [
+    {
+     "version": 2,
+     "lang": "fr",
+     "title": "Aiguille du Midi : Arête des Cosmiques",
+     "summary": null
+    }
+   ],
+   "geometry": {
+    "version": 1,
+    "geom": "{\"type\": \"Point\", \"coordinates\": [766650.703959, 5760683.130874]}",
+    "has_geom_detail": false
+   },
+   "quality": "fine",
+   "activities": [
+    "snow_ice_mixed"
+   ],
+   "condition_rating": "good",
+   "date_end": "2026-06-27",
+   "date_start": "2026-06-27",
+   "elevation_max": 3842,
+   "height_diff_up": 300,
+   "public_transport": false,
+   "global_rating": "AD",
+   "height_diff_difficulties": 240,
+   "engagement_rating": "II",
+   "available_langs": [
+    "fr"
+   ],
+   "areas": [
+    {
+     "document_id": 14366,
+     "version": 3,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "上萨瓦省"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Alta Savoia"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Haute-Savoie"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Alta Saboya"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Savoia Garaia"
+      },
+      {
+       "version": 3,
+       "lang": "fr",
+       "title": "Haute-Savoie"
+      }
+     ],
+     "area_type": "admin_limits",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14274,
+     "version": 12,
+     "locales": [
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "法国"
+      },
+      {
+       "version": 1,
+       "lang": "sl",
+       "title": "Francija"
+      },
+      {
+       "version": 6,
+       "lang": "fr",
+       "title": "France"
+      },
+      {
+       "version": 3,
+       "lang": "ca",
+       "title": "França"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Frankreich"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Francia"
+      },
+      {
+       "version": 2,
+       "lang": "eu",
+       "title": "France"
+      },
+      {
+       "version": 1,
+       "lang": "it",
+       "title": "Francia"
+      }
+     ],
+     "area_type": "country",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    },
+    {
+     "document_id": 14410,
+     "version": 19,
+     "locales": [
+      {
+       "version": 7,
+       "lang": "sl",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 44,
+       "lang": "fr",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "zh",
+       "title": "勃朗峰山块"
+      },
+      {
+       "version": 3,
+       "lang": "it",
+       "title": "Monte Bianco"
+      },
+      {
+       "version": 1,
+       "lang": "ca",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "de",
+       "title": "Montblanc"
+      },
+      {
+       "version": 1,
+       "lang": "en",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "es",
+       "title": "Mont-Blanc"
+      },
+      {
+       "version": 1,
+       "lang": "eu",
+       "title": "Mont-Blanc"
+      }
+     ],
+     "area_type": "range",
+     "available_langs": null,
+     "protected": false,
+     "type": "a"
+    }
+   ],
+   "author": {
+    "name": "Armella",
+    "user_id": 107368
+   },
+   "protected": false,
+   "type": "o",
+   "img_count": 1
+  }
+ ]
+}

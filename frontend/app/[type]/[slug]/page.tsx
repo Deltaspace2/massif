@@ -152,6 +152,24 @@ export default async function FeaturePage({ params }: { params: Params }) {
             Routine: shut because of the hour or the season, not an incident.
           </div>
         )}
+        {/* Where the source publishes a per-entry link, show it. For
+            camptocamp this is a licence condition rather than a courtesy:
+            CC BY-SA attaches to the individual report somebody wrote, so a
+            line we cannot link back to is a line we must not print. Rendered
+            from the API's own field — never assembled here from an id. */}
+        {feature.status.permalink && (
+          <div className="meta">
+            <a
+              href={feature.status.permalink}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Read the report this came from
+            </a>{" "}
+            — one person&rsquo;s account of one day, not a statement about
+            whether the route is open.
+          </div>
+        )}
       </div>
 
       {inForce.length > 0 && (

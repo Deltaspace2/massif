@@ -229,7 +229,28 @@ We are guests on these servers.
 
 ## Not in v1
 
-Crowd-sourced condition reports, weather, avalanche bulletins, route topos,
-user accounts, anything predictive. The schema already accommodates conditions
-(`statement_type` carries `condition` and `hazard_observation`); do not start
-them until v1 has run a full season.
+Weather, avalanche bulletins, route topos, user accounts, anything predictive.
+
+**Crowd-sourced condition reports were brought forward**, against the line that
+used to stand here, on an explicit instruction to get route status checked
+weekly. `camptocamp-outings` reads the structured `condition_rating` enum on
+dated trip reports. It was built only after the two in-scope alternatives were
+reconned and came up empty: La Chamoniarde publishes nobody's data but other
+people's, and the préfecture's mountain output is avalanche vigilance plus one
+access ban that lives in a PDF.
+
+Three things keep it from being the thing that line was guarding against:
+
+* It can never produce a closure. Every statement is `condition` at status
+  UNKNOWN, so a route's badge is untouched and only its notices gain a line.
+  "Poor" is not "shut", and a community rating driving a red dot would be this
+  site inventing closures out of opinions.
+* Routes are matched by a hand-pinned id, never by search. Nine of thirteen are
+  pinned; the rest stay silent.
+* `STALE_DAYS` answers `condition` with 14 days, so most of these render greyed
+  almost at once. That is correct, and it is most of what this source does:
+  measured on 1 Sep 2026, one of nine pinned routes had a report inside the
+  window. Route conditions are seasonal and sparse.
+
+`active: false` in `seeds/sources.yaml` reverses the decision and nothing else
+has to change.

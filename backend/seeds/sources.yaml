@@ -245,6 +245,49 @@
     condition, and presenting it as a service warning would put words in their
     mouth.
 
+# Route conditions, from the `condition_rating` on dated trip reports.
+#
+# THIS SITS AGAINST CLAUDE.md's "Not in v1: crowd-sourced condition reports ...
+# do not start them until v1 has run a full season". Built on an explicit
+# instruction to get route status checked weekly, after the two in-scope
+# alternatives were reconned and came up empty — La Chamoniarde publishes only
+# other people's data, and the préfecture's mountain output is avalanche
+# vigilance plus one access ban that lives in a PDF. Setting active: false here
+# turns it off and nothing else has to change.
+#
+# NEVER PRODUCES A CLOSURE. Every statement is `condition` at status UNKNOWN,
+# so a route's badge is untouched and only its notices gain a line. One
+# person's report of a day out is not a closure, and "poor" is not "shut".
+#
+# Trust is the lowest we carry: a single report, not an operator or an
+# authority. STALE_DAYS answers `condition` with 14 days, which is right — a
+# report from three weeks ago describes a mountain that has since had weather.
+- slug: camptocamp-outings
+  name: camptocamp.org — route condition reports
+  url: https://www.camptocamp.org/outings
+  source_type: community
+  language: fr
+  trust_weight: 0.50
+  fetch_interval_minutes: 10080
+  active: true
+  licence: CC BY-SA
+  licence_url: https://creativecommons.org/licenses/by-sa/3.0/
+  notes: >
+    Reads only the structured `condition_rating` enum, the date and the title —
+    never their prose, the same discipline as the facts importer. That is why
+    this is a rule-based parser and needs no LLM.
+
+    Routes are matched by a HAND-PINNED camptocamp id in features_curated.yaml,
+    never by search. Matching by name put our Goûter route on the Kungsleden in
+    Sweden via our own alias "Voie Royale"; with an altitude gate added, the
+    Grand Couloir still matched an unrelated "Couloir Rectiligne", because
+    altitude cannot separate two couloirs at the same height. Nine of thirteen
+    routes are pinned. The other four had no unambiguous match and stay silent.
+
+    Every statement carries the permalink to the outing whose author wrote it.
+    CC BY-SA: the link back is a licence condition, per report, never one
+    shared footer.
+
 - slug: pghm-chamonix
   name: PGHM Chamonix / préfecture Haute-Savoie
   url: https://www.haute-savoie.gouv.fr/
