@@ -160,6 +160,11 @@ def extract(raw: str, observed_at: datetime) -> list[ExtractedStatement]:
 
     statement_type, status, summary, routine = mapped
     payload: dict = {"hut_status": state, "hut_id": envelope.get("hut_id")}
+    if state == "SERVICED":
+        # Lets the page say "Wardened until 19 Sep" rather than "Open since
+        # 1 Sep". For a hut the end is the half a reader plans around, and
+        # here it is the operator's own date rather than our widening.
+        payload["wardened"] = True
     if routine:
         # Shut because it is the season, not because anything happened.
         payload["closure_kind"] = "outside_hours"

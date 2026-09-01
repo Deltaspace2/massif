@@ -135,3 +135,13 @@ def test_re_extraction_reads_the_season_current_when_we_fetched_it():
 def test_days_drops_what_it_cannot_read():
     assert _days([{"date": "nonsense", "hutStatus": "SERVICED", "freeBeds": 1}]) == []
     assert _days([{"hutStatus": "SERVICED", "freeBeds": 1}]) == []
+
+
+def test_a_serviced_run_is_flagged_as_wardened_so_the_page_says_until():
+    """Without it the page reads "Open since 1 Sep" and drops the date a
+    reader is actually planning around — the warden leaving. Unserviced is
+    NOT flagged: nobody is running the hut, so there is no warden to leave."""
+    serviced = extract(envelope(day("2026-09-01", "SERVICED", 10)), ON)
+    assert serviced[0].payload["wardened"] is True
+    unserviced = extract(envelope(day("2026-09-01", "UNSERVICED", 22)), ON)
+    assert "wardened" not in unserviced[0].payload
