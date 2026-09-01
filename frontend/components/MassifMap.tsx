@@ -18,6 +18,27 @@ const COLOURS: Record<string, string> = {
   unknown: "#6e757e",
 };
 
+// IGN's own refuge symbol, redrawn. Sampled from their tiles rather than
+// guessed: #246138 is the glyph green, 1164 pixels of it across three tiles at
+// z15 and z16, with nothing else close.
+//
+// Matching them exactly is the point. This is shown only BELOW z13, where IGN
+// draws no hut at all, and it disappears at z13 as theirs appears — so the
+// same green house is on the same spot the whole way in and the handover is
+// invisible. Drawing our own shape here would have reintroduced the two
+// symbols problem in slow motion.
+//
+// The one risk, noted because it is this project's failure mode: green is also
+// the open colour. A green hut is a MAP symbol meaning "hut", exactly as it is
+// on IGN's own cartography, and never a claim that it is open — status is the
+// separate coloured dot, drawn at every zoom. The white outline is ours, and
+// only so the glyph survives glacier hatching and shaded slopes.
+const HUT_GLYPH =
+  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">' +
+  '<path d="M8 1.7 14.6 7.3V14.4H1.4V7.3Z" fill="#246138" ' +
+  'stroke="#ffffff" stroke-width="1.1" stroke-linejoin="round"/>' +
+  "</svg>";
+
 // Context routes on the light basemap. This has now been wrong twice: #4a5563
 // was chosen against a near-black page and read as a claim on IGN's pale
 // cartography; #9aa2ab fixed that and went too far the other way — at 2.51:1
@@ -103,41 +124,45 @@ export default function MassifMap({ features }: { features: Feature[] }) {
 
       const marker = document.createElement("div");
       const isUnknown = !known || feature.season?.value === "unknown";
+      const isHut = feature.type === "hut";
 
       // The outer element is only ever a hit area: constant size, never
-      // styled, so a hut stays clickable at every zoom regardless of what is
-      // drawn inside it.
+      // styled, so a feature stays clickable at every zoom regardless of what
+      // is drawn inside it. position:relative so the status pip can hang off
+      // the corner rather than sitting on top of the symbol.
       Object.assign(marker.style, {
-        width: notable ? "16px" : "14px",
-        height: notable ? "16px" : "14px",
-        borderRadius: "50%",
+        width: "18px",
+        height: "18px",
         cursor: "pointer",
+        position: "relative",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
       });
 
+      // ---- the symbol: what the thing IS
       const dot = document.createElement("div");
-      if (isUnknown) {
-        // Nothing published about it, so this is a locator, not a status.
-        // It exists because IGN only starts drawing hut glyphs at z13 —
-        // measured, not assumed — and this map opens at 10.2. Suppressing
-        // these outright made every hut vanish from the view everyone lands
-        // on. Below z13 we say where the huts are; at z13 and above IGN says
-        // it better and ours gets out of the way, which is what stops the
-        // two-symbols problem.
+      if (isHut) {
+        // Ours below z13, IGN's from z13 up, same green house either way.
         contextDots.push(dot);
+        dot.innerHTML = HUT_GLYPH;
+        Object.assign(dot.style, {
+          width: "15px",
+          height: "15px",
+          lineHeight: "0",
+          transition: "opacity 120ms linear",
+        });
+      } else if (isUnknown) {
+        // Lift sectors and glaciers keep a dot: a house would be a lie about
+        // what they are, and IGN draws no glyph we could defer to.
         Object.assign(dot.style, {
           width: "8px",
           height: "8px",
           borderRadius: "50%",
           background: "rgba(255,255,255,0.92)",
           border: `1.5px solid ${COLOURS.unknown}`,
-          transition: "opacity 120ms linear",
         });
       } else {
-        // A source has published something. IGN cannot know this, so it is
-        // ours to draw and it stays drawn at every zoom.
         Object.assign(dot.style, {
           width: notable ? "16px" : "14px",
           height: notable ? "16px" : "14px",
@@ -148,6 +173,35 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         });
       }
       marker.appendChild(dot);
+
+      // ---- the pip: what a source has SAID about it
+      //
+      // IGN's hut glyph is theirs and cannot be removed or recoloured, so a
+      // closed hut and an open one look identical on their cartography. This
+      // is the answer to that: a small status pip on the corner of the symbol,
+      // never over it. It is subordinate by construction — an annotation on
+      // someone else's icon rather than a second icon competing with it, which
+      // is what made the earlier ring look wrong.
+      //
+      // Drawn at EVERY zoom, and in the same corner whether the house beneath
+      // it is ours or IGN's, so a closure does not blink out of existence at
+      // the handover. Only for features something has actually been published
+      // about: a pip on all 59 huts would be 57 pips meaning "no news".
+      if (isHut && !isUnknown) {
+        const pip = document.createElement("div");
+        Object.assign(pip.style, {
+          position: "absolute",
+          top: "-3px",
+          right: "-3px",
+          width: notable ? "9px" : "8px",
+          height: notable ? "9px" : "8px",
+          borderRadius: "50%",
+          background: colourFor(feature),
+          border: "1.5px solid #ffffff",
+          boxShadow: "0 1px 2px rgba(34,40,46,0.45)",
+        });
+        marker.appendChild(pip);
+      }
 
       new maplibregl.Marker({ element: marker })
         .setLngLat([lon, lat])
