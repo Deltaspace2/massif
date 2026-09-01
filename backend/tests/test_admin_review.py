@@ -536,3 +536,32 @@ def test_a_deactivated_feature_is_not_queued_for_review():
 
     source = inspect.getsource(_waiting)
     assert "Feature.active.is_(True)" in source
+
+
+def test_a_window_that_has_already_closed_says_so(monkeypatch):
+    """recompute only considers statements valid NOW, so accepting an expired
+    season changes nothing and looks like a broken button. The Requin's
+    "staffed until 30/08" was still on the queue on 1 September."""
+    from datetime import UTC, datetime, timedelta
+
+    from massif.admin import _window
+
+    class Past:
+        valid_from = datetime.now(UTC) - timedelta(days=40)
+        valid_to = datetime.now(UTC) - timedelta(days=2)
+        payload: dict = {}
+
+    class Future:
+        valid_from = datetime.now(UTC) + timedelta(days=10)
+        valid_to = datetime.now(UTC) + timedelta(days=40)
+        payload: dict = {}
+
+    class Now:
+        valid_from = datetime.now(UTC) - timedelta(days=2)
+        valid_to = datetime.now(UTC) + timedelta(days=10)
+        payload: dict = {}
+
+    assert "ALREADY PAST" in _window(Past())
+    assert "not yet in force" in _window(Future())
+    assert "ALREADY PAST" not in _window(Now())
+    assert "not yet in force" not in _window(Now())

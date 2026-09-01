@@ -125,6 +125,14 @@ def _window(statement: Statement) -> str:
     start = f"{published_date(statement.valid_from):%d %b %Y}" if statement.valid_from else "—"
     end = f"{published_date(statement.valid_to):%d %b %Y}" if statement.valid_to else "—"
     tail = " (the year is OURS)" if (statement.payload or {}).get("approximate") else ""
+    # A window that has already ended cannot change what the site says today:
+    # recompute only considers statements valid NOW. Without this a reviewer
+    # accepts a season that closed last week and sees nothing happen — the
+    # Requin's "staffed until 30/08" was still on the queue on 1 September.
+    if statement.valid_to is not None and statement.valid_to < datetime.now(UTC):
+        tail += " — ALREADY PAST, accepting it will not change today"
+    elif statement.valid_from is not None and statement.valid_from > datetime.now(UTC):
+        tail += " — not yet in force"
     return f"{start} to {end}{tail}"
 
 
