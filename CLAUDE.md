@@ -210,12 +210,26 @@ nothing about Anthropic.
 - The document goes in the user turn, never interpolated into the
   instructions: it is untrusted text from someone else's website.
 
-NOT YET WIRED TO A SOURCE, and that is the next decision rather than an
-oversight. The obvious first candidate is the Saint-Gervais notice BODIES: 28
-of its 36 stored documents currently yield nothing at all, because that parser
-classifies from the title only — deliberately, since reading bodies with
-regexes once produced three false closures. That is 4.8 MB of the
-highest-authority prose in the system, already fetched and stored.
+NOT YET WIRED TO A SOURCE, and Saint-Gervais is NOT the place to start —
+which is the opposite of what the obvious number says. "28 of 36 stored
+documents produce nothing" is true and misleading: those 36 rows are 15
+distinct URLs, each re-stored on a later fetch. Four of the fifteen are
+notices, and the title-based rule parser already catches all four. The other
+eleven were put through the model one by one and it returned nothing for every
+single one — correctly, because they are sports sponsorship, an olympic
+welcome, cherry blossoms, a planning consultation and the overcrowding appeal
+that famously produced three false closures with a regex.
+
+So the model adds NOTHING here. The prose is unread because there is nothing
+in it, not because rules cannot reach it, and the honest measurement cost
+about 30,000 tokens and saved wiring up a source that would have produced no
+statements and a recurring bill.
+
+Where it is still worth pointing: sources that are ONLY prose and have
+therefore never been built — the préfecture's press feed, whose notice bodies
+are PDFs, and the 25 individual hut websites behind the wardened-hut gap. Weigh
+the review load first: everything from this path is written `needs_review`, so
+a human clears each statement before it can take a status slot.
 
 Weigh the review load before pointing it at anything wide. Everything from
 this path is written `needs_review`, so a human clears each statement before
