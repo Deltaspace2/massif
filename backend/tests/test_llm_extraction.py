@@ -9,19 +9,21 @@ only of correct answers proves nothing about a component whose entire job is
 catching incorrect ones.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
 
 from massif.enums import ExtractionMethod, StatementType, StatusValue
 from massif.ingest.llm import (
+    ASSUMED,
     PROMPT_VERSION,
     CassetteExtractor,
     cross_check_dates,
     normalise_space,
     read_document,
     verify_span,
+    with_assumed_year,
 )
 
 CASSETTES = Path(__file__).parent / "cassettes"
@@ -277,3 +279,91 @@ def test_an_unknown_with_no_dates_is_left_alone():
     )
     assert reading.statements[0].status is StatusValue.UNKNOWN
     assert "undated_status" not in reading.statements[0].payload
+
+
+# ------------------------------------------- a season stated without a year
+
+
+def test_a_recurring_season_can_be_bound_to_the_document_s_year():
+    """Hut websites state the season without a year because it recurs: Refuge
+    de Tré la Tête says "du 15 mars au 15 octobre" and means every year. Guard
+    2 drops those dates, and the rule-3 guard then demotes the statement to
+    unknown — so most hut homepages produce nothing at all without this."""
+    found = with_assumed_year("du 15 mars au 15 octobre", 2026)
+    assert found.start.date() == date(2026, 3, 15)
+    assert found.end.date() == date(2026, 10, 15)
+    assert found.rule.endswith(ASSUMED)
+
+
+def test_a_winter_season_rolls_into_the_following_year():
+    """ "du 15 décembre au 15 avril" bound to one year runs backwards, and the
+    only other reading is a window that ends before it starts. A hut with a
+    winter season is not an error."""
+    found = with_assumed_year("du 15 décembre au 15 avril", 2026)
+    assert found.start.date() == date(2026, 12, 15)
+    assert found.end.date() == date(2027, 4, 15)
+
+
+def test_assuming_a_year_does_not_make_prose_into_a_date():
+    assert with_assumed_year("de mi-juin à mi-septembre", 2026) is None
+    assert with_assumed_year("l'été", 2026) is None
+
+
+def test_a_phrase_that_states_its_own_year_is_never_second_guessed():
+    """The assumption is only ever a fallback. An arrêté is about one occasion
+    and says which — overriding that with the document's year would be this
+    guard inventing a date instead of checking one."""
+    stated, complaint = cross_check_dates(
+        "du 26 mai 2025 au 29 mai 2025", None, None, assume_year=2026
+    )
+    assert stated.start.date() == date(2025, 5, 26)
+    assert not stated.rule.endswith(ASSUMED)
+    assert complaint is None
+
+
+def test_an_assumed_year_is_marked_as_ours_in_the_payload():
+    """ffcam-refuges sets the same flag on a season it narrowed out of words.
+    Nothing may print these as dates the source published."""
+    reading = read_document(
+        [
+            {
+                "statement_type": "opening",
+                "status": "open",
+                "severity": 0,
+                "feature_mention": "Le refuge",
+                "evidence": "Le refuge est ouvert du 15 mars au 15 octobre",
+                "dates_text": "du 15 mars au 15 octobre",
+                "summary_en": "Open for the season",
+            }
+        ],
+        "Le refuge est ouvert du 15 mars au 15 octobre.",
+        NOW,
+        model="test",
+        assume_year=2026,
+    )
+    assert len(reading.statements) == 1
+    assert reading.statements[0].payload["approximate"] is True
+    assert reading.statements[0].valid_from.date() == date(2026, 3, 15)
+
+
+def test_without_an_assumed_year_the_same_reading_is_demoted():
+    """The default is unchanged: a caller that does not opt in still gets
+    rule 3 applied to a yearless season."""
+    reading = read_document(
+        [
+            {
+                "statement_type": "opening",
+                "status": "open",
+                "severity": 0,
+                "feature_mention": "Le refuge",
+                "evidence": "Le refuge est ouvert du 15 mars au 15 octobre",
+                "dates_text": "du 15 mars au 15 octobre",
+                "summary_en": "Open for the season",
+            }
+        ],
+        "Le refuge est ouvert du 15 mars au 15 octobre.",
+        NOW,
+        model="test",
+    )
+    assert reading.statements[0].status is StatusValue.UNKNOWN
+    assert reading.statements[0].payload["undated_status"] == "open"

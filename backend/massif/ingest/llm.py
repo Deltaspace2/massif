@@ -191,10 +191,42 @@ def verify_span(evidence: str, document_text: str) -> bool:
 # ------------------------------------------------------------------- guard 2
 
 
+ASSUMED = "+assumed_year"
+
+
+def with_assumed_year(dates_text: str, year: int) -> DateRange | None:
+    """A recurring season bound to one year, or None.
+
+    Hut websites state the season without a year because it recurs: Refuge de
+    Tré la Tête says "du 15 mars au 15 octobre" and means every year. Municipal
+    arrêtés never do this — they are about one occasion — which is why this is
+    offered to a caller rather than built into parse_range.
+
+    A season that runs backwards once bound is a WINTER one: "du 15 décembre au
+    15 avril" is December to the following April, and the alternative reading
+    is a window that ends before it starts. Rolled forward rather than
+    rejected, because a hut with a winter season is not an error.
+
+    The rule is stamped so the caller can mark the dates as ours. They are an
+    inference — a true one about how these pages are written, and still not
+    something the source published.
+    """
+    bound = parse_range(f"{dates_text} {year}")
+    if bound is None or bound.start is None or bound.end is None:
+        return None
+    if bound.start > bound.end:
+        rolled = parse_range(f"{dates_text} {year + 1}")
+        if rolled is None or rolled.end is None:
+            return None
+        bound = DateRange(bound.start, rolled.end, bound.rule)
+    return DateRange(bound.start, bound.end, bound.rule + ASSUMED)
+
+
 def cross_check_dates(
     dates_text: str | None,
     claimed_start: str | None,
     claimed_end: str | None,
+    assume_year: int | None = None,
 ) -> tuple[DateRange | None, str | None]:
     """Parse the French phrase ourselves and require agreement.
 
@@ -207,6 +239,8 @@ def cross_check_dates(
         return None, None
 
     ours = parse_range(dates_text)
+    if ours is None and assume_year is not None:
+        ours = with_assumed_year(dates_text, assume_year)
     if ours is None:
         return None, f"we cannot parse {dates_text!r} as a date range"
 
@@ -244,6 +278,7 @@ def read_document(
     *,
     model: str,
     source_url: str | None = None,
+    assume_year: int | None = None,
 ) -> Reading:
     """Apply every guard to one document's worth of model output."""
     reading = Reading()
@@ -298,7 +333,10 @@ def read_document(
 
         demoted = None
         dates, complaint = cross_check_dates(
-            dates_text, item.get("valid_from"), item.get("valid_to")
+            dates_text,
+            item.get("valid_from"),
+            item.get("valid_to"),
+            assume_year=assume_year,
         )
 
         severity = item.get("severity", 0)
@@ -343,6 +381,11 @@ def read_document(
             payload["dates_text"] = dates_text
         elif dates:
             payload["date_rule"] = dates.rule
+            if dates.rule.endswith(ASSUMED):
+                # The year is ours, not theirs. Nothing may present these as
+                # dates the source published — the same flag ffcam-refuges
+                # sets on a season it narrowed out of words.
+                payload["approximate"] = True
         payload["dates_found"] = bool(dates)
 
         confidence = item.get("confidence")
