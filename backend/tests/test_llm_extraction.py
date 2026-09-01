@@ -399,9 +399,29 @@ def test_an_open_ended_season_is_a_real_claim_not_a_failed_one():
 
 
 def test_a_phrase_with_neither_end_is_still_nothing():
-    """The relaxation must not turn "until further notice" into a window."""
+    """The relaxation must not turn "until further notice" into a window.
+
+    "à partir de fin septembre" moved to the other side of this line and is
+    read as an open-ended start now: parse_range has always accepted "à partir
+    du 30/09", and refusing the worded form of the same claim was an
+    inconsistency rather than a safeguard. What still has to be nothing is a
+    phrase that bounds no day at all.
+    """
     assert with_assumed_year("jusqu'à nouvel avis", 2026) is None
-    assert with_assumed_year("à partir de fin septembre", 2026) is None
+    assert with_assumed_year("jusqu'à septembre", 2026) is None
+    assert with_assumed_year("l'été", 2026) is None
+
+
+def test_an_open_ended_worded_season_reaches_the_llm_path():
+    """The Cabane de l'A Neuve: "La cabane est ouverte et gardiennée jusqu'à
+    la fin septembre 2026." The review card said we could not read it."""
+    found = with_assumed_year("jusqu'à la fin septembre 2026", 2026)
+    assert found is not None
+    assert found.start is None
+    assert found.end.date() == date(2026, 9, 21)
+    # The day is ours even though the YEAR is theirs, so the writer still marks
+    # it approximate and nothing prints it as the operator's own.
+    assert found.rule.endswith(ASSUMED)
 
 
 def test_a_standing_state_is_not_demoted_for_want_of_dates():

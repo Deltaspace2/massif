@@ -125,7 +125,12 @@ def _window(statement: Statement) -> str:
         return "no dates stated"
     start = f"{published_date(statement.valid_from):%d %b %Y}" if statement.valid_from else "—"
     end = f"{published_date(statement.valid_to):%d %b %Y}" if statement.valid_to else "—"
-    tail = " (the year is OURS)" if (statement.payload or {}).get("approximate") else ""
+    # These dates are OUR reading, not a date the source printed — and which
+    # part is ours varies. "du 15 mars au 15 octobre" gives us the year;
+    # "jusqu'à la fin septembre 2026" states its year and leaves us the day,
+    # narrowed to the 21st. Saying "the year is ours" named the wrong half for
+    # the second, and the reviewer is being told which part to go and check.
+    tail = " (OUR reading, not their dates)" if (statement.payload or {}).get("approximate") else ""
     # A window that has already ended cannot change what the site says today:
     # recompute only considers statements valid NOW. Without this a reviewer
     # accepts a season that closed last week and sees nothing happen — the

@@ -301,6 +301,52 @@ def _last_day(year: int, month: int) -> int:
     return calendar.monthrange(year, month)[1]
 
 
+# What must sit IMMEDIATELY before a lone worded end for it to mean anything.
+# Adjacency is the whole guard, and the reason is in the data: the Refuge du
+# Requin publishes "jusqu'au 30/08 puis les WE début septembre". Looking
+# anywhere earlier in the phrase finds "jusqu'au", pairs it with "début
+# septembre" and moves the end of the season eight days later than the refuge
+# said. The weekends after are not the season.
+_ENDS_AT = re.compile(r"jusqu'?\s*(?:au?|en)\s+(?:l[ae]\s+|l'\s*)?$")
+_STARTS_AT = re.compile(r"(?:a\s+partir\s+d[eu]|des|depuis)\s+(?:l[ae]\s+|l'\s*)?$")
+
+
+def _one_ended(flat: str, match: re.Match, year: int) -> DateRange | None:
+    """One worded end, and the preposition in front of it says which end.
+
+    "La cabane est ouverte et gardiennée jusqu'à la fin septembre 2026" states
+    an end and no start, and that is the commonest shape on a hut's own page.
+    Requiring two ends threw it away, and the review card blamed the refuge for
+    a silence that was our parser's.
+
+    An end takes the EARLIEST day its word allows and a start the latest, the
+    same direction as a two-ended phrase: what we publish is always a subset of
+    what the words permit. So "jusqu'à la fin septembre" ends on the 21st. The
+    hut may well be staffed to the 30th; it certainly is to the 21st, and
+    claiming the days in between would be us saying something nobody published.
+
+    A worded end with no preposition governing it is not a claim about a
+    window — "puis les WE début septembre" — and gets the same silence as no
+    phrase at all.
+    """
+    day, word, month, explicit_year = match.groups()
+    if not day and not word:
+        return None  # a bare month name is not a date
+    before = flat[: match.start()]
+    ends_at = bool(_ENDS_AT.search(before))
+    starts_at = bool(_STARTS_AT.search(before))
+    if ends_at == starts_at:  # neither, or a phrase that says both at once
+        return None
+
+    on = int(explicit_year) if explicit_year else year
+    month_number = MONTHS[month]
+    number = int(day) if day else QUALIFIERS[word][0 if ends_at else 1]
+    number = min(number, _last_day(on, month_number))
+    if ends_at:
+        return DateRange(None, _at(on, month_number, number, end=True), "coarse")
+    return DateRange(_at(on, month_number, number), None, "coarse")
+
+
 def parse_coarse_range(text: str, year: int, *, may_cross_year: bool = False) -> DateRange | None:
     """A season written in WORDS, narrowed to the days it certainly covers.
 
@@ -320,12 +366,16 @@ def parse_coarse_range(text: str, year: int, *, may_cross_year: bool = False) ->
     silent, wrong answer this codebase keeps writing rules about. A hut's own
     winter opening does cross, and for that caller it is the only reading.
     """
-    found = _COARSE_END.findall(_norm(text))
-    if len(found) != 2:
+    flat = _norm(text)
+    matches = list(_COARSE_END.finditer(flat))
+    if len(matches) == 1:
+        return _one_ended(flat, matches[0], year)
+    if len(matches) != 2:
         return None
 
     ends = []
-    for index, (day, word, month, explicit_year) in enumerate(found):
+    for index, match in enumerate(matches):
+        day, word, month, explicit_year = match.groups()
         if not day and not word:
             return None  # a bare month name is not a date
         month_number = MONTHS[month]
@@ -335,8 +385,8 @@ def parse_coarse_range(text: str, year: int, *, may_cross_year: bool = False) ->
         ends.append((on, month_number, number))
 
     (y1, m1, d1), (y2, m2, d2) = ends
-    start = datetime(y1, m1, d1, tzinfo=UTC)
-    end = datetime(y2, m2, d2, 23, 59, 59, tzinfo=UTC)
+    start = _at(y1, m1, d1)
+    end = _at(y2, m2, d2, end=True)
     if start >= end:
         if not may_cross_year or explicit_year:
             return None
@@ -344,7 +394,7 @@ def parse_coarse_range(text: str, year: int, *, may_cross_year: bool = False) ->
         # state its own year: a source that wrote both years and still ran
         # backwards has said something we do not understand, and guessing at
         # it is worse than queueing it.
-        end = datetime(y2 + 1, m2, d2, 23, 59, 59, tzinfo=UTC)
+        end = _at(y2 + 1, m2, d2, end=True)
     return DateRange(start, end, "coarse")
 
 

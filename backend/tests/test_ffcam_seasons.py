@@ -399,3 +399,16 @@ def test_ffcam_never_rolls_a_backwards_season_into_the_next_year():
     from massif.ingest.sources.ffcam import _coarse_windows
 
     assert _coarse_windows("De fin septembre à mi février", 2026) is None
+
+
+def test_a_season_with_only_one_end_is_not_a_ffcam_season():
+    """The shared parser reads "jusqu'à la fin septembre 2026" as an end with
+    no start, because that is the commonest shape on a hut's OWN site.
+
+    A "Période de gardiennage" block is not that. It states a season with two
+    ends, and extract() formats both into every summary it writes — so a
+    one-ended range here is a phrase we misread, and letting it through would
+    print a wardening period beginning at the dawn of time.
+    """
+    assert _windows("Gardiennage : jusqu'à la fin septembre 2026", 2026) == []
+    assert _windows("Gardiennage : à partir de début juin", 2026) == []

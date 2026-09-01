@@ -76,7 +76,7 @@ def _show(statement, feature, source) -> None:
         end = f"{published_date(statement.valid_to):%d %b %Y}" if statement.valid_to else "—"
         window = f"{start} to {end}"
         if payload.get("approximate"):
-            window += "  (the year is OURS, not theirs)"
+            window += "  (OUR reading, not dates they printed)"
 
     print(f"\n  id        {statement.id}")
     print(f"  feature   {feature.slug}  ({feature.name_default})")

@@ -203,7 +203,12 @@ def _windows(text: str, year: int | None = None) -> list[tuple[str, DateRange]]:
             out.append((_clean_name(label) or "Gardiennage", found))
             continue
         coarse = _coarse_windows(rest, year)
-        if coarse is not None:
+        # Both ends, as the parse_range branch above also requires. The shared
+        # parser can now return a one-ended season — "jusqu'à la fin septembre
+        # 2026" is the commonest shape on a hut's OWN site — but a "Période de
+        # gardiennage" block is a season with two ends, and extract() below
+        # formats both into every summary.
+        if coarse is not None and coarse.bounded:
             named = _clean_name(label)
             # Leschaux repeats the heading as its own label; that is not a
             # season name.

@@ -273,7 +273,43 @@ def test_a_bare_month_name_is_not_a_date():
     from massif.ingest.fr_dates import parse_coarse_range
 
     assert parse_coarse_range("de juin à septembre", 2026) is None
-    assert parse_coarse_range("à partir de fin septembre", 2026) is None
+    assert parse_coarse_range("jusqu'à septembre", 2026) is None
+    assert parse_coarse_range("jusqu'à nouvel avis", 2026) is None
+
+
+def test_one_worded_end_is_read_and_the_preposition_says_which_end():
+    """ "La cabane est ouverte et gardiennée jusqu'à la fin septembre 2026."
+
+    An end and no start is the commonest shape on a hut's own page, and
+    parse_range has always accepted the numeric form of it. Requiring two
+    worded ends threw this away, and the review card blamed the refuge for a
+    silence that was ours.
+    """
+    from massif.ingest.fr_dates import parse_coarse_range
+
+    ends = parse_coarse_range("jusqu'à la fin septembre 2026", 2026)
+    assert ends is not None and ends.start is None
+    # The earliest day "fin septembre" allows. The hut may well be staffed to
+    # the 30th; it certainly is to the 21st, and claiming the days between
+    # would be us publishing something nobody said.
+    assert (ends.end.month, ends.end.day) == (9, 21)
+
+    starts = parse_coarse_range("à partir de fin septembre", 2026)
+    assert starts is not None and starts.end is None
+    assert (starts.start.month, starts.start.day) == (9, 30)  # the latest it allows
+
+
+def test_a_lone_worded_end_needs_a_preposition_immediately_before_it():
+    """The Refuge du Requin publishes "jusqu'au 30/08 puis les WE début
+    septembre".
+
+    Looking anywhere earlier in the phrase for a preposition finds "jusqu'au",
+    pairs it with "début septembre" and moves the end of the season eight days
+    past what the refuge said. The weekends after are not the season.
+    """
+    from massif.ingest.fr_dates import parse_coarse_range
+
+    assert parse_coarse_range("jusqu'au 30/08 puis les WE début septembre", 2026) is None
 
 
 def test_a_season_may_cross_the_new_year_only_where_the_caller_says_so():
