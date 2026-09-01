@@ -109,6 +109,11 @@ def _waiting(session: Session):
             Statement.payload["needs_review"].as_boolean().is_(True),
             Statement.reviewed_at.is_(None),
             Statement.superseded_at.is_(None),
+            # A deactivated feature is one somebody already decided about —
+            # the Bivacco della Fourche was taken off the map after the
+            # rockfall, and its statements were still queueing for a verdict
+            # nobody can act on.
+            Feature.active.is_(True),
         )
         .order_by(Statement.observed_at.desc())
     ).all()

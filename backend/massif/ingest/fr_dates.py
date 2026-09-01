@@ -172,6 +172,11 @@ _PATTERNS: list[tuple[str, re.Pattern]] = [
         ),
     ),
     ("until", re.compile(rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
+    # The numeric forms of the same two shapes. Hut websites write "gardé
+    # jusqu'au 30/08" where a mairie writes "jusqu'au 30 août 2026", and the
+    # named-month rules above could not see them at all.
+    ("until_numeric", re.compile(r"jusqu'?\s*au\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
+    ("from_numeric", re.compile(r"(?:a\s+partir\s+du|des\s+le)\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
     ("from", re.compile(rf"a\s+partir\s+du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
     ("single_named", re.compile(rf"(?:le|du)\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
     ("single_numeric", re.compile(r"le\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
@@ -239,6 +244,12 @@ def parse_range(text: str) -> DateRange | None:
             if rule == "until":
                 day, month, year = groups
                 return DateRange(None, _at(_year(year), MONTHS[month], int(day), end=True), rule)
+            if rule == "until_numeric":
+                day, month, year = groups
+                return DateRange(None, _at(_year(year), int(month), int(day), end=True), rule)
+            if rule == "from_numeric":
+                day, month, year = groups
+                return DateRange(_at(_year(year), int(month), int(day)), None, rule)
             if rule == "from":
                 day, month, year = groups
                 return DateRange(_at(_year(year), MONTHS[month], int(day)), None, rule)

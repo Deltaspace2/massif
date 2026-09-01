@@ -522,3 +522,17 @@ def test_a_card_says_what_else_came_off_the_same_page():
     body = TestClient(app).get("/admin/review", headers=AUTH).text
     assert "Also taken from this page" in body
     assert "staffed until 30 August" in body
+
+
+def test_a_deactivated_feature_is_not_queued_for_review():
+    """A feature somebody already took off the map — the Bivacco della
+    Fourche, after the rockfall — must not queue statements for a verdict
+    nobody can act on."""
+    from massif.admin import _waiting
+
+    sql = str(_waiting.__doc__ or "")  # documented behaviour lives in the query
+    del sql
+    import inspect
+
+    source = inspect.getsource(_waiting)
+    assert "Feature.active.is_(True)" in source

@@ -198,6 +198,14 @@ def verify_span(evidence: str, document_text: str) -> bool:
 
 ASSUMED = "+assumed_year"
 
+# "30/08", but never the "30/08" inside "30/08/2026".
+#
+# The lookahead refuses a following DIGIT as well as a slash, and both halves
+# are needed. With `(?!/\d)` alone the month group backtracks to a single digit
+# — "08/09/2026" matched as "08/0", and the replacement produced
+# "08/0/20269/2026".
+_BARE_DAY_MONTH = re.compile(r"\b(\d{1,2})/(\d{1,2})(?![\d/])")
+
 
 def with_assumed_year(dates_text: str, year: int) -> DateRange | None:
     """A recurring season bound to one year, or None.
@@ -217,6 +225,11 @@ def with_assumed_year(dates_text: str, year: int) -> DateRange | None:
     something the source published.
     """
     bound = parse_range(f"{dates_text} {year}")
+    if bound is None:
+        # A bare numeric day/month takes the year INSIDE it — appending one to
+        # the end of "jusqu'au 30/08" produces nothing any rule recognises.
+        # The lookahead keeps it off a date that already states its year.
+        bound = parse_range(_BARE_DAY_MONTH.sub(rf"\1/\2/{year}", dates_text))
     if bound is None or (bound.start is None and bound.end is None):
         return None
     # An open-ended range is a real claim, not a failed one. "jusqu'au 26

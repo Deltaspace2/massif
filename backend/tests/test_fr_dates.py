@@ -229,3 +229,21 @@ def test_a_split_year_range_puts_the_start_in_the_earlier_year():
 
 def test_a_weekday_alone_is_still_not_a_date():
     assert parse_range("ouvert du vendredi au dimanche") is None
+
+
+# --------------------------------------------------- the numeric shapes too
+
+
+def test_jusqu_au_reads_a_numeric_date():
+    """Hut websites write "gardé jusqu'au 30/08" where a mairie writes
+    "jusqu'au 30 août 2026". The named-month rules could not see them at all,
+    so the Refuge du Requin's own opening notice was demoted to unknown."""
+    found = parse_range("jusqu'au 30/08/2026")
+    assert found.start is None
+    assert found.end.date() == date(2026, 8, 30)
+
+
+def test_a_partir_du_reads_a_numeric_date():
+    found = parse_range("à partir du 12/06/2026")
+    assert found.start.date() == date(2026, 6, 12)
+    assert found.end is None

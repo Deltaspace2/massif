@@ -437,3 +437,26 @@ def test_a_transient_claim_is_still_demoted():
         )
         assert reading.statements[0].status is StatusValue.UNKNOWN, status
         assert reading.statements[0].payload["undated_status"] == status
+
+
+def test_a_bare_numeric_day_month_takes_the_assumed_year_inside_it():
+    """Appending a year to "jusqu'au 30/08" produces nothing any rule reads,
+    so the year has to be written INTO the date rather than after it."""
+    found = with_assumed_year("jusqu'au 30/08", 2026)
+    assert found.end.date() == date(2026, 8, 30)
+    both = with_assumed_year("du 12/06 au 08/09", 2026)
+    assert both.start.date() == date(2026, 6, 12)
+    assert both.end.date() == date(2026, 9, 8)
+
+
+def test_a_date_that_already_states_its_year_is_left_alone():
+    """The lookahead has to refuse a following DIGIT as well as a slash. With
+    only the slash the month group backtracks to one digit: "08/09/2026"
+    matched as "08/0" and the rewrite produced "08/0/20269/2026"."""
+    mixed = with_assumed_year("du 12/06 au 08/09/2026", 2026)
+    assert mixed.start.date() == date(2026, 6, 12)
+    assert mixed.end.date() == date(2026, 9, 8)
+    # And a fully-stated range is untouched.
+    stated = with_assumed_year("du 30/08/2026 au 15/09/2026", 2026)
+    assert stated.start.date() == date(2026, 8, 30)
+    assert stated.end.date() == date(2026, 9, 15)
