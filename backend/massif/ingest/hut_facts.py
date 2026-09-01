@@ -13,6 +13,7 @@ that the part that can be wrong is the part that can be tested.
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -23,6 +24,20 @@ from rapidfuzz import fuzz
 # a different building — the same argument that stopped the route importer
 # drawing the Goûter route up a mountain 20 km north.
 ALTITUDE_TOLERANCE_M = 120
+
+# How close their pin has to be to ours to stand in for a name.
+#
+# refuges.info is a French site and writes Italian huts under French NAMES, not
+# just French generics: their "Bivouac d'Estelette (Adolfo Hess)" is our
+# Bivacco Adolfo Hess, their "Bivouac Quintino Sella aux Rochers" our Capanna
+# Quintino Sella ai Rochers. Folding the generic was not enough, because it is
+# the proper name that differs. Seventeen entries inside the massif boundary
+# went unmatched that way, most of them Italian bivouacs we do carry.
+#
+# Same figure camptocamp's importer already uses, and it is checked TOGETHER
+# with altitude and the decoy list, never alone: two buildings 150 m apart at
+# the same height is exactly the Tête Rousse refuge and its base camp.
+MATCH_METRES = 150.0
 
 # Above this, a name match is trusted; below it, the entry goes unmatched
 # rather than being guessed at.
@@ -49,8 +64,14 @@ DECOYS = re.compile(
 )
 
 # Their type vocabulary, reduced to the one thing we render.
-GUARDED = {"refuge gardé": True, "gîte d'étape": True, "refuge non gardé": False,
-           "cabane non gardée": False, "abri": False, "bivouac": False}
+GUARDED = {
+    "refuge gardé": True,
+    "gîte d'étape": True,
+    "refuge non gardé": False,
+    "cabane non gardée": False,
+    "abri": False,
+    "bivouac": False,
+}
 
 
 # refuges.info is a French site, so it writes Italian huts with the French
@@ -70,8 +91,10 @@ GUARDED = {"refuge gardé": True, "gîte d'étape": True, "refuge non gardé": F
 # is staffed — and collapsing them invents matches. Each pair below is the
 # same word in two languages.
 GENERIC_FORMS = {
-    "rifugio": "refuge", "refugio": "refuge",
-    "bivacco": "bivouac", "biwak": "bivouac",
+    "rifugio": "refuge",
+    "refugio": "refuge",
+    "bivacco": "bivouac",
+    "biwak": "bivouac",
     "capanna": "cabane",
     "riparo": "abri",
 }
@@ -103,6 +126,8 @@ class Candidate:
     url: str
     payload: dict
     modified_at: str | None
+    lat: float | None = None
+    lon: float | None = None
 
 
 @dataclass
@@ -132,6 +157,7 @@ def read_candidate(feature: dict) -> Candidate | None:
 
     coord = props.get("coord") or {}
     info = props.get("info_comp") or {}
+    lat, lon = coord.get("lat"), coord.get("long")
 
     def flag(key: str) -> bool | None:
         entry = info.get(key)
@@ -166,6 +192,8 @@ def read_candidate(feature: dict) -> Candidate | None:
         url=props.get("lien") or "",
         payload={k: v for k, v in payload.items() if v is not None},
         modified_at=((props.get("date") or {}).get("derniere_modif")),
+        lat=lat if isinstance(lat, int | float) else None,
+        lon=lon if isinstance(lon, int | float) else None,
     )
 
 
@@ -183,17 +211,62 @@ def _phone(props: dict) -> str | None:
     return re.sub(r"[\s.\-]+", " ", found.group(0)).strip() if found else None
 
 
+def metres_between(a: tuple[float, float], b: tuple[float, float]) -> float:
+    """Rough great-circle metres. Fine at 150 m in one massif."""
+    return math.hypot(
+        (a[0] - b[0]) * 111_000,
+        (a[1] - b[1]) * 111_000 * math.cos(math.radians(a[0])),
+    )
+
+
+def match_by_position(
+    our_position: tuple[float, float] | None,
+    our_altitude_m: int | None,
+    candidates: list[Candidate],
+) -> Match | None:
+    """Their entry for a hut whose NAME we could not match, by where it is.
+
+    Deliberately last, and deliberately strict. Two candidates in range is an
+    ambiguity, not a match, and it refuses rather than picking the nearer —
+    the whole reason a position check is safe here is that it never has to
+    guess between two buildings.
+    """
+    if our_position is None:
+        return None
+    near: list[tuple[float, Candidate]] = []
+    for candidate in candidates:
+        if is_decoy(candidate.name):
+            continue
+        if candidate.lat is None or candidate.lon is None:
+            continue
+        if (
+            our_altitude_m is not None
+            and candidate.altitude_m is not None
+            and abs(candidate.altitude_m - our_altitude_m) > ALTITUDE_TOLERANCE_M
+        ):
+            continue
+        distance = metres_between(our_position, (candidate.lat, candidate.lon))
+        if distance <= MATCH_METRES:
+            near.append((distance, candidate))
+    if len(near) != 1:
+        return None
+    distance, candidate = near[0]
+    return Match(candidate, 100.0 - distance / MATCH_METRES, "position")
+
+
 def match_candidate(
     our_name: str,
     our_altitude_m: int | None,
     candidates: list[Candidate],
     *,
     curated_ref: str | None = None,
+    our_position: tuple[float, float] | None = None,
 ) -> Match | None:
     """Pick their entry for one of our huts, or nothing.
 
     Order: a curated external id always wins, because a human decided it. Then
-    name similarity, floored, with decoys removed and altitude checked.
+    name similarity, floored, with decoys removed and altitude checked. Then,
+    only if the name found nothing, where the building actually is.
 
     Returning None is still a perfectly good outcome, but it used to be claimed
     far too readily: this reported six huts as absent when refuges.info had
@@ -225,4 +298,6 @@ def match_candidate(
             continue
         if best is None or score > best.score:
             best = Match(candidate, score, "fuzzy")
-    return best
+    if best is not None:
+        return best
+    return match_by_position(our_position, our_altitude_m, candidates)

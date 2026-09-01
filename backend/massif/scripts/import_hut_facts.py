@@ -20,7 +20,7 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from massif.db import session_scope
 from massif.ingest.base import fetch
@@ -84,6 +84,18 @@ def main() -> int:
             select(Feature).where(Feature.feature_type == "hut").order_by(Feature.slug)
         ).all()
 
+        # Where our huts are, for the position fallback. One query, read
+        # through PostGIS rather than the ORM because `geom` is geography.
+        positions = {
+            row.id: (row.lat, row.lon)
+            for row in session.execute(
+                text(
+                    "SELECT id, ST_Y(geom::geometry) lat, ST_X(geom::geometry) lon "
+                    "FROM features WHERE feature_type='hut' AND geom IS NOT NULL"
+                )
+            )
+        }
+
         now = datetime.now(UTC)
         matched = unmatched = 0
 
@@ -91,7 +103,11 @@ def main() -> int:
             curated = (hut.external_ids or {}).get(SOURCE_SLUG)
             altitude = hut.alt_max or hut.alt_min
             match = match_candidate(
-                hut.name_default, altitude, candidates, curated_ref=curated
+                hut.name_default,
+                altitude,
+                candidates,
+                curated_ref=curated,
+                our_position=positions.get(hut.id),
             )
             if match is None:
                 unmatched += 1

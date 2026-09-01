@@ -136,8 +136,7 @@ def test_a_curated_id_beats_every_name():
     assert match.candidate.name == "Refuge des Cosmiques"
     # And a curated id that is not in the response matches nothing, rather
     # than quietly falling back to guessing.
-    assert match_candidate("Refuge des Cosmiques", 3613, CANDIDATES,
-                           curated_ref="404404") is None
+    assert match_candidate("Refuge des Cosmiques", 3613, CANDIDATES, curated_ref="404404") is None
 
 
 def test_no_match_is_a_normal_outcome():
@@ -202,11 +201,88 @@ def test_the_decoy_list_still_wins_after_translation():
 def test_zero_places_is_missing_data_not_a_capacity_of_zero():
     conscrits = Candidate("2", "Cabane des Conscrits", 2730, "u", {}, None)
     assert "capacity" not in conscrits.payload
-    raw = {"properties": {"id": 3, "nom": "X", "coord": {"alt": 2000},
-                          "type": {"valeur": "refuge gardé"},
-                          "places": {"valeur": 0}}}
+    raw = {
+        "properties": {
+            "id": 3,
+            "nom": "X",
+            "coord": {"alt": 2000},
+            "type": {"valeur": "refuge gardé"},
+            "places": {"valeur": 0},
+        }
+    }
     assert "capacity" not in read_candidate(raw).payload
 
 
 def test_norm_strips_accents_like_everything_else_here():
     assert norm("Refuge du Goûter") == "refuge du gouter"
+
+
+# ------------------------------------------------- matching by where it is
+
+
+def at(name, alt, lat, lon, ref="9"):
+    return Candidate(ref, name, alt, "u", {}, None, lat=lat, lon=lon)
+
+
+HESS = (45.7803, 6.8447)  # Bivacco Adolfo Hess, 2958 m
+
+
+def test_an_italian_hut_under_a_french_name_is_found_by_position():
+    """refuges.info is a French site and writes Italian huts under French
+    NAMES, not merely French generics: their "Bivouac d'Estelette (Adolfo
+    Hess)" is our Bivacco Adolfo Hess. Folding the generic was not enough
+    because it is the proper name that differs, and seventeen entries inside
+    the massif went unmatched that way."""
+    theirs = at("Bivouac d'Estelette (Adolfo Hess)", 2958, *HESS)
+    found = match_candidate("Bivacco Adolfo Hess", 2958, [theirs], our_position=HESS)
+    assert found is not None
+    assert found.method == "position"
+    assert found.candidate.external_ref == "9"
+
+
+def test_the_name_is_still_tried_first():
+    """Position is a fallback, not a replacement — a name match keeps its
+    method and its score so the log still says how a hut was matched."""
+    theirs = at("Refuge des Cosmiques", 3613, *HESS)
+    found = match_candidate("Refuge des Cosmiques", 3613, [theirs], our_position=HESS)
+    assert found is not None
+    assert found.method == "fuzzy"
+
+
+def test_two_buildings_in_range_is_an_ambiguity_not_a_match():
+    """The whole reason a position check is safe here is that it never has to
+    guess between two buildings. Tête Rousse's refuge and its base camp sit
+    two metres apart in altitude and well inside this radius."""
+    pair = [
+        at("Cabane rouge", 3165, 45.8555, 6.8300, ref="1"),
+        at("Camp de base", 3167, 45.8556, 6.8301, ref="2"),
+    ]
+    # Neither name matches ours, so this reaches the position path — which is
+    # where the ambiguity has to be refused.
+    assert (
+        match_candidate("Refuge de Tête Rousse", 3166, pair, our_position=(45.8555, 6.8300)) is None
+    )
+
+
+def test_position_does_not_override_the_altitude_check():
+    """A building directly below another is not that building. Altitude is
+    checked on this path too, not only on the name path."""
+    below = at("Cabane quelconque", 2400, *HESS)
+    assert match_candidate("Bivacco Adolfo Hess", 2958, [below], our_position=HESS) is None
+
+
+def test_a_decoy_is_refused_on_the_position_path_too():
+    """Otherwise the demolished building sitting metres from the working one
+    walks in through the door the name check was guarding."""
+    old = at("Ancien bivouac d'Estelette", 2958, *HESS)
+    assert match_candidate("Bivacco Adolfo Hess", 2958, [old], our_position=HESS) is None
+
+
+def test_a_hut_further_off_than_the_radius_is_not_matched():
+    far = at("Bivouac ailleurs", 2958, 45.8100, 6.8447)
+    assert match_candidate("Bivacco Adolfo Hess", 2958, [far], our_position=HESS) is None
+
+
+def test_without_our_own_position_nothing_changes():
+    theirs = at("Bivouac d'Estelette (Adolfo Hess)", 2958, *HESS)
+    assert match_candidate("Bivacco Adolfo Hess", 2958, [theirs]) is None

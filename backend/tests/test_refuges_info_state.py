@@ -52,9 +52,9 @@ def test_open_is_not_a_state_this_module_can_emit():
     hut is open, because it does not know.
     """
     assert "ouverture" not in STATES
-    assert all(
-        status is not StatusValue.OPEN for _, status, _, _ in STATES.values()
-    ), "no state may map to OPEN"
+    assert all(status is not StatusValue.OPEN for _, status, _, _ in STATES.values()), (
+        "no state may map to OPEN"
+    )
     # And with words in it, an ouverture entry still emits nothing.
     assert extract(payload(entry("X", "ouverture", "Ouvert")), FETCHED) == []
 
@@ -68,7 +68,7 @@ def test_a_closure_becomes_a_closure():
 
 
 def test_a_key_to_collect_is_a_restriction_not_a_closure():
-    """"Clés à récupérer" is a hut you can use, having arranged it. Calling
+    """ "Clés à récupérer" is a hut you can use, having arranged it. Calling
     that closed would be as wrong as calling it open."""
     out = extract(
         payload(entry("Refuge des Petoudes", "cle_a_recuperer", "Clés à récupérer")),
@@ -79,7 +79,7 @@ def test_a_key_to_collect_is_a_restriction_not_a_closure():
 
 
 def test_destroyed_is_flagged_for_a_human():
-    """"Détruite" says the building is gone, which is not the same claim as a
+    """ "Détruite" says the building is gone, which is not the same claim as a
     closure and probably means the hut should not be on the map at all. That is
     a person's call: refuges.info says the Bivacco della Fourche is destroyed
     and OSM still maps it, and whichever source we read second should not get
@@ -90,7 +90,7 @@ def test_destroyed_is_flagged_for_a_human():
 
 
 def test_a_superseded_building_is_dropped_before_it_can_be_resolved():
-    """"Ancien refuge du Goûter — Détruite" is really in this response, and it
+    """ "Ancien refuge du Goûter — Détruite" is really in this response, and it
     scores well above the resolver's 88 floor against our live Refuge du
     Goûter. The resolver has no decoy list; that guard lives in the hut
     matcher. Without this, a destroyed-building notice lands on the working
@@ -104,8 +104,14 @@ def test_the_date_is_theirs_not_ours():
     let a four-year-old wiki edit outrank this morning's arrêté on recency, and
     would hide its age from the staleness rules."""
     out = extract(
-        payload(entry("Refuge Pavillon", "fermeture", "Fermé au public",
-                      modified="2021-12-09 12:41:46.918419+01")),
+        payload(
+            entry(
+                "Refuge Pavillon",
+                "fermeture",
+                "Fermé au public",
+                modified="2021-12-09 12:41:46.918419+01",
+            )
+        ),
         FETCHED,
     )
     assert out[0].observed_at.year == 2021
@@ -132,3 +138,58 @@ def test_the_permalink_travels_with_the_statement():
     out = extract(payload(entry("Cabane des Rognes", "fermeture", "Fermée", ref=42)), FETCHED)
     assert out[0].payload["permalink"].endswith("/point/42/")
     assert out[0].payload["refuges_info_id"] == "42"
+
+
+# --------------------------------------------- the shelter type, for one value
+
+
+def typed(name, kind, etat_id="ouverture", valeur="", ref=1):
+    entry_ = entry(name, etat_id, valeur, ref=ref)
+    entry_["properties"]["type"] = {"id": 7, "valeur": kind}
+    return entry_
+
+
+def test_an_unguarded_cabin_is_open_because_it_has_no_warden():
+    """Seventeen of our huts are classified "cabane non gardée" and every one
+    read "unknown" — which said we had failed to find something out, when the
+    truth is there is nothing to find out. Nobody will ever publish an opening
+    date for a building with no warden.
+
+    CLAUDE.md draws the fact/statement line with this exact example: "The
+    warden season is a statement; the bunk count is a fact."
+    """
+    found = extract(payload(typed("Bivouac des Périades", "cabane non gardée")), FETCHED)
+    assert len(found) == 1
+    assert found[0].status == StatusValue.OPEN
+    assert found[0].statement_type == StatementType.OPERATIONAL_STATUS
+    assert found[0].severity == 0
+    assert found[0].payload["unwardened"] is True
+
+
+def test_a_warden_ed_refuge_stays_unknown():
+    """The whole point of reading only ONE type value. A "refuge gardé" HAS a
+    season and we do not know it; saying it is open would be inventing the
+    answer rather than reporting one. Same for a valley gîte d'étape."""
+    assert extract(payload(typed("Refuge du Couvercle", "refuge gardé")), FETCHED) == []
+    assert extract(payload(typed("Auberge du Truc", "gîte d'étape")), FETCHED) == []
+
+
+def test_a_flagged_state_beats_the_type_outright():
+    """A cabin they have marked shut, key-only or destroyed must not also be
+    told the world it is open all year. Not resolved by severity later — the
+    open claim is never emitted at all, so the two can never both stand."""
+    for state, valeur in (
+        ("fermeture", "Fermée"),
+        ("detruit", "Détruite"),
+        ("cle_a_recuperer", "Clés à récupérer"),
+    ):
+        found = extract(payload(typed("Cabane X", "cabane non gardée", state, valeur)), FETCHED)
+        assert len(found) == 1
+        assert found[0].status != StatusValue.OPEN
+
+
+def test_a_destroyed_decoy_is_still_dropped_before_any_of_this():
+    """The decoy guard has to run before the type is read too, or "Ancien
+    refuge du Goûter" comes back as a cheerful open shelter instead of being
+    dropped."""
+    assert extract(payload(typed("Ancien refuge du Goûter", "cabane non gardée")), FETCHED) == []

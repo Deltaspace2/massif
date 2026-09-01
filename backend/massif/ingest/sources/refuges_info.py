@@ -70,6 +70,32 @@ STATES: dict[str, tuple[StatementType, StatusValue, int, str]] = {
 }
 
 
+# The shelter TYPE, for the one value that answers "is there a season".
+#
+# "Cabane non gardée" is an unguarded mountain cabin: no warden, no bookings,
+# no opening date, open the year round. Seventeen of our huts are classified
+# this way and every one of them read "unknown", which was wrong in a way that
+# mattered — it said we had failed to find something out, when the answer is
+# that there is nothing to find out. Nobody will ever publish an opening date
+# for a building that has no warden.
+#
+# WHY THIS IS A STATEMENT AND NOT A FACT. CLAUDE.md draws that line with this
+# exact example: "The warden season is a statement; the bunk count is a fact."
+# An unguarded cabin's warden arrangement is a claim about how the building
+# operates, published by the same wiki field family as `etat`, which is already
+# a statement here.
+#
+# The other two types are deliberately absent. "Refuge gardé" HAS a season and
+# we simply do not know it — that must stay unknown. "Gîte d'étape" is valley
+# accommodation with its own opening hours. Only the unguarded case is an
+# answer rather than a gap.
+UNGUARDED_TYPES = {"cabane non gardée", "cabane non gardee"}
+
+UNGUARDED_SUMMARY = (
+    "Unstaffed shelter, open year-round — no warden, so there is no season to open or close"
+)
+
+
 def _modified(properties: dict) -> datetime | None:
     """When the entry was last edited, which is the only date they give.
 
@@ -87,17 +113,6 @@ def extract(payload: dict, fetched_at: datetime) -> list[ExtractedStatement]:
     out: list[ExtractedStatement] = []
     for feature in payload.get("features") or []:
         properties = feature.get("properties") or {}
-        state = properties.get("etat") or {}
-        mapped = STATES.get(state.get("id") or "")
-        if mapped is None:
-            # id=ouverture, or an id we have never seen. Either way nobody has
-            # asserted anything, so nothing is published about this hut.
-            continue
-        # A state with an id but no words is still a default, not a claim.
-        words = (state.get("valeur") or "").strip()
-        if not words:
-            continue
-
         name = (properties.get("nom") or "").strip()
         ref = properties.get("id")
         if not name or ref is None:
@@ -110,36 +125,80 @@ def extract(payload: dict, fetched_at: datetime) -> list[ExtractedStatement]:
         if is_decoy(name):
             continue
 
-        statement_type, status, severity, summary = mapped
+        state = properties.get("etat") or {}
+        mapped = STATES.get(state.get("id") or "")
+        # A state with an id but no words is still a default, not a claim.
+        words = (state.get("valeur") or "").strip()
         observed = _modified(properties) or fetched_at
-        out.append(
-            ExtractedStatement(
-                feature_mention=name,
-                statement_type=statement_type,
-                status=status,
-                severity=severity,
-                observed_at=observed,
-                # No window: they publish a current state, not a period. The
-                # status pipeline ages it by STALE_DAYS from observed_at, which
-                # is right — a closure recorded in 2021 should not still be
-                # colouring a hut red today without saying how old it is.
-                valid_from=None,
-                valid_to=None,
-                summary_en=summary,
-                original_text=words,
-                original_language="fr",
-                extraction_method=ExtractionMethod.RULE,
-                extraction_confidence=0.9,
-                payload={
-                    "refuges_info_id": str(ref),
-                    "etat": state.get("id"),
-                    "permalink": properties.get("lien"),
-                    # Destroyed is a judgement a person should make, not a
-                    # status we quietly paint on the map.
-                    "needs_review": state.get("id") == "detruit",
-                },
+        common = {
+            "refuges_info_id": str(ref),
+            "permalink": properties.get("lien"),
+        }
+
+        if mapped is not None and words:
+            statement_type, status, severity, summary = mapped
+            out.append(
+                ExtractedStatement(
+                    feature_mention=name,
+                    statement_type=statement_type,
+                    status=status,
+                    severity=severity,
+                    observed_at=observed,
+                    # No window: they publish a current state, not a period. The
+                    # status pipeline ages it by STALE_DAYS from observed_at,
+                    # which is right — a closure recorded in 2021 should not
+                    # still be colouring a hut red today without saying how old
+                    # it is.
+                    valid_from=None,
+                    valid_to=None,
+                    summary_en=summary,
+                    original_text=words,
+                    original_language="fr",
+                    extraction_method=ExtractionMethod.RULE,
+                    extraction_confidence=0.9,
+                    payload={
+                        **common,
+                        "etat": state.get("id"),
+                        # Destroyed is a judgement a person should make, not a
+                        # status we quietly paint on the map.
+                        "needs_review": state.get("id") == "detruit",
+                    },
+                )
             )
-        )
+            # A hut they have flagged shut, key-only or destroyed does not also
+            # get told the world it is open all year. The state is the more
+            # specific claim and it wins outright rather than by severity.
+            continue
+
+        kind = ((properties.get("type") or {}).get("valeur") or "").strip().lower()
+        if kind in UNGUARDED_TYPES:
+            out.append(
+                ExtractedStatement(
+                    feature_mention=name,
+                    # How the building operates, which is what this is. Aged by
+                    # SOURCE_STALE_DAYS for refuges-info rather than
+                    # operational_status' one day: a wiki classification is a
+                    # standing state, not a live reading.
+                    statement_type=StatementType.OPERATIONAL_STATUS,
+                    status=StatusValue.OPEN,
+                    # Never competes with a notice. An unguarded cabin being
+                    # open is the ordinary state of the world, not news.
+                    severity=0,
+                    observed_at=observed,
+                    valid_from=None,
+                    valid_to=None,
+                    summary_en=UNGUARDED_SUMMARY,
+                    original_text=(properties.get("type") or {}).get("valeur"),
+                    original_language="fr",
+                    extraction_method=ExtractionMethod.RULE,
+                    extraction_confidence=0.9,
+                    payload={
+                        **common,
+                        "shelter_type": kind,
+                        "unwardened": True,
+                    },
+                )
+            )
     return out
 
 
@@ -176,9 +235,7 @@ class RefugesInfoScraper(Scraper):
             )
             if slug:
                 item.feature_slug = slug
-                return super().resolve_and_build(
-                    session, source, document, item, resolver
-                )
+                return super().resolve_and_build(session, source, document, item, resolver)
             # They gave an id and it is not one of ours. That is a decision the
             # facts importer already made, against altitude, a decoy list and a
             # position check — "Cabane des Conscrits" (2730 m, destroyed) is a
