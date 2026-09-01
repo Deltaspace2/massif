@@ -186,8 +186,41 @@ OHM bulletins). Four guards on its output, all tested via cassettes in
 4. **The gate** — `payload.needs_review` is set inside the writer, so no caller
    can opt out by forgetting.
 
-Phase 2 (live client, cache keyed on content hash + prompt version + model)
-needs a decision on `ANTHROPIC_API_KEY`. Model to default to `claude-sonnet-5`.
+Phase 2 is built — `massif/ingest/llm_client.py`, defaulting to
+`claude-sonnet-5`. Two objects kept apart so each is testable without the
+other: `AnthropicExtractor` calls the API and knows nothing about the database,
+`CachedExtractor` wraps any extractor with the `llm_cache` table and knows
+nothing about Anthropic.
+
+- **No key is not an error.** `build_extractor` returns None and the caller
+  skips, exactly as `registry.py` skips a source with no scraper. A run on a
+  machine without a key completes rather than half-completing. The `anthropic`
+  package is an optional extra (`pip install -e '.[llm]'`).
+- **The cache is not optional.** Documents are stored immutably so a better
+  parser can be re-run over history; with a model that re-run is a bill, and
+  `reextract` over one source is hundreds of calls. Keyed on content hash +
+  prompt version + model, because a change to either of the last two is a
+  different question and must MISS rather than return the old answer.
+- **A broken response raises, never returns `[]`.** An empty array means "this
+  document contains no notice" — real and common — so a parse failure
+  disguised as one would read as clean coverage.
+- **The prompt and PROMPT_VERSION are one design.** Every instruction in the
+  prompt exists because a guard in `llm.py` checks it, and a test pins the
+  prompt's hash so it cannot be edited without bumping the version.
+- The document goes in the user turn, never interpolated into the
+  instructions: it is untrusted text from someone else's website.
+
+NOT YET WIRED TO A SOURCE, and that is the next decision rather than an
+oversight. The obvious first candidate is the Saint-Gervais notice BODIES: 28
+of its 36 stored documents currently yield nothing at all, because that parser
+classifies from the title only — deliberately, since reading bodies with
+regexes once produced three false closures. That is 4.8 MB of the
+highest-authority prose in the system, already fetched and stored.
+
+Weigh the review load before pointing it at anything wide. Everything from
+this path is written `needs_review`, so a human clears each statement before
+it can take a status slot; for a handful of arrêtés that is a safety net, and
+across 25 hut websites weekly it becomes the bottleneck.
 
 ## Sources
 
