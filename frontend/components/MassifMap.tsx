@@ -4,14 +4,14 @@ import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Feature } from "@/lib/api";
-import { COLOURS, HUT_GLYPH, pipElement } from "./mapSymbols";
-import { IGN_SYMBOLISED } from "./ignSymbolised";
-
-// IGN Géoplateforme: open, key-less, and the best alpine cartography there is.
-const IGN_PLAN =
-  "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
-  "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM" +
-  "&TILEMATRIX={z}&TILECOL={x}&TILEROW={y}&FORMAT=image/png";
+import {
+  COLOURS,
+  HUT_GLYPH,
+  IGN_ATTRIBUTION,
+  IGN_VECTOR_STYLE,
+  dropIgnHutSymbols,
+  pipElement,
+} from "./mapSymbols";
 
 
 // Context routes on the light basemap. This has now been wrong twice: #4a5563
@@ -62,28 +62,21 @@ export default function MassifMap({ features }: { features: Feature[] }) {
 
     const instance = new maplibregl.Map({
       container: container.current,
-      style: {
-        version: 8,
-        sources: {
-          ign: {
-            type: "raster",
-            tiles: [IGN_PLAN],
-            tileSize: 256,
-            attribution: "© IGN Géoplateforme · routes © camptocamp.org",
-          },
-        },
-        layers: [{ id: "ign", type: "raster", source: "ign" }],
-      },
+      style: IGN_VECTOR_STYLE,
+      attributionControl: false,
       center: [6.87, 45.9],
       zoom: 10.2,
     });
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl(), "top-right");
+    instance.addControl(
+      new maplibregl.AttributionControl({ customAttribution: IGN_ATTRIBUTION }),
+    );
 
-    // Huts IGN draws itself, from z13. Ours steps aside for exactly these and
-    // no others — see components/ignSymbolised.ts and the survey script that
-    // generates it.
-    const deferrable: HTMLElement[] = [];
+    // Their hut symbols off, ours on. Re-applied on every style load, because
+    // a style reload brings the layers back.
+    instance.on("style.load", () => dropIgnHutSymbols(instance));
+
 
     // ---- points: huts, lift sectors, glaciers
     for (const feature of features) {
@@ -139,13 +132,6 @@ export default function MassifMap({ features }: { features: Feature[] }) {
       const dot = document.createElement("div");
       if (isHut) {
         dot.innerHTML = HUT_GLYPH;
-        // Only huts IGN actually symbolises may be stood down, and only above
-        // their threshold. Standing every hut down left 30 of 59 — all five
-        // Swiss, 24 of 25 Italian — with no symbol at all where the eye looks
-        // for them; standing none down put two houses on the 29 they do draw,
-        // offset from each other because their glyph is not centred on the
-        // point and uses the outline variant.
-        if (IGN_SYMBOLISED.has(feature.slug)) deferrable.push(dot);
         Object.assign(dot.style, {
           width: "15px",
           height: "15px",
@@ -208,19 +194,6 @@ export default function MassifMap({ features }: { features: Feature[] }) {
 
     // ---- lines: routes and couloirs, from camptocamp
     const lines = features.filter(isLine);
-
-    // z13 is where IGN's refuge glyph appears: measured on the Goûter, the
-    // Cosmiques and Torino, nothing at z11 or z12 and present from z13 on all
-    // three. Below it IGN draws no hut anywhere, so every hut keeps ours.
-    const IGN_DRAWS_HUTS_FROM = 13;
-    const syncDeferrable = () => {
-      const oursNeeded = instance.getZoom() < IGN_DRAWS_HUTS_FROM;
-      for (const dot of deferrable) dot.style.opacity = oursNeeded ? "1" : "0";
-    };
-    // Opacity, not display: the hit area is the parent and is untouched, so a
-    // hut stays clickable whether or not its symbol is ours.
-    instance.on("zoom", syncDeferrable);
-    syncDeferrable();
 
     instance.on("load", () => {
       if (lines.length === 0) return;

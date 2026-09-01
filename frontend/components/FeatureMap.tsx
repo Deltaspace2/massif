@@ -4,13 +4,14 @@ import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureDetail } from "@/lib/api";
-import { COLOURS, HUT_GLYPH, pipElement } from "./mapSymbols";
-import { IGN_SYMBOLISED } from "./ignSymbolised";
-
-const IGN_PLAN =
-  "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
-  "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM" +
-  "&TILEMATRIX={z}&TILECOL={x}&TILEROW={y}&FORMAT=image/png";
+import {
+  COLOURS,
+  HUT_GLYPH,
+  IGN_ATTRIBUTION,
+  IGN_VECTOR_STYLE,
+  dropIgnHutSymbols,
+  pipElement,
+} from "./mapSymbols";
 
 // Fallback view when a feature has no geometry: the massif, not a guess at
 // where the feature is.
@@ -60,18 +61,8 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
 
     const instance = new maplibregl.Map({
       container: container.current,
-      style: {
-        version: 8,
-        sources: {
-          ign: {
-            type: "raster",
-            tiles: [IGN_PLAN],
-            tileSize: 256,
-            attribution: "© IGN Géoplateforme · routes © camptocamp.org",
-          },
-        },
-        layers: [{ id: "ign", type: "raster", source: "ign" }],
-      },
+      style: IGN_VECTOR_STYLE,
+      attributionControl: false,
       // A single point has no extent to fit, so it gets a sensible zoom
       // instead; a line gets fitted with padding once the style is up.
       center: bounds ? bounds.getCenter() : MASSIF_CENTRE,
@@ -79,6 +70,10 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
     });
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl(), "top-right");
+    instance.addControl(
+      new maplibregl.AttributionControl({ customAttribution: IGN_ATTRIBUTION }),
+    );
+    instance.on("style.load", () => dropIgnHutSymbols(instance));
 
     if (plotted && !isLine) {
       const marker = document.createElement("div");
@@ -114,11 +109,7 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
       });
 
       const symbol = document.createElement("div");
-      // This map opens at z14, above IGN's z13 threshold, so a hut they draw
-      // already has a symbol here and ours would be the second one. Huts they
-      // skip — every Swiss one, nearly every Italian one — get ours.
-      const ignDrawsIt = IGN_SYMBOLISED.has(feature.slug);
-      if (feature.type === "hut" && !ignDrawsIt) {
+      if (feature.type === "hut") {
         symbol.innerHTML = HUT_GLYPH;
         Object.assign(symbol.style, {
           width: "18px",

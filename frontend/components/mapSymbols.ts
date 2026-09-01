@@ -8,6 +8,41 @@ export const COLOURS: Record<string, string> = {
   unknown: "#6e757e",
 };
 
+/** IGN's Plan IGN, as VECTOR tiles rather than raster.
+ *
+ *  Raster tiles arrive as pictures with IGN's own hut symbols baked in, which
+ *  we could neither remove nor recolour. That forced a choice between drawing
+ *  our house on top of theirs (two houses, offset, plainly two things) and
+ *  standing ours down where theirs appears (the symbol changing as you zoom,
+ *  and 30 huts with nothing at all because IGN draws only 29 of our 59).
+ *
+ *  Vector tiles remove the dilemma: their hut layers are real layers with
+ *  names, so we delete them and draw every hut ourselves. One symbol, ours, at
+ *  every zoom level. */
+export const IGN_VECTOR_STYLE =
+  "https://data.geopf.fr/annexes/ressources/vectorTiles/styles/PLAN.IGN/standard.json";
+
+/** The layers in that style that draw a hut. Removed on load so IGN's symbol
+ *  never competes with ours. Everything else in their cartography stays. */
+export const IGN_HUT_LAYERS = [
+  "bati ponctuel montagne - Abri",
+  "bati ponctuel montagne - Refuge Garde",
+  "bati ponctuel montagne - Refuge Non Garde",
+];
+
+export const IGN_ATTRIBUTION = "© IGN Géoplateforme · routes © camptocamp.org";
+
+/** Strip IGN's hut symbols once the style is up. Safe to call more than once —
+ *  a style reload re-adds them. */
+export function dropIgnHutSymbols(map: {
+  getLayer: (id: string) => unknown;
+  removeLayer: (id: string) => void;
+}): void {
+  for (const id of IGN_HUT_LAYERS) {
+    if (map.getLayer(id)) map.removeLayer(id);
+  }
+}
+
 /** IGN's own refuge symbol, redrawn.
  *
  *  #246138 was sampled from their tiles rather than guessed: 1164 pixels of it
