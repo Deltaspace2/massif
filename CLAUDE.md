@@ -26,6 +26,7 @@ python -m massif.scripts.run_ingest [slug]  # all due sources, or one
 python -m massif.scripts.reextract <slug> [--dry-run]  # re-parse stored docs
 python -m massif.scripts.review_queue       # names that did not resolve
 python -m massif.scripts.review             # statements a model read, awaiting a person
+                                            # (or /admin/review on the API, with ADMIN_TOKEN set)
 python -m massif.scripts.llm_probe          # what the model makes of one stored document
 python -m massif.scripts.recompute          # rebuild feature_status from scratch
 python -m massif.scripts.import_hut_facts [--apply]  # refuges.info directory facts

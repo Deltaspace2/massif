@@ -9,6 +9,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://massif:massif@localhost:5433/massif"
     anthropic_api_key: str = ""
 
+    # Guards the review page at /admin/review on the API. Empty means the
+    # admin routes are NOT MOUNTED — absent, never open. A missing secret that
+    # quietly becomes a public write endpoint is the failure that does not
+    # announce itself.
+    admin_token: str = ""
+
     # Is there a transaction-mode connection pooler in front of Postgres?
     # Supabase's :6543 and PgBouncer in transaction mode both are. Left as
     # None it is inferred from the URL, which is right every time so far;

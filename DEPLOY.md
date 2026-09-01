@@ -157,6 +157,17 @@ fails against a database that isn't there. Set it before the first deploy.
 `vercel.json` pins `maxDuration: 15`. If the account's plan won't allow it the
 *deploy* fails loudly — cheap to find out, so don't pre-emptively lower it.
 
+**API, optional** — `ADMIN_TOKEN` mounts the review page at `/admin/review`.
+
+Set it ONLY on the API project. The frontend exists to be crawled and must
+carry no login. With the variable unset the admin routes are not registered at
+all — absent rather than open, so a missing secret cannot become a public write
+endpoint.
+
+HTTP Basic, any username, the token as the password. Accept and reject are
+POST-only and check `Origin`, so nothing that follows a link — a crawler, a
+link preview, a browser prefetch — can clear the queue.
+
 **Frontend** — root directory `frontend/`.
 
 - Env var `MASSIF_API` = the API project's production URL, no trailing slash.

@@ -9,6 +9,7 @@ from geoalchemy2.shape import to_shape
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session, aliased
 
+from massif.admin import include_admin
 from massif.db import get_session
 from massif.enums import StatusValue
 from massif.ingest.fr_dates import DateRange, describe, published_date
@@ -22,6 +23,12 @@ app = FastAPI(
         "sources have published. Not a safety service."
     ),
 )
+
+# The review page, and only when there is a token to guard it. include_admin
+# mounts nothing when ADMIN_TOKEN is unset: an unconfigured admin must be
+# ABSENT rather than open, because a missing secret that quietly becomes a
+# public write endpoint is the failure that does not announce itself.
+ADMIN_MOUNTED = include_admin(app)
 
 DISCLAIMER = (
     "This is a directory of published notices, not a safety service. Statuses "
