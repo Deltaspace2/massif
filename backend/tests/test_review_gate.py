@@ -33,6 +33,16 @@ def test_the_winner_query_excludes_statements_awaiting_review():
     assert "payload['needs_review'] IS NOT true" in SQL
 
 
+def test_a_reviewer_can_let_one_through():
+    """Without this the gate is a wall, which is what it was for a day: eleven
+    readings sat on feature pages that nothing could ever act on. `reviewed_at`
+    is the only thing that lets a machine-read statement compete."""
+    assert "reviewed_at IS NOT NULL" in SQL
+    # Cleared, never rewritten — the payload keeps saying needs_review, so a
+    # statement a machine read stays identifiable as one for ever.
+    assert "payload['needs_review'] IS NOT true OR" in SQL
+
+
 def test_it_still_filters_on_validity_and_supersession():
     """The gate is an addition, not a replacement — a query that only checked
     needs_review would let an expired arrêté win."""

@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from datetime import time as dtime
 
 MONTHS: dict[str, int] = {
@@ -38,6 +38,22 @@ MONTHS: dict[str, int] = {
 
 _MONTH_ALT = "|".join(MONTHS)
 _DAY = r"(\d{1,2})(?:\s*er)?"
+
+
+def published_date(moment: datetime) -> date:
+    """The calendar day an instant stands for, as the source wrote it.
+
+    Dates here are encoded as UTC day boundaries: "13 septembre" becomes 13 Sep
+    00:00–23:59:59 UTC. Postgres hands the value back in the server's own
+    timezone, so east of UTC that end boundary lands after midnight and the day
+    reads one later — "wardened until 14 Sep" for a season published as ending
+    on the 13th, and "until 27 septembre" for a hut that said the 26th.
+
+    Fixed once in phrase_for_now and then hit again in the review tool, which
+    is why it lives here now: this module owns what a date MEANS, and every
+    place that prints one has to agree.
+    """
+    return moment.astimezone(UTC).date()
 
 
 def strip_accents(text: str) -> str:

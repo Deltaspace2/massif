@@ -115,7 +115,13 @@ def current_statements(feature_id: uuid.UUID, now: datetime):
             # Excluded from the WINNER only. These statements still appear in
             # a feature's notices and history: the site gains the information
             # immediately and the verdict later.
-            Statement.payload["needs_review"].as_boolean().is_not(True),
+            #
+            # `reviewed_at` is how a person lets one through. Cleared rather
+            # than rewritten, so a statement that was read by a machine stays
+            # identifiable as one for ever — the payload keeps saying
+            # needs_review and this column says somebody looked.
+            (Statement.payload["needs_review"].as_boolean().is_not(True))
+            | (Statement.reviewed_at.is_not(None)),
         )
     )
 

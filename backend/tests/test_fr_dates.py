@@ -177,3 +177,24 @@ def test_a_bare_jusqu_au_still_has_no_start():
     assert found.rule == "until"
     assert found.start is None
     assert found.end.date() == date(2026, 5, 29)
+
+
+def test_a_stored_date_prints_as_the_day_the_source_wrote():
+    """Dates are encoded as UTC day boundaries, and Postgres returns them in
+    the server's timezone — so east of UTC an end boundary lands after midnight
+    and prints one day late. "jusqu'au 26 septembre" showed as the 27th.
+
+    Fixed once in phrase_for_now and then hit again in the review tool, which
+    is why the rule lives here: this module owns what a date means, and every
+    place that prints one has to agree.
+    """
+    from datetime import timedelta, timezone
+
+    from massif.ingest.fr_dates import published_date
+
+    end_of_day = datetime(2026, 9, 26, 23, 59, 59, tzinfo=UTC)
+    assert published_date(end_of_day) == date(2026, 9, 26)
+    # The same instant handed back by a server east of UTC.
+    east = end_of_day.astimezone(timezone(timedelta(hours=8)))
+    assert east.day == 27
+    assert published_date(east) == date(2026, 9, 26)

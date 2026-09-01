@@ -196,6 +196,13 @@ class Statement(Base):
     )
     severity: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
 
+    # When a person cleared a statement a model produced. Null while it is
+    # still waiting, which together with payload->needs_review is the whole
+    # definition of the review queue. Kept apart from the payload because the
+    # payload is what the MODEL said; this is what we decided about it.
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    review_note: Mapped[str | None] = mapped_column(Text)
+
     # When the SOURCE said it. The date on the arrêté, not the date we looked.
     observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     # When WE last fetched the source and found this still standing. A decree

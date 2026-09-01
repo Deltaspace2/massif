@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, aliased
 
 from massif.db import get_session
 from massif.enums import StatusValue
-from massif.ingest.fr_dates import DateRange, describe
+from massif.ingest.fr_dates import DateRange, describe, published_date
 from massif.models import Feature, FeatureFact, FeatureStatus, IngestRun, Source, Statement
 
 app = FastAPI(
@@ -176,8 +176,9 @@ def _published_day(moment: datetime) -> DateRange:
     a time-of-day conversion: these are calendar dates, and the only correct
     answer is the one the source wrote.
     """
-    day = moment.astimezone(UTC)
-    return DateRange(start=day, end=day, rule="stored")
+    day = published_date(moment)
+    at = datetime(day.year, day.month, day.day, tzinfo=UTC)
+    return DateRange(start=at, end=at, rule="stored")
 
 
 def phrase_for_now(statement, now: datetime) -> str | None:
