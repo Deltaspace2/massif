@@ -305,8 +305,24 @@ def test_a_winter_season_rolls_into_the_following_year():
 
 
 def test_assuming_a_year_does_not_make_prose_into_a_date():
-    assert with_assumed_year("de mi-juin à mi-septembre", 2026) is None
+    """The line moved, and it is worth saying where to.
+
+    "de mi-juin à mi-septembre" was refused here as prose. It is not prose: it
+    names two ends, and ffcam-refuges has always read that shape and published
+    it narrowed and marked approximate. Refusing it on this path meant a hut's
+    own site said less than the federation's directory said about the same hut.
+
+    "l'été" names no end at all, and no amount of assuming a year turns it into
+    a window. That is the line: bounded in words is bounded, a season with no
+    ends is not.
+    """
+    summer = with_assumed_year("de mi-juin à mi-septembre", 2026)
+    assert summer is not None
+    assert (summer.start.month, summer.end.month) == (6, 9)
+    assert summer.rule.endswith(ASSUMED)  # ours, never presented as published
+
     assert with_assumed_year("l'été", 2026) is None
+    assert with_assumed_year("pendant la saison", 2026) is None
 
 
 def test_a_phrase_that_states_its_own_year_is_never_second_guessed():
@@ -460,3 +476,23 @@ def test_a_date_that_already_states_its_year_is_left_alone():
     stated = with_assumed_year("du 30/08/2026 au 15/09/2026", 2026)
     assert stated.start.date() == date(2026, 8, 30)
     assert stated.end.date() == date(2026, 9, 15)
+
+
+def test_a_hut_s_own_worded_season_is_read_rather_than_demoted():
+    """The Abri Simond: "Il rouvrira dès notre fermeture : à partir de fin
+    septembre jusqu'à mi février."
+
+    parse_range cannot read it, so it arrived undated, and rule 3 demoted a
+    plain `open` to `unknown` — correctly, given no dates. But the notice IS
+    bounded, just bounded in words. A hut's own site is exactly where a season
+    crosses the new year, so this caller allows the crossing.
+    """
+    from massif.ingest.llm import ASSUMED, with_assumed_year
+
+    got = with_assumed_year("à partir de fin septembre jusqu'à mi février", 2026)
+    assert got is not None
+    assert (got.start.year, got.start.month) == (2026, 9)
+    assert (got.end.year, got.end.month) == (2027, 2)
+    # Ours, not theirs. The writer marks these approximate off this suffix, so
+    # nothing may print them as dates the operator published.
+    assert got.rule.endswith(ASSUMED)

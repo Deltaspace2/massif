@@ -63,7 +63,7 @@ from massif.enums import (
     StatusValue,
 )
 from massif.ingest.base import ExtractedStatement
-from massif.ingest.fr_dates import DateRange, parse_range
+from massif.ingest.fr_dates import DateRange, parse_coarse_range, parse_range
 
 # Bump when the prompt or the schema changes. It is part of the cache key, so
 # an edit here re-extracts rather than silently mixing two vintages of output
@@ -230,6 +230,14 @@ def with_assumed_year(dates_text: str, year: int) -> DateRange | None:
         # the end of "jusqu'au 30/08" produces nothing any rule recognises.
         # The lookahead keeps it off a date that already states its year.
         bound = parse_range(_BARE_DAY_MONTH.sub(rf"\1/\2/{year}", dates_text))
+    if bound is None:
+        # A season written in WORDS. The Abri Simond publishes "à partir de fin
+        # septembre jusqu'à mi février" — bounded, and not by anything
+        # parse_range can read — and it went to the queue as an undated open,
+        # which rule 3 correctly demoted to unknown. A hut's own site is
+        # exactly where a season crosses the new year, so this caller allows
+        # it; every date it returns is a subset of what the words permit.
+        bound = parse_coarse_range(dates_text, year, may_cross_year=True)
     if bound is None or (bound.start is None and bound.end is None):
         return None
     # An open-ended range is a real claim, not a failed one. "jusqu'au 26

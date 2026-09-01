@@ -342,7 +342,7 @@ def test_a_season_in_words_is_read_and_narrowed_to_what_it_certainly_covers():
     ((label, window),) = _windows("De début avril à fin septembre", 2026)
     assert window.start.date() == datetime(2026, 4, 10).date()
     assert window.end.date() == datetime(2026, 9, 21).date()
-    assert window.rule == "ffcam_coarse"
+    assert window.rule == "coarse"
 
 
 def test_the_narrowing_goes_inwards_at_both_ends():
@@ -390,3 +390,12 @@ def test_a_season_the_narrowing_turns_inside_out_says_nothing():
     ((_, july),) = _windows("De début juillet à fin juillet", 2026)
     assert july.start.date() == datetime(2026, 7, 10).date()
     assert july.end.date() == datetime(2026, 7, 21).date()
+
+
+def test_ffcam_never_rolls_a_backwards_season_into_the_next_year():
+    """This directory publishes a summer season and sometimes a spring one,
+    and none of them cross the new year. A backwards span here is a phrase we
+    misread; rolling it forward would publish a fourteen-month opening."""
+    from massif.ingest.sources.ffcam import _coarse_windows
+
+    assert _coarse_windows("De fin septembre à mi février", 2026) is None

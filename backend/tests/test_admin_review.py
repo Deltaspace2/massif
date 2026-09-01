@@ -591,8 +591,8 @@ def test_a_card_says_what_else_came_off_the_same_page_and_where_it_stands():
         statement_type = StatementType.OPENING
         summary_en = "The refuge is staffed until 30 August"
         original_text = (
-        "Le Refuge sera gard\u00e9 jusqu\u2019au 30/08 puis les WE d\u00e9but septembre."
-    )
+            "Le Refuge sera gard\u00e9 jusqu\u2019au 30/08 puis les WE d\u00e9but septembre."
+        )
         original_language = "fr"
         valid_from = None
         valid_to = None
@@ -603,7 +603,9 @@ def test_a_card_says_what_else_came_off_the_same_page_and_where_it_stands():
     class _Waiting(_Accepted):
         id = "55555555-5555-5555-5555-555555555555"
         summary_en = "The winter room stays reachable"
-        original_text = "En dehors de la p\u00e9riode gard\u00e9e, le refuge d'hiver est accessible."
+        original_text = (
+            "En dehors de la p\u00e9riode gard\u00e9e, le refuge d'hiver est accessible."
+        )
         reviewed_at = None
 
     app, _, session = build(siblings=[_Accepted, _Waiting])

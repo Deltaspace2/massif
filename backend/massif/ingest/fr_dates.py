@@ -15,6 +15,7 @@ Everything returns timezone-aware UTC datetimes with the end date inclusive to
 
 from __future__ import annotations
 
+import calendar
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -283,6 +284,68 @@ MONTH_EN = [
     "Nov",
     "Dec",
 ]
+
+
+# How far into a month each word reaches. Two bounds, because a worded end is
+# read as the days it CERTAINLY covers: a start takes the latest day the word
+# allows, an end the earliest, and the window is always a subset of what the
+# words permit rather than a superset.
+QUALIFIERS = {"debut": (1, 10), "mi": (11, 20), "fin": (21, 31)}
+
+_COARSE_END = re.compile(
+    r"(?:(\d{1,2})\s+)?(?:(debut|mi|fin)\s*-?\s*)?(" + "|".join(MONTHS) + r")\b(?:\s+(\d{4}))?"
+)
+
+
+def _last_day(year: int, month: int) -> int:
+    return calendar.monthrange(year, month)[1]
+
+
+def parse_coarse_range(text: str, year: int, *, may_cross_year: bool = False) -> DateRange | None:
+    """A season written in WORDS, narrowed to the days it certainly covers.
+
+    `parse_range` reads dates. This reads the other thing these pages publish:
+    "De début juin au 24 août 2026" — one worded end and one exact — or the
+    Abri Simond's "à partir de fin septembre jusqu'à mi février". Each end may
+    be worded or exact in any mix; an end that is neither is not an end, and a
+    phrase without two of them gets the same silence as no phrase at all.
+
+    This is not a loosening of rule 3. An undated notice still says nothing;
+    a season bounded in words IS bounded, and every caller marks the result
+    approximate because the narrowing is ours and not the source's.
+
+    `may_cross_year` is off by default and every caller has to mean it.
+    FFCAM's seasons never cross — "Printemps : 14 mars au 3 mai" — so reading
+    a backwards span there as a fourteen-month one would be the plausible,
+    silent, wrong answer this codebase keeps writing rules about. A hut's own
+    winter opening does cross, and for that caller it is the only reading.
+    """
+    found = _COARSE_END.findall(_norm(text))
+    if len(found) != 2:
+        return None
+
+    ends = []
+    for index, (day, word, month, explicit_year) in enumerate(found):
+        if not day and not word:
+            return None  # a bare month name is not a date
+        month_number = MONTHS[month]
+        on = int(explicit_year) if explicit_year else year
+        number = int(day) if day else QUALIFIERS[word][1 if index == 0 else 0]
+        number = min(number, _last_day(on, month_number))
+        ends.append((on, month_number, number))
+
+    (y1, m1, d1), (y2, m2, d2) = ends
+    start = datetime(y1, m1, d1, tzinfo=UTC)
+    end = datetime(y2, m2, d2, 23, 59, 59, tzinfo=UTC)
+    if start >= end:
+        if not may_cross_year or explicit_year:
+            return None
+        # September to February is next February. Only when the phrase did not
+        # state its own year: a source that wrote both years and still ran
+        # backwards has said something we do not understand, and guessing at
+        # it is worse than queueing it.
+        end = datetime(y2 + 1, m2, d2, 23, 59, 59, tzinfo=UTC)
+    return DateRange(start, end, "coarse")
 
 
 def describe(dates: DateRange | None) -> str | None:

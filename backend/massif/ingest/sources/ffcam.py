@@ -51,7 +51,6 @@ and "early April" is not a date. The guard is an explicit four-digit year.
 
 from __future__ import annotations
 
-import calendar
 import re
 from datetime import UTC, datetime
 
@@ -61,7 +60,7 @@ from sqlalchemy.orm import Session
 
 from massif.enums import ExtractionMethod, FeatureType, StatementType, StatusValue
 from massif.ingest.base import ExtractedStatement, Scraper, fetch, store_document
-from massif.ingest.fr_dates import MONTHS, DateRange, parse_range, strip_accents
+from massif.ingest.fr_dates import DateRange, parse_coarse_range, parse_range, strip_accents
 from massif.ingest.resolve import FeatureResolver
 from massif.models import Document, Feature, Source
 
@@ -131,46 +130,16 @@ def _altitude_near(node) -> int | None:
 # statement is therefore always a subset of what the source said: we may say
 # nothing on a day the hut is in fact wardened, and can never say it is
 # wardened on a day the words do not cover.
-QUALIFIERS = {"debut": (1, 10), "mi": (11, 20), "fin": (21, 31)}
-COARSE_END = re.compile(
-    r"(?:(\d{1,2})\s+)?(?:(debut|mi|fin)\s*-?\s*)?(" + "|".join(MONTHS) + r")\b(?:\s+(\d{4}))?"
-)
-
-
-def _last_day(year: int, month: int) -> int:
-    return calendar.monthrange(year, month)[1]
-
-
 def _coarse_windows(line: str, year: int) -> DateRange | None:
-    """A worded season narrowed to the days it certainly covers.
+    """FFCAM's worded seasons, read by the shared parser.
 
-    Each end may be worded ("début juin") or exact ("24 août 2026"), in any
-    mix — Refuge Durier publishes "De début juin au 24 août 2026", one of each.
-    An end that is neither is not an end, and a phrase without two of them gets
-    the same silence as no phrase at all.
+    `may_cross_year` stays off. This directory publishes a summer season and
+    sometimes a spring one — "Printemps : 14 mars au 3 mai" — and none of them
+    cross the new year. A backwards span here is a phrase we misread, and
+    rolling it forward would turn that into a fourteen-month opening nobody
+    published.
     """
-    found = COARSE_END.findall(_norm(line))
-    if len(found) != 2:
-        return None
-
-    ends = []
-    for index, (day, word, month, explicit_year) in enumerate(found):
-        if not day and not word:
-            return None  # a bare month name is not a date
-        month_number = MONTHS[month]
-        on = int(explicit_year) if explicit_year else year
-        # Latest a start could be; earliest an end could be. The window is
-        # always a subset of what the words allow, never a superset.
-        number = int(day) if day else QUALIFIERS[word][1 if index == 0 else 0]
-        number = min(number, _last_day(on, month_number))
-        ends.append((on, month_number, number))
-
-    (y1, m1, d1), (y2, m2, d2) = ends
-    start = datetime(y1, m1, d1, tzinfo=UTC)
-    end = datetime(y2, m2, d2, 23, 59, 59, tzinfo=UTC)
-    if start >= end:
-        return None
-    return DateRange(start, end, "ffcam_coarse")
+    return parse_coarse_range(line, year)
 
 
 def _windows(text: str, year: int | None = None) -> list[tuple[str, DateRange]]:
@@ -305,7 +274,7 @@ def extract(html: str, observed_at: datetime) -> list[ExtractedStatement]:
                         f"{_english(window.end)} — the operator publishes this "
                         f"season in words, not dates, so these are the days "
                         f"those words certainly cover"
-                        if window.rule == "ffcam_coarse"
+                        if window.rule == "coarse"
                         else f"Wardened and open to the public "
                         f"{_english(window.start)} – {_english(window.end)}"
                     ),
@@ -319,7 +288,7 @@ def extract(html: str, observed_at: datetime) -> list[ExtractedStatement]:
                         # Our narrowing of a season the operator wrote in
                         # words. The dates are ours, not theirs, and nothing
                         # may present them as though they were published.
-                        "approximate": window.rule == "ffcam_coarse",
+                        "approximate": window.rule == "coarse",
                         "season": label,
                         "altitude_m": altitude,
                         "ffcam_name": name,

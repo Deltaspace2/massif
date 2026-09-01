@@ -247,3 +247,60 @@ def test_a_partir_du_reads_a_numeric_date():
     found = parse_range("à partir du 12/06/2026")
     assert found.start.date() == date(2026, 6, 12)
     assert found.end is None
+
+
+# ------------------------------------------------- seasons written in words
+
+
+def test_a_worded_season_is_narrowed_to_what_the_words_certainly_cover():
+    """ "De début juin au 24 août 2026" — one worded end, one exact.
+
+    The start takes the LATEST day its word allows and the end the earliest,
+    so the window is always a subset of what the words permit. Widening it
+    would publish days the operator never claimed.
+    """
+    from massif.ingest.fr_dates import parse_coarse_range
+
+    got = parse_coarse_range("De début juin au 24 août 2026", 2026)
+    assert got is not None
+    assert (got.start.month, got.start.day) == (6, 10)
+    assert (got.end.month, got.end.day) == (8, 24)
+
+
+def test_a_bare_month_name_is_not_a_date():
+    """ "de juin à septembre" bounds nothing to a day, and inventing one would
+    put dates on the map that no reading of the words supports."""
+    from massif.ingest.fr_dates import parse_coarse_range
+
+    assert parse_coarse_range("de juin à septembre", 2026) is None
+    assert parse_coarse_range("à partir de fin septembre", 2026) is None
+
+
+def test_a_season_may_cross_the_new_year_only_where_the_caller_says_so():
+    """The Abri Simond reopens "à partir de fin septembre jusqu'à mi février".
+
+    Read within one year that runs backwards and is refused. FFCAM's seasons
+    genuinely never cross — "Printemps : 14 mars au 3 mai" — so rolling a
+    backwards span forward there would turn a phrase we misread into a
+    fourteen-month opening nobody published. Opt-in, per caller.
+    """
+    from massif.ingest.fr_dates import parse_coarse_range
+
+    words = "à partir de fin septembre jusqu'à mi février"
+    assert parse_coarse_range(words, 2026) is None
+
+    crossed = parse_coarse_range(words, 2026, may_cross_year=True)
+    assert crossed is not None
+    assert (crossed.start.year, crossed.start.month) == (2026, 9)
+    assert (crossed.end.year, crossed.end.month) == (2027, 2)
+
+
+def test_a_phrase_that_states_its_own_years_is_never_rolled_forward():
+    """A source that wrote both years and still ran backwards has said
+    something we do not understand. Guessing is worse than queueing it."""
+    from massif.ingest.fr_dates import parse_coarse_range
+
+    assert (
+        parse_coarse_range("de fin septembre 2026 à mi février 2026", 2026, may_cross_year=True)
+        is None
+    )
