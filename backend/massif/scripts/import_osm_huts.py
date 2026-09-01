@@ -46,6 +46,10 @@ from massif.models import Feature
 from massif.scripts.seed_features import SEEDS, geo_key, metres
 
 SUMMIT = (45.8326, 6.8652)
+
+# Fallback only. The boundary below is the real filter; this is what the script
+# falls back to if seeds/massif_boundary.wkt is missing, and it is a poor
+# massif — see fetch_massif_boundary.py.
 RADIUS_KM = 17.0
 
 # Two huts 120 m apart are one hut under two names. Name matching alone put
@@ -54,15 +58,14 @@ RADIUS_KM = 17.0
 # the same roof.
 DEDUPE_METRES = 150
 
-# A circle is not a massif. At 17 km it reaches the huts on the Italian and
-# Swiss flanks and the Chamonix side — Elena, Dalmazzi, Comino, Fiorio,
-# Gervasutti, Bonatti, Flégère, Lac Blanc — but it also reaches over the
-# watershed into ranges that are not this one. Those are named here with the
-# range they actually belong to, rather than the radius being kept small enough
-# to exclude them, which is what left Flégère and Lac Blanc out before.
+# Everything below is what a boundary CANNOT decide.
 #
-# Wrong in either direction is visible: a missing hut, or a Beaufortain hut
-# presented as Mont Blanc. Correct one by editing this list, not the radius.
+# OSM's "Massif du Mont-Blanc" ring does the coarse work now, and it does it
+# far better than a circle — Mont-Joly, Moëde Anterne, Nant Borrant, the whole
+# Fiz and Beaufortain fall outside it without anyone naming them. Most of this
+# list is therefore no longer load-bearing; it is kept because the boundary is
+# somebody else's data and could change under us, and a hut appearing in the
+# Beaufortain is worth catching twice.
 OTHER_RANGES = {
     "Refuge du Mont-Joly": "Mont Joly, Val Montjoie",
     "Refuge de Moëde Anterne": "Fiz",
@@ -99,7 +102,39 @@ NOT_MOUNTAIN_HUTS = {
     "Le vieux Chéppy": "valley building",
 }
 
+# Huts OUTSIDE the boundary that we carry anyway. The ring is drawn tightly
+# around the high massif, so the valley-floor huts on the Italian flank fall
+# just outside it — and Bertone, Bonatti and Elena are huts people mean when
+# they say Mont Blanc. The Aiguilles Rouges pair is Steven's call: they face
+# the massif across the Chamonix valley and are what people search for.
+#
+# This is the honest shape of the problem. A boundary answers "is this in the
+# mountain group"; it cannot answer "is this a hut people associate with the
+# massif", and no dataset we have does.
+KEEP_OUTSIDE = {
+    "Rifugio Walter Bonatti": "Italian Val Ferret, on the massif's own flank",
+    "Rifugio Elena": "head of the Italian Val Ferret, below Col Ferret",
+    "Rifugio Bertone": "Italian Val Ferret, the TMB balcony above Courmayeur",
+    "La Flégère": "Aiguilles Rouges, facing the massif across the valley",
+    "Refuge du Lac Blanc": "Aiguilles Rouges, facing the massif",
+    "Refuge de Bellachat": "Aiguilles Rouges, facing the massif",
+}
+
 OVERPASS = "https://overpass-api.de/api/interpreter"
+
+
+def load_boundary():
+    """The massif ring, or None if it has not been fetched.
+
+    None means fall back to the radius rather than importing the world: a
+    missing boundary file must not silently widen the net.
+    """
+    path = SEEDS / "massif_boundary.wkt"
+    if not path.exists():
+        return None
+    from shapely import wkt
+
+    return wkt.loads(path.read_text(encoding="utf-8").strip())
 
 
 def km_from_summit(lat: float, lon: float) -> float:
@@ -160,6 +195,9 @@ def main() -> int:
     parser.add_argument("--radius", type=float, default=RADIUS_KM, help="km from the summit")
     args = parser.parse_args()
 
+    boundary = load_boundary()
+    if boundary is None:
+        print(f"no massif_boundary.wkt — falling back to a {args.radius:g} km radius")
     candidates = yaml.safe_load((SEEDS / "osm_candidates.yaml").read_text(encoding="utf-8")) or []
     huts = [
         c for c in candidates
@@ -195,7 +233,14 @@ def main() -> int:
             "nearby": 0, "range": 0, "lodging": 0,
         }
         for hut in huts:
-            if km_from_summit(hut["lat"], hut["lon"]) > args.radius:
+            if boundary is not None:
+                from shapely.geometry import Point
+
+                in_massif = boundary.contains(Point(hut["lon"], hut["lat"]))
+                if not in_massif and hut["name_default"] not in KEEP_OUTSIDE:
+                    skipped["far"] += 1
+                    continue
+            elif km_from_summit(hut["lat"], hut["lon"]) > args.radius:
                 skipped["far"] += 1
                 continue
             name = hut["name_default"]
@@ -227,7 +272,8 @@ def main() -> int:
             selected.append(hut)
 
         print(
-            f"\n{len(huts)} hut candidates; within {args.radius:g} km: "
+            f"\n{len(huts)} hut candidates; inside the massif "
+            f"({'boundary' if boundary is not None else f'{args.radius:g} km radius'}): "
             f"{len(huts) - skipped['far']}. Skipped {skipped['decoy']} superseded, "
             f"{skipped['known']} already ours by name, {skipped['nearby']} already "
             f"ours by position, {skipped['range']} in another range, "

@@ -11,10 +11,12 @@ import math
 
 from massif.scripts.import_osm_huts import (
     DEDUPE_METRES,
+    KEEP_OUTSIDE,
     NOT_MOUNTAIN_HUTS,
     OTHER_RANGES,
     RADIUS_KM,
     km_from_summit,
+    load_boundary,
     metres_between,
 )
 
@@ -93,3 +95,49 @@ def test_distance_helpers_agree_on_scale():
         km = km_from_summit(*point)
         metres = metres_between(summit, point)
         assert math.isclose(km * 1000, metres, rel_tol=0.001)
+
+
+# ------------------------------------------------- the massif's own boundary --
+
+
+def test_the_boundary_exists_and_closes():
+    """A radius was always a stand-in. OSM publishes the massif as a region —
+    relation 7465762, 59 ways — and an unclosed ring would contain nothing and
+    silently import nothing, so the shape itself is worth pinning."""
+    boundary = load_boundary()
+    assert boundary is not None, "run massif.scripts.fetch_massif_boundary"
+    assert boundary.is_valid
+    # Roughly 630 km2 in degrees-squared at this latitude. Wide tolerance: this
+    # is a smoke test against an empty or corrupted shape, not a survey.
+    assert 0.02 < boundary.area < 0.15
+
+
+def test_the_boundary_does_what_the_radius_could_not():
+    """The whole reason for switching.
+
+    Mont-Joly and Moëde Anterne sit inside any circle wide enough to reach the
+    Aiguilles Rouges, and had to be excluded by name. The published boundary
+    puts them outside without anyone naming anything.
+    """
+    from shapely.geometry import Point
+
+    boundary = load_boundary()
+    assert boundary is not None
+    assert boundary.contains(Point(GOUTER[1], GOUTER[0]))
+    assert boundary.contains(Point(TORINO[1], TORINO[0]))
+    assert not boundary.contains(Point(MONT_JOLY[1], MONT_JOLY[0]))
+
+
+def test_what_the_boundary_cannot_decide_is_written_down():
+    """A boundary answers "is this in the mountain group". It cannot answer "is
+    this a mountain hut", nor "is this a hut people associate with the massif".
+
+    Le Refuge des Aiglons is a hotel in Chamonix town and is INSIDE the ring;
+    Bonatti, Elena and Bertone are huts everyone calls Mont Blanc huts and are
+    outside it. Both lists must therefore survive, and every entry must say
+    why — otherwise they become somewhere to put a hut nobody classified.
+    """
+    assert "Le Refuge des Aiglons" in NOT_MOUNTAIN_HUTS
+    for name in ("Rifugio Walter Bonatti", "Rifugio Elena", "Rifugio Bertone"):
+        assert name in KEEP_OUTSIDE, f"{name} is outside the ring and must be kept"
+    assert all(reason.strip() for reason in KEEP_OUTSIDE.values())
