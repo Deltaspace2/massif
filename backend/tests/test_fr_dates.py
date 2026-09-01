@@ -198,3 +198,34 @@ def test_a_stored_date_prints_as_the_day_the_source_wrote():
     east = end_of_day.astimezone(timezone(timedelta(hours=8)))
     assert east.day == 27
     assert published_date(east) == date(2026, 9, 26)
+
+
+def test_a_weekday_name_does_not_hide_a_date():
+    """French notices write "du vendredi 12 juin", and every rule here wants a
+    digit straight after "du". Refuge de Plan Glacier publishes both ends
+    plainly — "Ouverture du Vendredi 12 Juin au soir, jusqu'au Mardi 8
+    Septembre 2026" — and it parsed to nothing, so the hut was demoted to
+    unknown under a message blaming the refuge for giving no dates."""
+    found = parse_range("du Vendredi 12 Juin au soir, jusqu'au Mardi 8 Septembre 2026")
+    assert found is not None
+    assert found.start.date() == date(2026, 6, 12)
+    assert found.end.date() == date(2026, 9, 8)
+
+
+def test_only_the_end_needs_to_carry_the_year():
+    """ "du 12 juin ... jusqu'au 8 septembre 2026" — the start takes the end's
+    year, which is the only reading that is not a range ending before it
+    starts."""
+    found = parse_range("du 12 juin jusqu'au 8 septembre 2026")
+    assert found.start.date() == date(2026, 6, 12)
+    assert found.end.date() == date(2026, 9, 8)
+
+
+def test_a_split_year_range_puts_the_start_in_the_earlier_year():
+    found = parse_range("du 15 décembre jusqu'au 15 avril 2027")
+    assert found.start.date() == date(2026, 12, 15)
+    assert found.end.date() == date(2027, 4, 15)
+
+
+def test_a_weekday_alone_is_still_not_a_date():
+    assert parse_range("ouvert du vendredi au dimanche") is None

@@ -93,8 +93,18 @@ _TYPOGRAPHIC = str.maketrans(
 )
 
 
+# Weekday names carry no date information and sit exactly where the patterns
+# expect a number: French notices write "du vendredi 12 juin", and every rule
+# here wants a digit straight after "du". Refuge de Plan Glacier publishes
+# "Ouverture du Vendredi 12 Juin au soir, jusqu'au Mardi 8 Septembre 2026" —
+# both ends stated plainly — and it parsed to nothing, so the hut was demoted
+# to unknown under a message blaming the source for giving no dates.
+_WEEKDAYS = re.compile(r"\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b")
+
+
 def _norm(text: str) -> str:
     folded = strip_accents(text).translate(_TYPOGRAPHIC).lower()
+    folded = _WEEKDAYS.sub(" ", folded)
     return re.sub(r"\s+", " ", folded).strip()
 
 
@@ -147,7 +157,17 @@ _PATTERNS: list[tuple[str, re.Pattern]] = [
     (
         "from_until",
         re.compile(
-            rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})\s+(?:et\s+)?"
+            rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})[^0-9]{{0,24}}?"
+            rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"
+        ),
+    ),
+    # "du 12 juin au soir, jusqu'au 8 septembre 2026" — both ends stated, only
+    # the second carrying a year. The first takes the second's year, which is
+    # the only reading that is not a range ending before it starts.
+    (
+        "from_until_split",
+        re.compile(
+            rf"du\s+{_DAY}\s+({_MONTH_ALT})\b[^0-9]{{0,24}}?"
             rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"
         ),
     ),
@@ -207,6 +227,15 @@ def parse_range(text: str) -> DateRange | None:
                     _at(_year(y2), MONTHS[m2], int(d2), end=True),
                     rule,
                 )
+            if rule == "from_until_split":
+                d1, m1, d2, m2, year = groups
+                start = _at(_year(year), MONTHS[m1], int(d1))
+                end = _at(_year(year), MONTHS[m2], int(d2), end=True)
+                if start > end:
+                    # A season stated across new year: the start belongs to the
+                    # year before the one the end names.
+                    start = _at(_year(year) - 1, MONTHS[m1], int(d1))
+                return DateRange(start, end, rule)
             if rule == "until":
                 day, month, year = groups
                 return DateRange(None, _at(_year(year), MONTHS[month], int(day), end=True), rule)

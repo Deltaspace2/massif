@@ -227,3 +227,25 @@ def test_a_reject_supersedes_rather_than_deleting(monkeypatch):
     )
     assert got.status_code == 303
     assert _Statement.superseded_at is not None
+
+
+# ------------------------------------ the two extraction paths must agree
+
+
+def test_extract_stored_finds_the_site_owner_the_same_way_collect_does():
+    """collect() knows which hut it is fetching; extract_stored has only a
+    document and has to look it up. That lookup was still querying
+    Feature.external_ids after the URLs moved into seeds/hut_sites.yaml, so it
+    always found None: the site-of fallback never fired on the re-extraction
+    path, and every generic "le refuge" went to the unresolved queue while
+    collect() resolved the identical text fine.
+
+    Two paths that must agree, and only one of them was tested.
+    """
+    from massif.ingest.sources import hut_sites as module
+
+    sites = module.hut_sites()
+    assert sites, "the seed file is the whole configuration of this source"
+    by_url = {url: slug for slug, url in sites.items()}
+    for slug, url in sites.items():
+        assert by_url[url] == slug

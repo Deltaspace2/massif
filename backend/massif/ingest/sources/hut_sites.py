@@ -161,10 +161,15 @@ class HutSiteScraper(Scraper):
             if extractor is None:
                 print("  no ANTHROPIC_API_KEY — nothing to re-extract")
                 return []
-            own = cache_session.scalar(
-                select(Feature.slug).where(Feature.external_ids["hut_site"].astext == document.url)
-            )
-            return self._read(document, extractor, own)
+            # Which hut's site this is, from the same seed file collect()
+            # reads. This looked it up in Feature.external_ids until now — a
+            # leftover from before the URLs moved into seeds/hut_sites.yaml,
+            # so it always found None, the site-of fallback never fired, and
+            # re-extraction dropped every generic "le refuge" into the
+            # unresolved queue while collect() resolved them fine. Two paths
+            # that must agree, and only one of them was tested.
+            by_url = {url: slug for slug, url in hut_sites().items()}
+            return self._read(document, extractor, by_url.get(document.url))
 
     # -------------------------------------------------------------- resolving
 

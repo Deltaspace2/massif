@@ -124,12 +124,26 @@ def _card(statement: Statement, feature: Feature, source: Source) -> str:
     e = html.escape  # every interpolation below is third-party text
     payload = statement.payload or {}
     demoted = payload.get("undated_status")
-    note = (
-        f"<p class=w>Rule 3 demoted this: it wanted to say "
-        f"<b>{e(str(demoted))}</b> and gave no dates.</p>"
-        if demoted
-        else ""
-    )
+    # "gave no dates" was printed even when the source plainly gave them and
+    # our parser could not read them — Plan Glacier publishes "du Vendredi 12
+    # Juin au soir, jusqu'au Mardi 8 Septembre 2026" and the page blamed the
+    # refuge for saying nothing. Those are different facts and only one of them
+    # is about the source; the other is a bug report about us.
+    if demoted and payload.get("dates_text"):
+        note = (
+            f"<p class=w>Rule 3 demoted this: it wanted to say "
+            f"<b>{e(str(demoted))}</b>. The source DID state dates — "
+            f"<q>{e(str(payload['dates_text']))}</q> — and we could not read "
+            f"them: {e(str(payload.get('dates_rejected') or 'unparsed'))}. "
+            f"That is our parser's limit, not the refuge's silence.</p>"
+        )
+    elif demoted:
+        note = (
+            f"<p class=w>Rule 3 demoted this: it wanted to say "
+            f"<b>{e(str(demoted))}</b> and the source stated no dates at all.</p>"
+        )
+    else:
+        note = ""
     attributed = (
         f"<p class=w>Attributed by {e(str(payload['attributed_by']))}.</p>"
         if payload.get("attributed_by")
