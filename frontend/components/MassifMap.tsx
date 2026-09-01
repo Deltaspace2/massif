@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Feature } from "@/lib/api";
+import { COLOURS, HUT_GLYPH, pipElement } from "./mapSymbols";
 
 // IGN Géoplateforme: open, key-less, and the best alpine cartography there is.
 const IGN_PLAN =
@@ -11,33 +12,6 @@ const IGN_PLAN =
   "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM" +
   "&TILEMATRIX={z}&TILECOL={x}&TILEROW={y}&FORMAT=image/png";
 
-const COLOURS: Record<string, string> = {
-  open: "#3d8f63",
-  closed: "#b23c31",
-  restricted: "#b3831d",
-  unknown: "#6e757e",
-};
-
-// IGN's own refuge symbol, redrawn. Sampled from their tiles rather than
-// guessed: #246138 is the glyph green, 1164 pixels of it across three tiles at
-// z15 and z16, with nothing else close.
-//
-// Matching them exactly is the point. This is shown only BELOW z13, where IGN
-// draws no hut at all, and it disappears at z13 as theirs appears — so the
-// same green house is on the same spot the whole way in and the handover is
-// invisible. Drawing our own shape here would have reintroduced the two
-// symbols problem in slow motion.
-//
-// The one risk, noted because it is this project's failure mode: green is also
-// the open colour. A green hut is a MAP symbol meaning "hut", exactly as it is
-// on IGN's own cartography, and never a claim that it is open — status is the
-// separate coloured dot, drawn at every zoom. The white outline is ours, and
-// only so the glyph survives glacier hatching and shaded slopes.
-const HUT_GLYPH =
-  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">' +
-  '<path d="M8 1.7 14.6 7.3V14.4H1.4V7.3Z" fill="#246138" ' +
-  'stroke="#ffffff" stroke-width="1.1" stroke-linejoin="round"/>' +
-  "</svg>";
 
 // Context routes on the light basemap. This has now been wrong twice: #4a5563
 // was chosen against a near-black page and read as a claim on IGN's pale
@@ -105,11 +79,6 @@ export default function MassifMap({ features }: { features: Feature[] }) {
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    // Locator dots for features nothing has been published about. Collected
-    // so a zoom handler can stand them down once IGN starts drawing its own
-    // hut symbols.
-    const contextDots: HTMLElement[] = [];
-
     // ---- points: huts, lift sectors, glaciers
     for (const feature of features) {
       if (feature.geometry?.type !== "Point") continue;
@@ -163,14 +132,11 @@ export default function MassifMap({ features }: { features: Feature[] }) {
       // ---- the symbol: what the thing IS
       const dot = document.createElement("div");
       if (isHut) {
-        // Ours below z13, IGN's from z13 up, same green house either way.
-        contextDots.push(dot);
         dot.innerHTML = HUT_GLYPH;
         Object.assign(dot.style, {
           width: "15px",
           height: "15px",
           lineHeight: "0",
-          transition: "opacity 120ms linear",
         });
       } else if (isUnknown) {
         // Lift sectors and glaciers keep a dot: a house would be a lie about
@@ -208,18 +174,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
       // the handover. Only for features something has actually been published
       // about: a pip on all 59 huts would be 57 pips meaning "no news".
       if (isHut && !isUnknown) {
-        const pip = document.createElement("div");
-        Object.assign(pip.style, {
-          position: "absolute",
-          top: "-3px",
-          right: "-3px",
-          width: notable ? "9px" : "8px",
-          height: notable ? "9px" : "8px",
-          borderRadius: "50%",
-          background: colourFor(feature),
-          border: "1.5px solid #ffffff",
-          boxShadow: "0 1px 2px rgba(34,40,46,0.45)",
-        });
+        const pip = pipElement(colourFor(feature), notable);
         holder.appendChild(pip);
       }
       marker.appendChild(holder);
@@ -240,21 +195,6 @@ export default function MassifMap({ features }: { features: Feature[] }) {
 
     // ---- lines: routes and couloirs, from camptocamp
     const lines = features.filter(isLine);
-
-    // IGN's PLANIGNV2 begins drawing its refuge glyph at z13 — measured by
-    // fetching tiles over the Goûter and the Cosmiques at z11 to z16 and
-    // counting the glyph's green: nothing at 11 or 12, present from 13 on.
-    // This map opens at 10.2, which is why removing our dots outright made
-    // every hut disappear from the default view.
-    const BASEMAP_DRAWS_HUTS_FROM = 13;
-    const syncContextDots = () => {
-      const ours = instance.getZoom() < BASEMAP_DRAWS_HUTS_FROM;
-      for (const dot of contextDots) dot.style.opacity = ours ? "1" : "0";
-    };
-    // Opacity, not display: the hit area is the parent and is untouched, so a
-    // hut stays clickable at high zoom even though our dot has stepped aside.
-    instance.on("zoom", syncContextDots);
-    syncContextDots();
 
     instance.on("load", () => {
       if (lines.length === 0) return;

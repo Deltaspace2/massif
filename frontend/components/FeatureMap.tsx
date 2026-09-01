@@ -4,18 +4,12 @@ import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureDetail } from "@/lib/api";
+import { COLOURS, HUT_GLYPH, pipElement } from "./mapSymbols";
 
 const IGN_PLAN =
   "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
   "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM" +
   "&TILEMATRIX={z}&TILECOL={x}&TILEROW={y}&FORMAT=image/png";
-
-const COLOURS: Record<string, string> = {
-  open: "#3d8f63",
-  closed: "#b23c31",
-  restricted: "#b3831d",
-  unknown: "#6e757e",
-};
 
 // Fallback view when a feature has no geometry: the massif, not a guess at
 // where the feature is.
@@ -87,21 +81,73 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
 
     if (plotted && !isLine) {
       const marker = document.createElement("div");
-      // This map shows ONE feature and is centred on it, so there is no
-      // question which building the page is about — the basemap's own symbol
-      // is already sitting there saying so. A second icon on top of it adds
-      // nothing and reads as a duplicate, which is exactly what it is.
+      // The page said "hut · 3170 m" and then showed a pale ring on a glacier.
+      // A halo marks a spot; it does not say what is standing on it, and on
+      // light cartography it read as an empty circle.
       //
-      // A soft halo instead: it draws the eye to the right point without
-      // claiming to be the symbol for it. Where a source has actually
-      // published something the halo takes that status colour, so the one
-      // piece of information we hold is the one thing we draw.
+      // The same green house as the overview map, from the same module so the
+      // two cannot drift. Drawn whatever IGN does here: sampling the pixels
+      // around eight huts showed IGN symbolises only some of them — Trient and
+      // Orny get nothing at any zoom — so deferring to their glyph left Swiss
+      // huts with no symbol at all on their own page.
+      //
+      // Never set `position` on this element: MapLibre owns it and positions
+      // it with a class plus a transform. The pip hangs off the wrapper.
       Object.assign(marker.style, {
-        width: "30px",
-        height: "30px",
-        borderRadius: "50%",
-        background: `radial-gradient(circle, ${colour}00 42%, ${colour}44 60%, ${colour}00 78%)`,
+        width: "22px",
+        height: "22px",
+        cursor: "default",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       });
+
+      const holder = document.createElement("div");
+      Object.assign(holder.style, {
+        position: "relative",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      });
+
+      const symbol = document.createElement("div");
+      if (feature.type === "hut") {
+        symbol.innerHTML = HUT_GLYPH;
+        Object.assign(symbol.style, {
+          width: "18px",
+          height: "18px",
+          lineHeight: "0",
+        });
+      } else {
+        // Not a hut, so a house would be a lie about what it is.
+        Object.assign(symbol.style, {
+          width: "14px",
+          height: "14px",
+          borderRadius: "50%",
+          background: colour,
+          border: "2px solid #ffffff",
+          boxShadow: `0 0 0 1px ${colour}55, 0 1px 3px rgba(34,40,46,0.35)`,
+        });
+      }
+      holder.appendChild(symbol);
+
+      // Status on the corner, exactly as on the overview map — and only when a
+      // source has actually said something, so an unknown hut does not wear a
+      // grey badge implying we checked.
+      const known =
+        feature.season?.value && feature.season.value !== "unknown";
+      if (feature.type === "hut" && known) {
+        holder.appendChild(
+          pipElement(
+            colour,
+            feature.season?.value === "closed" ||
+              feature.season?.value === "restricted",
+          ),
+        );
+      }
+      marker.appendChild(holder);
       new maplibregl.Marker({ element: marker })
         .setLngLat(points[0])
         .addTo(instance);
