@@ -49,7 +49,8 @@ from massif.config import settings
 from massif.db import get_session
 from massif.enums import TRANSIENT_STATUSES, StatusValue
 from massif.ingest.fr_dates import published_date
-from massif.models import Feature, Source, Statement
+from massif.ingest.llm import normalise_space, readable_text
+from massif.models import Document, Feature, Source, Statement
 from massif.status import recompute_feature
 
 router = APIRouter(prefix="/admin", include_in_schema=False)
@@ -100,9 +101,10 @@ def same_origin(request: Request) -> None:
 
 def _waiting(session: Session):
     return session.execute(
-        select(Statement, Feature, Source)
+        select(Statement, Feature, Source, Document)
         .join(Feature, Feature.id == Statement.feature_id)
         .join(Source, Source.id == Statement.source_id)
+        .outerjoin(Document, Document.id == Statement.document_id)
         .where(
             Statement.payload["needs_review"].as_boolean().is_(True),
             Statement.reviewed_at.is_(None),
@@ -214,7 +216,73 @@ def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
     return ", ".join(f"{k}={v}" for k, v in changed.items())
 
 
-def _card(statement: Statement, feature: Feature, source: Source) -> str:
+# How much of the page to show around the quoted sentence. Whole pages here
+# are 1-4k characters of prose, so this is usually all of it.
+CONTEXT_CHARS = 6000
+
+
+def _source_prose(document: Document | None, evidence: str) -> str:
+    """The page as the model read it, with the quoted sentence marked.
+
+    A card used to show one sentence and ask whether to publish it, which is
+    the wrong question to be able to answer: the Refuge du Requin states
+    "Le Refuge sera gardé jusqu'au 30/08 puis les WE début septembre" at the
+    top of its page, and the card in front of the reviewer quoted only a
+    secondary line about the winter room. Judging an extract in isolation
+    cannot catch what the extraction MISSED, and missing is the failure mode
+    this queue exists to catch.
+
+    Marked rather than merely shown, so the reviewer can see at a glance which
+    sentence became the statement and read what surrounds it.
+    """
+    if document is None:
+        return ""
+    raw = document.raw_text or (document.raw_content or b"").decode("utf-8", "replace")
+    prose = readable_text(raw)[:CONTEXT_CHARS]
+    if not prose:
+        return ""
+    marked = html.escape(prose)
+    quoted = html.escape(normalise_space(evidence or ""))
+    if quoted and quoted in marked:
+        marked = marked.replace(quoted, f"<mark>{quoted}</mark>", 1)
+    return marked
+
+
+def _siblings(statement: Statement, rows: list) -> str:
+    """The other statements taken from the same page.
+
+    A reviewer deciding on one sentence needs to know what else the page
+    produced, or two cards that split one notice look like two notices — and a
+    page that produced only this one looks the same as a page that produced
+    five.
+    """
+    others = [
+        other
+        for other, _f, _s, doc in rows
+        if doc is not None
+        and other.document_id == statement.document_id
+        and other.id != statement.id
+    ]
+    if not others:
+        return ""
+    items = "".join(
+        f"<li>{html.escape(other.status.value)} — "
+        f"{html.escape((other.summary_en or '')[:110])}</li>"
+        for other in others
+    )
+    return (
+        f"<p class=w>Also taken from this page, and waiting separately:</p>"
+        f"<ul class=sib>{items}</ul>"
+    )
+
+
+def _card(
+    statement: Statement,
+    feature: Feature,
+    source: Source,
+    document: Document | None = None,
+    rows: list | None = None,
+) -> str:
     e = html.escape  # every interpolation below is third-party text
     payload = statement.payload or {}
     demoted = payload.get("undated_status")
@@ -250,6 +318,18 @@ def _card(statement: Statement, feature: Feature, source: Source) -> str:
     )
     from_value = f"{published_date(statement.valid_from):%Y-%m-%d}" if statement.valid_from else ""
     to_value = f"{published_date(statement.valid_to):%Y-%m-%d}" if statement.valid_to else ""
+    siblings = _siblings(statement, rows or [])
+    prose = _source_prose(document, statement.original_text or "")
+    context = (
+        # OPEN, not behind a click. The whole point is that the reviewer sees
+        # what the extraction did not pick up, and information you have to ask
+        # for is information most people will not ask for.
+        "<details class=prose open><summary>the whole page we read "
+        f"({len(prose)} characters) — check what is NOT here</summary>"
+        f"<div>{prose}</div></details>"
+        if prose
+        else ""
+    )
     page = (
         f'<p><a href="{e(str(payload["url"]))}" rel="noopener nofollow" '
         f'target="_blank">the page it came from</a></p>'
@@ -265,6 +345,8 @@ def _card(statement: Statement, feature: Feature, source: Source) -> str:
   <p class=sum>{e(statement.summary_en or "")}</p>
   <blockquote>{e(statement.original_text or "")}</blockquote>
   {page}
+  {siblings}
+  {context}
   <p class=pre>If accepted the site says:
      <b>{e(statement.status.value)}</b> — {e(_would_say(statement))}</p>
   <form method="post" action="/admin/review/{statement.id}/accept">
@@ -310,6 +392,14 @@ PAGE = """<!doctype html><meta charset=utf-8>
  .ok{{border-color:#3d8f63;color:#3d8f63}}
  .no{{border-color:#b23c31;color:#b23c31;margin-left:.4rem}}
  .none{{color:#6d7681}}
+ details.prose{{margin:.6rem 0;font-size:13px}}
+ details.prose summary{{cursor:pointer;color:#6d7681;font-size:12.5px}}
+ details.prose div{{margin-top:.5rem;padding:.7rem .9rem;background:#f4f6f8;
+   border-radius:8px;white-space:pre-wrap;color:#4d545c;max-height:22rem;
+   overflow:auto}}
+ mark{{background:#f4f0e4;color:#22282e;padding:0 .1rem}}
+ ul.sib{{margin:.2rem 0 .6rem;padding-left:1.1rem;font-size:12.5px;
+   color:#6d7681}}
  .pre{{background:#f4f6f8;border-radius:6px;padding:.5rem .7rem;font-size:13.5px;
    margin:.7rem 0}}
  fieldset{{border:1px dashed #c6ccd2;border-radius:8px;padding:.5rem .7rem;
@@ -331,7 +421,7 @@ the summary is the only field the model wrote rather than copied.</p>
 @router.get("/review", response_class=HTMLResponse, dependencies=[Depends(require_token)])
 def review_page(session: Session = Depends(get_session)) -> HTMLResponse:
     rows = _waiting(session)
-    cards = "".join(_card(s, f, src) for s, f, src in rows) or (
+    cards = "".join(_card(s, f, src, d, rows) for s, f, src, d in rows) or (
         "<p class=none>Nothing waiting.</p>"
     )
     return HTMLResponse(PAGE.format(count=len(rows), cards=cards), headers=NO_INDEX)

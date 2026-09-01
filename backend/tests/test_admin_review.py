@@ -24,6 +24,7 @@ HERE = {"Origin": "http://testserver"}
 class _Statement:
     id = "11111111-1111-1111-1111-111111111111"
     feature_id = "22222222-2222-2222-2222-222222222222"
+    document_id = "33333333-3333-3333-3333-333333333333"
     status = StatusValue.CLOSED
     statement_type = StatementType.CLOSURE
     summary_en = "Shut for the season"
@@ -44,6 +45,23 @@ class _Feature:
 
 class _Source:
     slug = "hut-sites"
+
+
+class _Document:
+    """The stored page, as the reviewer needs to see it."""
+
+    id = "33333333-3333-3333-3333-333333333333"
+    url = "https://example.invalid/refuge"
+    raw_content = None
+    raw_text = (
+        "<html><body><main>"
+        "<p>Le Refuge sera gard\u00e9 jusqu\u2019au 30/08 puis les WE d\u00e9but "
+        "septembre.</p>"
+        "<p>En dehors de la p\u00e9riode gard\u00e9e, le refuge d'hiver est "
+        "accessible.</p>"
+        "<script>alert('x')</script>"
+        "</main></body></html>"
+    )
 
 
 class _Session:
@@ -70,7 +88,7 @@ def build(token=TOKEN, rows=None):
     settings.admin_token = token
     app = FastAPI()
     mounted = admin.include_admin(app)
-    session = _Session(rows if rows is not None else [(_Statement, _Feature, _Source)])
+    session = _Session(rows if rows is not None else [(_Statement, _Feature, _Source, _Document)])
     app.dependency_overrides[get_session] = lambda: session
     return app, mounted, session
 
@@ -425,3 +443,82 @@ def test_a_refusal_is_a_page_a_person_can_read(monkeypatch):
     assert "text/html" in got.headers["content-type"]
     assert "/admin/review" in got.text
     assert "needs a window" in got.text
+
+
+# ------------------------------------------- the page, not just the extract
+
+
+def test_the_reviewer_is_shown_the_whole_page_the_model_read():
+    """A card that quotes one sentence asks a question the reviewer cannot
+    answer. The Refuge du Requin states "Le Refuge sera gardé jusqu'au 30/08
+    puis les WE début septembre" at the top of its page, and the card in front
+    of the reviewer quoted a secondary line about the winter room instead.
+
+    Judging an extract in isolation cannot catch what the extraction MISSED,
+    and missing is the failure this queue exists to catch.
+    """
+    app, _, _ = build()
+    body = TestClient(app).get("/admin/review", headers=AUTH).text
+    assert "the whole page we read" in body
+    # The sentence the model did NOT pick has to be visible.
+    assert "30/08" in body
+
+
+def test_the_page_text_is_escaped_like_everything_else():
+    """It is the same untrusted third-party prose, in larger quantity."""
+    app, _, _ = build()
+    body = TestClient(app).get("/admin/review", headers=AUTH).text
+    assert "<script>alert('x')</script>" not in body
+
+
+def test_the_quoted_sentence_is_marked_inside_the_page():
+    """So the reviewer can see at a glance which sentence became the statement
+    and read what surrounds it."""
+    _Statement.original_text = "En dehors de la période gardée, le refuge d'hiver est accessible."
+    app, _, _ = build()
+    body = TestClient(app).get("/admin/review", headers=AUTH).text
+    assert "<mark>" in body
+
+
+def test_a_statement_with_no_document_still_renders():
+    """Not every source stores one, and a missing page must not break the
+    queue for the statements that do."""
+    app, _, _ = build(rows=[(_Statement, _Feature, _Source, None)])
+    got = TestClient(app).get("/admin/review", headers=AUTH)
+    assert got.status_code == 200
+    assert "the whole page we read" not in got.text
+
+
+def test_the_page_panel_is_open_rather_than_behind_a_click():
+    """Information you have to ask for is information most people will not ask
+    for, and the whole point of the panel is what the extraction missed."""
+    app, _, _ = build()
+    body = TestClient(app).get("/admin/review", headers=AUTH).text
+    assert "<details class=prose open>" in body
+
+
+def test_a_card_says_what_else_came_off_the_same_page():
+    """Two cards that split one notice look like two notices, and a page that
+    produced only this statement looks the same as one that produced five."""
+
+    class _Other:
+        id = "44444444-4444-4444-4444-444444444444"
+        document_id = _Document.id
+        status = StatusValue.OPEN
+        statement_type = StatementType.OPENING
+        summary_en = "The refuge is staffed until 30 August"
+        original_text = "Le Refuge sera gardé jusqu'au 30/08"
+        valid_from = None
+        valid_to = None
+        payload: dict = {"needs_review": True}
+
+    _Statement.document_id = _Document.id
+    app, _, _ = build(
+        rows=[
+            (_Statement, _Feature, _Source, _Document),
+            (_Other, _Feature, _Source, _Document),
+        ]
+    )
+    body = TestClient(app).get("/admin/review", headers=AUTH).text
+    assert "Also taken from this page" in body
+    assert "staffed until 30 August" in body
