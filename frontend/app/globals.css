@@ -195,7 +195,7 @@ a:hover { text-decoration: underline; }
    column of ruled lines from the top of the page to the bottom, and the rail
    carries the section name and the caveat that belongs with it. */
 .band { display: grid; grid-template-columns: 200px 1fr; gap: 0 36px; }
-.band + .band, .band--ruled {
+.band + .band {
   border-top: 1.5px solid var(--ink); padding-top: 16px;
 }
 /* The first band sits under the verdict's own 3px rule; a second line 16px
@@ -214,6 +214,41 @@ a:hover { text-decoration: underline; }
   margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--secondary);
 }
 .band__credit a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* ------------------------------------------------------------- focus bar
+   "Show me only the huts." Four links, one of which is the page you are on
+   and is therefore not a link — without that the reader cannot tell which
+   view they are in, and a chip that navigates to itself reads as broken. */
+.focus {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin-top: -18px;
+}
+.focus__label {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+  color: var(--tertiary); margin-right: 4px;
+}
+.focus__item {
+  font-size: 12.5px; font-weight: 500; color: var(--body);
+  border: 1px solid var(--rule-strong); border-radius: 999px;
+  padding: 4px 12px; background: var(--card); white-space: nowrap;
+}
+a.focus__item:hover { border-color: var(--ink); color: var(--ink); text-decoration: none; }
+.focus__item--here {
+  color: var(--bg); background: var(--ink); border-color: var(--ink);
+  font-weight: 600; cursor: default;
+}
+
+/* A band the reader has narrowed away. One line, its count, and a way back
+   in. The count is the point: absence has to read as "not shown here", never
+   as "nothing there" — the same rule as "no directory entry" on a hut cell,
+   and on this site that difference is the whole product. */
+.band--folded {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  color: inherit; padding-bottom: 14px;
+}
+.band--folded:hover { text-decoration: none; }
+.band--folded:hover .band__label { color: var(--closed); }
+.band__folded { font-size: 12.5px; color: var(--tertiary); }
 
 /* ------------------------------------------------------------ ledger rows */
 /* A grid, not the handoff's single baseline row.
@@ -650,7 +685,6 @@ table.history th { color: var(--secondary); font-weight: 500; }
   .band__rail {
     display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
   }
-  .band__note br { display: none; }
   .band__note { margin: 0; }
 }
 
@@ -679,7 +713,6 @@ table.history th { color: var(--secondary); font-weight: 500; }
      rows beside it. */
   .band { grid-template-columns: 1fr; gap: 10px; }
   .band__note { margin-top: 2px; }
-  .band__note br { display: none; }
   .col { gap: 30px; }
   /* One column of cells: two 165px columns cut every hut name in half. */
   .cells { grid-template-columns: 1fr; }
