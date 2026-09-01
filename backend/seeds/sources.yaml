@@ -132,6 +132,48 @@
   fetch_interval_minutes: 30
   active: false
 
+# The operator of fifteen of the huts inside this massif, publishing per hut the
+# "Période de gardiennage": the dated window it is open to the public. The first
+# source we carry that makes a dated claim about a HUT being open — refuges.info
+# only ever says when one is shut, and says nothing at all about most of them.
+#
+# Weekly, because a season is published once in spring and then stands. The
+# directory page decides which huts are in the massif; each refuge's own site
+# carries the dates, and both are stored so an improved parser re-runs over
+# them without re-fetching.
+#
+# Below Saint-Gervais (1.00) deliberately: the mairie shut the Goûter and Tête
+# Rousse by arrêté on 11 August, in the middle of the season this source
+# publishes. A season must never outrank a decree.
+- slug: ffcam-refuges
+  name: FFCAM — refuges gardés du massif du Mont-Blanc
+  url: https://www.ffcam.fr/rechercher_refuge_chalet.html
+  source_type: operator
+  language: fr
+  country: FR
+  trust_weight: 0.90
+  fetch_interval_minutes: 10080
+  active: true
+  notes: >
+    Warden seasons for the FFCAM huts: Goûter, Tête Rousse, Grands Mulets,
+    Couvercle, Argentière, Albert 1er, Conscrits, Durier, Leschaux, Envers des
+    Aiguilles, Vallot, Chalet du Tour, Requin.
+
+    Emits OPENING statements valid only inside the published window and
+    synthesises NOTHING outside it. "Gardiennage" is the warden season, not the
+    access season — most of these huts have a winter room and FFCAM sells
+    "hors gardiennage" bookings for it — so the end of the season means
+    unstaffed, never closed.
+
+    Two page shapes, both in tests/fixtures: montblanc.ffcam.fr is one portal
+    for three huts, every other refuge has its own site. Huts whose season is
+    published as prose ("De début avril à fin septembre") emit nothing rather
+    than a guessed year.
+
+    Nid d'Aigle is excluded by name: FFCAM's own page says it no longer manages
+    it. So is "TETE ROUSSE- CAMP DE BASE", the annexe listed 2 m from the
+    refuge itself, which no altitude check could ever tell apart from it.
+
 - slug: pghm-chamonix
   name: PGHM Chamonix / préfecture Haute-Savoie
   url: https://www.haute-savoie.gouv.fr/

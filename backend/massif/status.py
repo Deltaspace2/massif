@@ -46,8 +46,22 @@ STALE_DAYS: dict[str, int] = {
 # A year is the judgement: long enough that an unedited standing state is not
 # called old for the sake of it, short enough that a page nobody has touched in
 # over a year stops speaking for the present.
-SOURCE_STALE_DAYS: dict[str, int] = {
+# A source may set one shelf life for everything it publishes, or one per
+# statement type. Per type matters wherever a source publishes more than one
+# KIND of thing: a blanket number here is applied to a source's closures as
+# readily as to its seasons, and "this hut's warden season is still current"
+# and "this hut is still shut" do not keep for the same length of time.
+SOURCE_STALE_DAYS: dict[str, int | dict[str, int]] = {
     "refuges-info": 365,
+    # A warden season is fetched weekly and almost never changes, so the
+    # document — and with it observed_at — stays pinned to the day we first
+    # saw it, while last_seen_at moves every week. Judged by OPENING's 30 days
+    # a season published in spring reads as old by May, in the middle of the
+    # window it is describing and having been re-checked six days ago. 240
+    # covers the longest season these huts publish (mid-March to early
+    # October). Scoped to `opening` so that if this source ever starts
+    # emitting a closure, that closure ages like a closure.
+    "ffcam-refuges": {"opening": 240},
 }
 
 
@@ -56,13 +70,19 @@ def stale_days_for(statement: Statement, session: Session) -> int:
 
     Source first, then statement type, then the configured default. Source wins
     because it is the more specific fact: what KIND of thing a source publishes
-    outranks what kind of notice it happens to be.
+    outranks what kind of notice it happens to be. A source entry may itself be
+    keyed by statement type, for a source that publishes more than one kind.
     """
     source_slug = session.scalar(
         select(Source.slug).where(Source.id == statement.source_id)
     )
-    if source_slug in SOURCE_STALE_DAYS:
-        return SOURCE_STALE_DAYS[source_slug]
+    configured = SOURCE_STALE_DAYS.get(source_slug)
+    if isinstance(configured, int):
+        return configured
+    if isinstance(configured, dict):
+        by_type = configured.get(str(statement.statement_type))
+        if by_type is not None:
+            return by_type
     return STALE_DAYS.get(str(statement.statement_type), settings.default_stale_days)
 
 
