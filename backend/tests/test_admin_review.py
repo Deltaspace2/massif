@@ -29,6 +29,7 @@ class _Statement:
     statement_type = StatementType.CLOSURE
     summary_en = "Shut for the season"
     original_text = "<script>alert(1)</script> le refuge est fermé"
+    original_language = "fr"
     valid_from = None
     valid_to = None
     payload: dict = {"needs_review": True}
@@ -489,12 +490,14 @@ def test_a_statement_with_no_document_still_renders():
     assert "the whole page we read" not in got.text
 
 
-def test_the_page_panel_is_open_rather_than_behind_a_click():
-    """Information you have to ask for is information most people will not ask
-    for, and the whole point of the panel is what the extraction missed."""
+def test_the_page_panel_is_collapsed_but_present():
+    """Open by default first, then collapsed at Steven's request: it is a lot
+    of text on every card. What matters is that it is THERE — a reviewer
+    judging one sentence cannot see what the extraction missed."""
     app, _, _ = build()
     body = TestClient(app).get("/admin/review", headers=AUTH).text
-    assert "<details class=prose open>" in body
+    assert "<details class=prose>" in body
+    assert "<details class=prose open>" not in body
 
 
 def test_a_card_says_what_else_came_off_the_same_page():
@@ -508,6 +511,7 @@ def test_a_card_says_what_else_came_off_the_same_page():
         statement_type = StatementType.OPENING
         summary_en = "The refuge is staffed until 30 August"
         original_text = "Le Refuge sera gardé jusqu'au 30/08"
+        original_language = "fr"
         valid_from = None
         valid_to = None
         payload: dict = {"needs_review": True}
@@ -565,3 +569,24 @@ def test_a_window_that_has_already_closed_says_so(monkeypatch):
     assert "not yet in force" in _window(Future())
     assert "ALREADY PAST" not in _window(Now())
     assert "not yet in force" not in _window(Now())
+
+
+def test_the_sources_own_words_are_marked_untranslatable():
+    """Steven's browser was translating the page, which reordered words and
+    left the <b> around whichever one landed in that slot — "hut-sites ·
+    unknown **says**". Cosmetic on the UI text and NOT cosmetic on the
+    evidence: the whole value of a verbatim span is that it is verbatim, and a
+    translated one is a paraphrase of a paraphrase, sitting under a heading
+    that promises the source's own words."""
+    app, _, _ = build()
+    body = TestClient(app).get("/admin/review", headers=AUTH).text
+    assert 'lang="fr" translate="no" class="notranslate"' in body
+    # The page-prose panel carries it too, not just the quoted sentence.
+    assert body.count('translate="no"') >= 2
+
+
+def test_the_page_declares_its_own_language():
+    """So a browser knows the UI is English and only the marked spans are not."""
+    app, _, _ = build()
+    body = TestClient(app).get("/admin/review", headers=AUTH).text
+    assert "<html lang=en>" in body

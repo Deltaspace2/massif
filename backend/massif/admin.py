@@ -234,7 +234,7 @@ def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
 CONTEXT_CHARS = 6000
 
 
-def _source_prose(document: Document | None, evidence: str) -> str:
+def _source_prose(document: Document | None, evidence: str, lang: str = "fr") -> str:
     """The page as the model read it, with the quoted sentence marked.
 
     A card used to show one sentence and ask whether to publish it, which is
@@ -331,15 +331,21 @@ def _card(
     )
     from_value = f"{published_date(statement.valid_from):%Y-%m-%d}" if statement.valid_from else ""
     to_value = f"{published_date(statement.valid_to):%Y-%m-%d}" if statement.valid_to else ""
+    # The source's own language, so a browser knows this is not English and —
+    # with translate="no" below — leaves it alone.
+    lang = statement.original_language or "fr"
     siblings = _siblings(statement, rows or [])
-    prose = _source_prose(document, statement.original_text or "")
+    prose = _source_prose(document, statement.original_text or "", lang)
     context = (
-        # OPEN, not behind a click. The whole point is that the reviewer sees
-        # what the extraction did not pick up, and information you have to ask
-        # for is information most people will not ask for.
-        "<details class=prose open><summary>the whole page we read "
+        # COLLAPSED by default: it is a lot of text on every card, and a
+        # reviewer who wants it is one click away. lang + translate="no" keep
+        # a browser's page translation off the source's own words — the whole
+        # value of an evidence span is that it is verbatim, and a translated
+        # one is a paraphrase of a paraphrase.
+        "<details class=prose><summary>the whole page we read "
         f"({len(prose)} characters) — check what is NOT here</summary>"
-        f"<div>{prose}</div></details>"
+        f'<div lang="{lang}" translate="no" class="notranslate">{prose}</div>'
+        "</details>"
         if prose
         else ""
     )
@@ -356,7 +362,8 @@ def _card(
      · {e(str(statement.statement_type))} · {e(_window(statement))}</p>
   {note}{attributed}
   <p class=sum>{e(statement.summary_en or "")}</p>
-  <blockquote>{e(statement.original_text or "")}</blockquote>
+  <blockquote lang="{lang}" translate="no" class="notranslate">
+    {e(statement.original_text or "")}</blockquote>
   {page}
   {siblings}
   {context}
@@ -382,7 +389,7 @@ def _card(
 </article>"""
 
 
-PAGE = """<!doctype html><meta charset=utf-8>
+PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
 <meta name=robots content="noindex, nofollow">
 <title>massif · review</title>
 <style>
@@ -455,7 +462,7 @@ async def _fields(request: Request) -> dict[str, str]:
     return {k: v[0].strip() for k, v in parse_qs(raw).items() if v}
 
 
-ERROR_PAGE = """<!doctype html><meta charset=utf-8>
+ERROR_PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
 <meta name=robots content="noindex, nofollow">
 <title>massif · review</title>
 <style>
