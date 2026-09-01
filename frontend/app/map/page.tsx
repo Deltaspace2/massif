@@ -1,3 +1,4 @@
+import MapKey from "@/components/MapKey";
 import type { Metadata } from "next";
 import MassifMap from "@/components/MassifMap";
 import { listFeatures, getHealth, sinceLabel, type Feature } from "@/lib/api";
@@ -61,21 +62,7 @@ export default async function MapPage() {
           )}
         </span>
 
-        <span className="mapfull__legend">
-          <span>
-            <i style={{ color: "var(--open)" }}>●</i>open
-          </span>
-          <span>
-            <i style={{ color: "var(--restricted-glass)" }}>▲</i>restricted
-          </span>
-          <span>
-            <i style={{ color: "var(--closed)" }}>■</i>closed
-          </span>
-          <span>
-            <i style={{ color: "var(--unknown)" }}>○</i>unknown
-          </span>
-          <span className="mapfull__note">coloured by season, not by the clock</span>
-        </span>
+        <MapKey className="mapfull__legend" />
 
         <span className="mapfull__sweep mono">
           sweep {sinceLabel(lastIngest)} · <a href="/">back to status</a>

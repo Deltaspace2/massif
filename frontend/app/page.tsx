@@ -1,4 +1,5 @@
 import Flag from "@/components/Flag";
+import MapKey from "@/components/MapKey";
 import MassifMap from "@/components/MassifMap";
 import {
   listFeatures,
@@ -6,6 +7,7 @@ import {
   resortTime,
   sinceLabel,
   type Feature,
+  type FactBlock,
 } from "@/lib/api";
 
 export const revalidate = 60;
@@ -259,12 +261,35 @@ export default async function Home() {
   // nothing published about them, so a status listing shows two — while their
   // capacity, warden and phone are the only reason most people arrive at all.
   // Highest first: it is how the massif is described and how they are climbed.
+  // Everything the directories say about one hut, merged across ALL of its
+  // blocks. Reading `facts[0]` only was why most rows in this list were blank:
+  // a hut with a camptocamp block first showed nothing, because camptocamp
+  // writes `capacity_staffed` and `custodianship` where refuges.info writes
+  // `capacity` and `guarded` — and the Cosmiques had refuges.info sitting in
+  // block TWO saying "sleeps 145, staffed" while the row rendered empty.
+  const hutValues = (f: Feature) => {
+    const merged: Record<string, unknown> = {};
+    for (const block of f.facts ?? []) {
+      for (const [key, value] of Object.entries(block.values)) {
+        if (value !== undefined && merged[key] === undefined) merged[key] = value;
+      }
+    }
+    return merged as FactBlock["values"];
+  };
   const hutAlt = (f: Feature): number | null =>
-    f.alt_max ?? f.alt_min ?? (f.facts ?? [])[0]?.values.altitude_m ?? null;
+    f.alt_max ?? f.alt_min ?? hutValues(f).altitude_m ?? null;
   const huts = features
     .filter((f) => f.type === "hut")
     .sort((a, b) => (hutAlt(b) ?? -1) - (hutAlt(a) ?? -1) || a.name.localeCompare(b.name));
-  const hutSource = huts.flatMap((f) => f.facts ?? [])[0];
+  // EVERY source that fed this list, not the first one found. Two directories
+  // contribute here and crediting one of them is exactly the under-attribution
+  // the facts block exists to prevent — a missing credit is invisible in a way
+  // a missing table is not.
+  const hutSources = Array.from(
+    new Map(
+      huts.flatMap((f) => f.facts ?? []).map((block) => [block.source.name, block]),
+    ).values(),
+  );
 
   // Every route and couloir, for the same reason as the huts: the status
   // listings only show what a source has published about, and Saint-Gervais
@@ -442,20 +467,70 @@ export default async function Home() {
               </div>
               <div className="huts">
                 {huts.map((f) => {
-                  const values = (f.facts ?? [])[0]?.values;
+                  const values = hutValues(f);
+                  const known = (f.facts ?? []).length > 0;
                   const alt = hutAlt(f);
+                  // The two directories count beds differently: refuges.info
+                  // gives one `capacity`, camptocamp splits it by whether the
+                  // warden is in. Prefer the plain figure, then the staffed
+                  // one, then the winter room.
+                  const sleeps =
+                    values.capacity ??
+                    values.capacity_staffed ??
+                    values.capacity_unstaffed;
+                  // `guarded` is a boolean and says it outright. camptocamp
+                  // instead describes ACCESS relative to the warden, which is
+                  // not the same question, and only some of its answers imply
+                  // an answer to this one:
+                  //
+                  //   "Open only when the warden is there"    -> a warden
+                  //   "Closed when the warden is away"        -> a warden
+                  //   "No warden"                             -> none
+                  //   "Some shelter accessible even when
+                  //    unwardened"                            -> SAYS NOTHING
+                  //
+                  // The last one is their `always_accessible`, and treating it
+                  // as "staffed" printed exactly that against the Bivacco
+                  // della Brenva and the Bivacco Luigi Pascal — two unmanned
+                  // bivacchi, one of which carries no bed count except
+                  // `capacity_unstaffed`. It asserts the shelter is reachable,
+                  // never that anyone runs it.
+                  //
+                  // These strings are our own gloss, written in
+                  // import_camptocamp_facts.CUSTODIANSHIP. If they are
+                  // reworded there, reword them here.
+                  const WARDEN_IMPLIED = [
+                    "Open only when the warden is there",
+                    "Closed when the warden is away",
+                  ];
+                  const staffed =
+                    values.guarded !== undefined
+                      ? values.guarded
+                      : values.custodianship === "No warden"
+                        ? false
+                        : values.custodianship !== undefined &&
+                            WARDEN_IMPLIED.includes(values.custodianship)
+                          ? true
+                          : undefined;
                   // Absent is not zero and not false — the same three-state
                   // rule as the feature page. A hut we know nothing about says
                   // so, rather than rendering a row of confident blanks.
-                  const detail = values
+                  const detail = known
                     ? [
-                        values.capacity !== undefined
-                          ? `sleeps ${values.capacity}`
-                          : null,
-                        values.guarded !== undefined
-                          ? values.guarded
+                        sleeps !== undefined ? `sleeps ${sleeps}` : null,
+                        staffed !== undefined
+                          ? staffed
                             ? "staffed"
                             : "unstaffed"
+                          : null,
+                        // Their `always_accessible`, which answers a different
+                        // question from "is there a warden" and is the only
+                        // thing we know about some bivacchi. Said in its own
+                        // words rather than squeezed into the staffing slot,
+                        // which is what made it read as "staffed".
+                        values.custodianship ===
+                        "Some shelter accessible even when unwardened"
+                          ? "shelter always accessible"
                           : null,
                         values.water === true ? "water" : null,
                       ]
@@ -472,7 +547,7 @@ export default async function Home() {
                         {alt ? `${alt} m` : "—"}
                       </span>
                       <span
-                        className={`huts__detail${values ? "" : " huts__detail--none"}`}
+                        className={`huts__detail${known ? "" : " huts__detail--none"}`}
                       >
                         {detail}
                       </span>
@@ -497,20 +572,25 @@ export default async function Home() {
                   );
                 })}
               </div>
-              {hutSource && (
+              {hutSources.length > 0 && (
                 <p className="meta huts__credit">
                   Capacities, warden and water from{" "}
-                  <a href={hutSource.source.url} rel="nofollow noopener">
-                    {hutSource.source.name}
-                  </a>
-                  , under{" "}
-                  {hutSource.licence_url ? (
-                    <a href={hutSource.licence_url} rel="license noopener">
-                      {hutSource.licence}
-                    </a>
-                  ) : (
-                    hutSource.licence
-                  )}
+                  {hutSources.map((block, index) => (
+                    <span key={block.source.name}>
+                      {index > 0 && (index === hutSources.length - 1 ? " and " : ", ")}
+                      <a href={block.source.url} rel="nofollow noopener">
+                        {block.source.name}
+                      </a>
+                      , under{" "}
+                      {block.licence_url ? (
+                        <a href={block.licence_url} rel="license noopener">
+                          {block.licence}
+                        </a>
+                      ) : (
+                        block.licence
+                      )}
+                    </span>
+                  ))}
                   . Each hut&rsquo;s page links the entry its community wrote.
                   These describe the building, not today — a hut being listed
                   here is not a report that it is open.
@@ -593,20 +673,7 @@ export default async function Home() {
           <div className="mappane__map">
             <MassifMap features={features} />
           </div>
-          <div className="mappane__legend">
-            <span>
-              <i style={{ color: "var(--open)" }}>●</i>open
-            </span>
-            <span>
-              <i style={{ color: "var(--restricted-glass)" }}>▲</i>restricted
-            </span>
-            <span>
-              <i style={{ color: "var(--closed)" }}>■</i>closed
-            </span>
-            <span>
-              <i style={{ color: "var(--unknown)" }}>○</i>unknown
-            </span>
-          </div>
+          <MapKey className="mappane__legend" />
         </aside>
       </div>
     </main>
