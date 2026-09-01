@@ -135,17 +135,18 @@ def _endpoint(label: str, url: str, show: int = 3) -> None:
         print(f"      {date}  {title[:78]!r}{mountain}")
 
     hits = [
-        r for r in records
+        r
+        for r in records
         if MOUNTAIN.search(re.sub(r"<[^>]+>", "", (r.get("title") or {}).get("rendered", "")))
     ]
     print(f"\n    {len(hits)}/{len(records)} of this page look mountain-related")
 
 
 def _decree() -> int:
-    _endpoint("DECREE — Publicité des actes",
-              f"{DECREE}?per_page=20&orderby=date&order=desc", show=20)
-    _endpoint("NEWS — Actualités",
-              f"{NEWS}?per_page=10&orderby=date&order=desc", show=10)
+    _endpoint(
+        "DECREE — Publicité des actes", f"{DECREE}?per_page=20&orderby=date&order=desc", show=20
+    )
+    _endpoint("NEWS — Actualités", f"{NEWS}?per_page=10&orderby=date&order=desc", show=10)
     return 0
 
 
@@ -153,15 +154,28 @@ def _decree() -> int:
 # news to find a handful of mountain notices is the wrong shape; WordPress
 # will filter server-side if asked.
 HUNT_TERMS = [
-    "arrete", "arrêté", "montagne", "sentier", "eboulement", "éboulement",
-    "chutes de pierres", "glacier", "interdiction", "fermeture",
-    "grand couloir", "aiguille du midi", "alpinisme", "refuge",
-    "mer de glace", "acces interdit",
+    "arrete",
+    "arrêté",
+    "montagne",
+    "sentier",
+    "eboulement",
+    "éboulement",
+    "chutes de pierres",
+    "glacier",
+    "interdiction",
+    "fermeture",
+    "grand couloir",
+    "aiguille du midi",
+    "alpinisme",
+    "refuge",
+    "mer de glace",
+    "acces interdit",
 ]
 
 
 def _clean(html: str) -> str:
     import html as html_mod
+
     return html_mod.unescape(re.sub(r"<[^>]+>", "", html or "")).strip()
 
 
@@ -267,7 +281,7 @@ def _acts() -> int:
         if isinstance(records, list):
             for record in records[:5]:
                 title = _clean((record.get("title") or {}).get("rendered", ""))
-                print(f"      {record.get('date','')[:10]}  {title[:70]}")
+                print(f"      {record.get('date', '')[:10]}  {title[:70]}")
     return 0
 
 

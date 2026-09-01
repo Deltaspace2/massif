@@ -43,6 +43,19 @@ class StatusValue(StrEnum):
     UNKNOWN = "unknown"
 
 
+# Statuses that say something about NOW, and therefore need a window to be the
+# now of. Rule 3 bites on these and only these.
+#
+# `unstaffed` and `unknown` are STANDING states: an unguarded cabin has no end
+# date and never will, and refuges.info publishes 54 of them undated by design.
+# Demoting those for want of dates turns a real answer into "no information".
+#
+# Defined here rather than in either caller, because it was written twice —
+# once in the review page and once, differently, in llm.py — and the two
+# disagreed about `unstaffed` for a day.
+TRANSIENT_STATUSES = frozenset({StatusValue.OPEN, StatusValue.CLOSED, StatusValue.RESTRICTED})
+
+
 class ExtractionMethod(StrEnum):
     MANUAL = "manual"
     RULE = "rule"

@@ -386,3 +386,42 @@ def test_a_reason_on_its_own_is_a_valid_override(monkeypatch):
     assert got.status_code == 303
     assert _Statement.summary_en == "said plainly"
     assert _Statement.status is StatusValue.CLOSED
+
+
+def test_a_standing_state_needs_no_dates(monkeypatch):
+    """Requiring them was simply wrong. `unstaffed` is a STANDING state — "this
+    is an unguarded cabin" has no end — and refuges.info emits it undated by
+    design: 54 such statements were already live while this form refused to let
+    a person write one."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    got = _post(app, b"status=unstaffed")
+    assert got.status_code == 303
+    assert _Statement.status is StatusValue.UNSTAFFED
+    assert _Statement.valid_from is None
+
+
+def test_a_transient_state_still_needs_a_window(monkeypatch):
+    """The exemption is for standing states only. Open, closed and restricted
+    all say something about right now."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    for status in (b"status=closed", b"status=open", b"status=restricted"):
+        _fresh()
+        app, _, _ = build()
+        assert _post(app, status).status_code == 400, status
+        assert _Statement.reviewed_at is None
+
+
+def test_a_refusal_is_a_page_a_person_can_read(monkeypatch):
+    """A raw JSON body is fine for the API and useless here: a reviewer was
+    dropped on a page of JSON with no link back to the queue and no way to tell
+    what to do instead."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    got = _post(app, b"status=closed")
+    assert got.status_code == 400
+    assert "text/html" in got.headers["content-type"]
+    assert "/admin/review" in got.text
+    assert "needs a window" in got.text

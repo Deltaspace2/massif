@@ -184,7 +184,7 @@ def test_a_key_gives_a_client_that_defaults_to_sonnet(monkeypatch):
     assert built.model == DEFAULT_MODEL == "claude-sonnet-5"
 
 
-PROMPT_FINGERPRINT = "63ab9664022d48e5"
+PROMPT_FINGERPRINT = "36ee02088ac84ac4"
 
 
 def test_changing_the_prompt_forces_a_version_bump():

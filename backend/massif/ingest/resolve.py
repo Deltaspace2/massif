@@ -70,9 +70,7 @@ class FeatureResolver:
 
     def reload(self) -> None:
         self._index.clear()
-        features = self.session.scalars(
-            select(Feature).where(Feature.active.is_(True))
-        ).all()
+        features = self.session.scalars(select(Feature).where(Feature.active.is_(True))).all()
         for feature in features:
             surface_forms = [feature.name_default, *(feature.names or {}).values()]
             surface_forms.extend(feature.aliases or [])
@@ -95,9 +93,7 @@ class FeatureResolver:
             feature_id, form = self._index[key]
             return Match(feature_id, 100.0, form), []
 
-        raw = process.extract(
-            key, list(self._index.keys()), scorer=fuzz.WRatio, limit=5
-        )
+        raw = process.extract(key, list(self._index.keys()), scorer=fuzz.WRatio, limit=5)
         candidates = [
             Match(self._index[k][0], score, self._index[k][1])
             for k, score, _ in raw
@@ -136,8 +132,11 @@ class FeatureResolver:
                 source_id=source_id,
                 document_id=document_id,
                 candidates=[
-                    {"feature_id": c.feature_id, "score": round(c.score, 1),
-                     "matched_on": c.matched_on}
+                    {
+                        "feature_id": c.feature_id,
+                        "score": round(c.score, 1),
+                        "matched_on": c.matched_on,
+                    }
                     for c in candidates
                 ],
             )

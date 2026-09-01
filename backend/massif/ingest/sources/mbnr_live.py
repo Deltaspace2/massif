@@ -125,8 +125,7 @@ def lift_counts(counts: dict[str, dict[str, int]]) -> dict[str, int] | None:
     for key, value in counts.items():
         normalised = key.replace("é", "e").replace("&", "").strip()
         normalised = " ".join(normalised.split())
-        if any(normalised.startswith(c.replace("&", "").strip())
-               for c in LIFT_CATEGORIES):
+        if any(normalised.startswith(c.replace("&", "").strip()) for c in LIFT_CATEGORIES):
             return value
     return None
 
@@ -212,15 +211,13 @@ def sector_status(
         return (
             StatusValue.CLOSED,
             1,
-            f"its only {plural} is closed" if total_n == 1
-            else f"all {total_n} {plural} closed",
+            f"its only {plural} is closed" if total_n == 1 else f"all {total_n} {plural} closed",
         )
     if open_n == total_n:
         return (
             StatusValue.OPEN,
             0,
-            f"its only {plural} is open" if total_n == 1
-            else f"all {total_n} {plural} open",
+            f"its only {plural} is open" if total_n == 1 else f"all {total_n} {plural} open",
         )
     return StatusValue.RESTRICTED, 1, f"{open_n} of {total_n} lifts open"
 
@@ -248,12 +245,8 @@ def extract(tree: HTMLParser, observed_at: datetime) -> list[ExtractedStatement]
 
         # ---- sector-level statement, exact identity via the tab id
         slug = SECTOR_FEATURES.get(tab_id)
-        status, severity, note = sector_status(
-            items, lift_counts(counts), observed_at
-        )
-        scheduled = status is StatusValue.UNKNOWN and bool(
-            [i for i in items if not i['is_trail']]
-        )
+        status, severity, note = sector_status(items, lift_counts(counts), observed_at)
+        scheduled = status is StatusValue.UNKNOWN and bool([i for i in items if not i["is_trail"]])
         altitude = ALTITUDE.search(label)
 
         out.append(
@@ -367,8 +360,10 @@ def _dump() -> int:
         print(f"    counts: {statement.payload['counts']}")
         for lift in statement.payload["lifts"]:
             note = f"  [{lift['message']}]" if lift["message"] else ""
-            print(f"      {lift['name']:<28} {lift['raw_status'] or '?':<9} "
-                  f"{', '.join(lift['times'])}{note}")
+            print(
+                f"      {lift['name']:<28} {lift['raw_status'] or '?':<9} "
+                f"{', '.join(lift['times'])}{note}"
+            )
         print()
     return 0
 

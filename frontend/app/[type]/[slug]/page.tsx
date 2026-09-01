@@ -350,6 +350,31 @@ export default async function FeaturePage({ params }: { params: Params }) {
           is a different and much less urgent question than "is it shut". It
           carries no colour, no pill and no staleness styling, because a bunk
           count does not expire and must never read as a warning. */}
+      {/* ONE heading, one caveat, then a table per source.
+          Each source used to render its own <section> with its own "About this
+          hut" heading and its own identical caveat paragraph, so a hut carried
+          by both refuges.info and camptocamp showed the whole preamble twice.
+          The tables stay separate because the CREDIT has to: CC BY-SA attaches
+          per entry, and merging two directories' rows into one list would put
+          somebody's work under somebody else's name. */}
+      {(feature.facts ?? []).length > 0 && (
+        <section className="facts">
+          <h3 style={{ fontSize: 15, marginTop: 30 }}>
+            About this {feature.type}
+          </h3>
+          {/* Ours, above theirs, because a directory fact can mislead on its
+              own: refuges.info lists 12 places at Abri Vallot, which is true
+              and reads as a bunkroom, and it is a shelter of last resort at
+              4362 m. */}
+          {feature.notes && <p className="facts__note">{feature.notes}</p>}
+          <p className="meta">
+            How the directories below describe the building. These are
+            properties of the {feature.type}, not a status — they do not
+            expire, and we have not verified them. Any altitude below is that
+            source&rsquo;s survey, not ours — where it differs from the figure
+            at the top of this page, the one at the top is ours.
+          </p>
+
       {(feature.facts ?? []).map((fact) => {
         const v = fact.values;
         const rows: { label: string; value: ReactNode }[] = [];
@@ -387,29 +412,7 @@ export default async function FeaturePage({ params }: { params: Params }) {
         const edited = monthYear(fact.source_modified_at);
 
         return (
-          <section className="facts" key={fact.permalink}>
-            {/* Not "hut". _facts filters on feature_id, not feature_type, so
-                this path renders for anything that has a fact row — only huts
-                do today, and only because the importer selects them. */}
-            <h3 style={{ fontSize: 15, marginTop: 30 }}>
-              About this {feature.type}
-            </h3>
-            {/* Ours, above theirs, because a directory fact can mislead on its
-                own: refuges.info lists 12 places at Abri Vallot, which is true
-                and reads as a bunkroom, and it is a shelter of last resort at
-                4362 m. Deliberately rendered only here, where facts are — most
-                curated notes are bookkeeping ("auto-created from an operator
-                feed") and belong nowhere near a reader. */}
-            {feature.notes && (
-              <p className="facts__note">{feature.notes}</p>
-            )}
-            <p className="meta">
-              How {fact.source.name} describes the building. These are
-              properties of the hut, not a status — they do not expire, and we
-              have not verified them. Any altitude below is their survey, not
-              ours — where it differs from the figure at the top of this page,
-              the one at the top is ours.
-            </p>
+          <div key={fact.permalink}>
             <dl className="facts__list">
               {rows.map((row) => (
                 <div className="facts__row" key={row.label}>
@@ -440,9 +443,11 @@ export default async function FeaturePage({ params }: { params: Params }) {
                 `${edited ? "; " : " "}we pulled it ${sinceLabel(fact.fetched_at)}`}
               .
             </p>
-          </section>
+          </div>
         );
       })}
+        </section>
+      )}
 
       {/* The report link belongs on THIS page above all others: someone who
           knows a status is wrong knows it while looking at the thing, and this

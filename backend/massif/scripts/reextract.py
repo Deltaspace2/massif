@@ -121,9 +121,7 @@ def main(argv: list[str]) -> int:
                 retired += 1
 
             for item in extracted:
-                statement = scraper.resolve_and_build(
-                    session, source, document, item, resolver
-                )
+                statement = scraper.resolve_and_build(session, source, document, item, resolver)
                 if statement is None:
                     unresolved += 1
                     continue
@@ -172,10 +170,7 @@ def main(argv: list[str]) -> int:
             f"statements, wrote {created}, {len(touched)} features recomputed"
         )
         if unresolved:
-            print(
-                f"  {unresolved} mentions did not resolve — "
-                f"run massif.scripts.review_queue"
-            )
+            print(f"  {unresolved} mentions did not resolve — run massif.scripts.review_queue")
         if failed:
             print(f"  {failed} documents failed to extract", file=sys.stderr)
 

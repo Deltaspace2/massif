@@ -39,9 +39,7 @@ def main(argv: list[str]) -> int:
     unbuilt: list[str] = []
 
     with session_scope() as session:
-        sources = session.scalars(
-            select(Source).where(Source.active.is_(True))
-        ).all()
+        sources = session.scalars(select(Source).where(Source.active.is_(True))).all()
 
         unbuilt[:] = [s.slug for s in sources if s.slug not in SCRAPERS]
 
@@ -70,8 +68,7 @@ def main(argv: list[str]) -> int:
             except Exception as exc:
                 session.rollback()
                 failures += 1
-                print(f"[{source.slug}] FAILED: {type(exc).__name__}: {exc}",
-                      file=sys.stderr)
+                print(f"[{source.slug}] FAILED: {type(exc).__name__}: {exc}", file=sys.stderr)
             ran += 1
 
     if not ran:

@@ -45,7 +45,9 @@ def _query(pattern: str) -> list[dict]:
     for attempt in range(3):
         try:
             response = httpx.post(
-                OVERPASS, data={"data": query}, timeout=180,
+                OVERPASS,
+                data={"data": query},
+                timeout=180,
                 headers={"User-Agent": "massif/0.1 route geometry recon"},
             )
             response.raise_for_status()
@@ -64,8 +66,7 @@ def _probe() -> int:
             .order_by(Feature.slug)
         ).all()
         targets = [
-            (f.slug, f.name_default, list(f.aliases or []), f.geom is not None)
-            for f in targets
+            (f.slug, f.name_default, list(f.aliases or []), f.geom is not None) for f in targets
         ]
 
     print(f"{len(targets)} routes and couloirs in the database\n")

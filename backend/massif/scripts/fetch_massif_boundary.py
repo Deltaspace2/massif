@@ -44,7 +44,9 @@ def main() -> int:
             OVERPASS,
             data={"data": query},
             timeout=240,
-            headers={"User-Agent": "massif/0.1 boundary fetch (+https://github.com/Deltaspace2/massif)"},
+            headers={
+                "User-Agent": "massif/0.1 boundary fetch (+https://github.com/Deltaspace2/massif)"
+            },
         )
         if response.status_code == 200 and response.text.lstrip().startswith("{"):
             break

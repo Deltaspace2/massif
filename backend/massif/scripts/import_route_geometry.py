@@ -74,9 +74,7 @@ def to_3857(lon: float, lat: float) -> tuple[float, float]:
 def to_wgs84(x: float, y: float) -> tuple[float, float]:
     lon = x / 20037508.34 * 180.0
     lat = y / 20037508.34 * 180.0
-    lat = 180.0 / math.pi * (
-        2.0 * math.atan(math.exp(lat * math.pi / 180.0)) - math.pi / 2.0
-    )
+    lat = 180.0 / math.pi * (2.0 * math.atan(math.exp(lat * math.pi / 180.0)) - math.pi / 2.0)
     return lon, lat
 
 
@@ -188,9 +186,7 @@ def main(argv: list[str]) -> int:
         for feature in targets:
             names = [feature.name_default, *(feature.aliases or [])]
 
-            document = next(
-                (index[key(n)] for n in names if key(n) in index), None
-            )
+            document = next((index[key(n)] for n in names if key(n) in index), None)
             score = 100.0
             title = None
 
@@ -203,9 +199,7 @@ def main(argv: list[str]) -> int:
                 # "Vraie Vallée Blanche"), which exact matching cannot reach.
                 best = None
                 for name in names:
-                    hit = process.extractOne(
-                        key(name), list(index), scorer=fuzz.WRatio
-                    )
+                    hit = process.extractOne(key(name), list(index), scorer=fuzz.WRatio)
                     if hit and (best is None or hit[1] > best[1]):
                         best = hit
                 if best and best[1] >= FUZZY_FLOOR:
@@ -251,8 +245,10 @@ def main(argv: list[str]) -> int:
             if feature.alt_max and elevation:
                 gap = abs(int(elevation) - feature.alt_max)
                 if gap > ELEVATION_TOLERANCE_M:
-                    print(f"  XX    {feature.slug:<26} tops out at {elevation}m, "
-                          f"we hold {feature.alt_max}m ({gap}m apart) — refusing")
+                    print(
+                        f"  XX    {feature.slug:<26} tops out at {elevation}m, "
+                        f"we hold {feature.alt_max}m ({gap}m apart) — refusing"
+                    )
                     print(f"          would have been: {title[:60]!r}")
                     rejected += 1
                     continue
@@ -260,30 +256,38 @@ def main(argv: list[str]) -> int:
             # --- span check: is this the right SHAPE of thing?
             limit = MAX_SPAN_KM.get(str(feature.feature_type))
             if limit and span_km > limit:
-                print(f"  XX    {feature.slug:<26} spans {span_km:.1f} km, "
-                      f"too long for a {feature.feature_type} — refusing")
+                print(
+                    f"  XX    {feature.slug:<26} spans {span_km:.1f} km, "
+                    f"too long for a {feature.feature_type} — refusing"
+                )
                 print(f"          would have been: {title[:60]!r}")
                 rejected += 1
                 continue
 
             if not in_massif(line):
                 # The safety net. Rejects the Gäntrisch, Sweden and the Vanoise.
-                print(f"  XX    {feature.slug:<26} line falls outside the massif "
-                      f"— refusing ({line[0][1]:.3f}, {line[0][0]:.3f})")
+                print(
+                    f"  XX    {feature.slug:<26} line falls outside the massif "
+                    f"— refusing ({line[0][1]:.3f}, {line[0][0]:.3f})"
+                )
                 rejected += 1
                 continue
 
             wkt = "LINESTRING(" + ",".join(f"{lon} {lat}" for lon, lat in line) + ")"
 
             flag = "" if score >= 99 else f"  ~{score:.0f}"
-            print(f"  OK    {feature.slug:<26} {len(line):>4} points  "
-                  f"c2c/{document['document_id']}{flag}")
+            print(
+                f"  OK    {feature.slug:<26} {len(line):>4} points  "
+                f"c2c/{document['document_id']}{flag}"
+            )
             # print what it matched, always: a name we did not choose is the
             # thing most worth a human glancing at
             print(f"          matched: {title[:66]!r}")
-            print(f"          {span_km:.1f} km span, max {elevation}m, "
-                  f"{line[0][1]:.4f},{line[0][0]:.4f} -> "
-                  f"{line[-1][1]:.4f},{line[-1][0]:.4f}")
+            print(
+                f"          {span_km:.1f} km span, max {elevation}m, "
+                f"{line[0][1]:.4f},{line[0][0]:.4f} -> "
+                f"{line[-1][1]:.4f},{line[-1][0]:.4f}"
+            )
             if apply:
                 feature.geom = f"SRID=4326;{wkt}"
                 feature.geom_verified = False
@@ -296,8 +300,10 @@ def main(argv: list[str]) -> int:
         if not apply:
             session.rollback()
 
-    print(f"\n{matched} matched, {skipped} without geometry, {rejected} refused "
-          f"(wrong mountain, wrong shape, or outside the massif)")
+    print(
+        f"\n{matched} matched, {skipped} without geometry, {rejected} refused "
+        f"(wrong mountain, wrong shape, or outside the massif)"
+    )
     print("dry run — nothing written; pass --apply" if not apply else "written")
     return 0
 

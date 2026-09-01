@@ -257,9 +257,7 @@ def extract(html: str, observed_at: datetime) -> list[ExtractedStatement]:
                 seen.add(key)
                 altitude = ALTITUDE.search(subtitle)
 
-                window = " – ".join(
-                    filter(None, [row.get("valueOne"), row.get("valueTow")])
-                )
+                window = " – ".join(filter(None, [row.get("valueOne"), row.get("valueTow")]))
                 # A row can speak for more than one sector — see MULTI_TARGETS.
                 # An unmapped row still emits once, mention-only, so the
                 # resolver and then the review queue can see it.
@@ -329,9 +327,7 @@ def _dump() -> int:
     response = fetch(URL)
     statements = extract(response.text, datetime.now(UTC))
     print(f"{len(statements)} scheduled seasons\n")
-    for statement in sorted(
-        statements, key=lambda s: (s.payload["season"], s.feature_mention)
-    ):
+    for statement in sorted(statements, key=lambda s: (s.payload["season"], s.feature_mention)):
         mapped = statement.feature_slug or "UNMAPPED"
         star = " *" if statement.payload["caveated"] else ""
         print(

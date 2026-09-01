@@ -79,22 +79,12 @@ class Feature(Base):
 
     notes: Mapped[str | None] = mapped_column(Text)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    children: Mapped[list[Feature]] = relationship(
-        back_populates="parent", remote_side=None
-    )
-    parent: Mapped[Feature | None] = relationship(
-        back_populates="children", remote_side=[id]
-    )
-    status: Mapped[FeatureStatus | None] = relationship(
-        back_populates="feature", uselist=False
-    )
+    children: Mapped[list[Feature]] = relationship(back_populates="parent", remote_side=None)
+    parent: Mapped[Feature | None] = relationship(back_populates="children", remote_side=[id])
+    status: Mapped[FeatureStatus | None] = relationship(back_populates="feature", uselist=False)
 
     def __repr__(self) -> str:
         return f"<Feature {self.slug} ({self.feature_type})>"
@@ -119,9 +109,7 @@ class Source(Base):
         Numeric(3, 2), nullable=False, default=Decimal("0.50")
     )
     fetch_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    fetch_interval_minutes: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=360
-    )
+    fetch_interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=360)
 
     robots_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     robots_allows: Mapped[bool | None] = mapped_column(Boolean)
@@ -131,9 +119,7 @@ class Source(Base):
     consecutive_failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self) -> str:
         return f"<Source {self.slug}>"
@@ -151,9 +137,7 @@ class Document(Base):
         UUID(as_uuid=True), ForeignKey("sources.id", ondelete="RESTRICT"), nullable=False
     )
     url: Mapped[str] = mapped_column(Text, nullable=False)
-    fetched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     content_hash: Mapped[str] = mapped_column(Text, nullable=False)
@@ -235,9 +219,7 @@ class Statement(Base):
     # fewer statements than it did before, or none — so a retired statement
     # often has no successor to point at.
     superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class FeatureStatus(Base):
@@ -306,9 +288,7 @@ class FeatureFact(Base):
     # last_seen_at — and it matters more here, because directory entries are
     # edited yearly and the UI must not imply otherwise.
     source_modified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    fetched_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     match_method: Mapped[str] = mapped_column(Text, nullable=False, default="curated")
     match_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
@@ -354,9 +334,7 @@ class IngestRun(Base):
     source_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sources.id", ondelete="CASCADE")
     )
-    started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ok: Mapped[bool | None] = mapped_column(Boolean)
     documents_new: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

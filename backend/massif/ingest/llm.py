@@ -56,14 +56,19 @@ from typing import Protocol
 
 from selectolax.parser import HTMLParser
 
-from massif.enums import ExtractionMethod, StatementType, StatusValue
+from massif.enums import (
+    TRANSIENT_STATUSES,
+    ExtractionMethod,
+    StatementType,
+    StatusValue,
+)
 from massif.ingest.base import ExtractedStatement
 from massif.ingest.fr_dates import DateRange, parse_range
 
 # Bump when the prompt or the schema changes. It is part of the cache key, so
 # an edit here re-extracts rather than silently mixing two vintages of output
 # in one table.
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 
 
 @dataclass
@@ -362,7 +367,11 @@ def read_document(
         # is the one guard the model cannot talk its way past, and unlike the
         # other three it is about misreading rather than fabrication: every
         # span above was real and correctly quoted.
-        if dates is None and status is not StatusValue.UNKNOWN:
+        #
+        # Only the TRANSIENT statuses. `unstaffed` says a hut has no warden,
+        # which has no end date and needs none — demoting it for want of one
+        # turned "the Saleinaz is unstaffed from 8 August" into "unknown".
+        if dates is None and status in TRANSIENT_STATUSES:
             demoted, status = status, StatusValue.UNKNOWN
 
         payload: dict = {

@@ -18,9 +18,7 @@ MIGRATIONS = Path(__file__).resolve().parents[3] / "db" / "migrations"
 
 def applied_versions() -> set[str]:
     with engine.connect() as conn:
-        exists = conn.execute(
-            text("SELECT to_regclass('public.schema_migrations')")
-        ).scalar()
+        exists = conn.execute(text("SELECT to_regclass('public.schema_migrations')")).scalar()
         if not exists:
             return set()
         return set(conn.scalars(text("SELECT version FROM schema_migrations")))
@@ -32,9 +30,7 @@ def main() -> int:
         return 1
 
     done = applied_versions()
-    pending = sorted(
-        p for p in MIGRATIONS.glob("*.sql") if p.stem not in done
-    )
+    pending = sorted(p for p in MIGRATIONS.glob("*.sql") if p.stem not in done)
     if not pending:
         print("up to date")
         return 0

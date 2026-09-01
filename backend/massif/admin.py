@@ -47,7 +47,7 @@ from sqlalchemy.orm import Session
 
 from massif.config import settings
 from massif.db import get_session
-from massif.enums import StatusValue
+from massif.enums import TRANSIENT_STATUSES, StatusValue
 from massif.ingest.fr_dates import published_date
 from massif.models import Feature, Source, Statement
 from massif.status import recompute_feature
@@ -143,9 +143,15 @@ def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
     a person can. Rather than lose the notice or teach the parser every French
     idiom first, the reviewer states the window and it is recorded AS THEIRS.
 
-    RULE 3 STILL HOLDS. A status about the present needs a window it is the
-    present of, and a hand-set `closed` with no dates would sit on the map for
-    ever exactly as a model-set one would. Refused, with a reason.
+    RULE 3 STILL HOLDS, FOR THE STATUSES IT IS ABOUT. A hand-set `closed`
+    with no dates would sit on the map for ever exactly as a model-set one
+    would, so open, closed and restricted all need a window.
+
+    `unstaffed` does not, and requiring it was simply wrong: it is a STANDING
+    state, not a claim about the present. refuges.info emits it undated by
+    design — "this is an unguarded cabin" has no end — and 54 such statements
+    were already live while this form refused to let a person write one.
+    `unknown` is exempt for the same reason: it asserts nothing to expire.
     """
     status = fields.get("status") or ""
     start, end = fields.get("valid_from") or "", fields.get("valid_to") or ""
@@ -172,12 +178,15 @@ def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
     if status:
         if status not in {v.value for v in StatusValue}:
             raise HTTPException(status_code=400, detail=f"unknown status {status!r}")
-        if status != StatusValue.UNKNOWN.value and not (statement.valid_from or statement.valid_to):
+        if StatusValue(status) in TRANSIENT_STATUSES and not (
+            statement.valid_from or statement.valid_to
+        ):
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "a status about the present needs dates — set at least one, "
-                    "or leave the status as unknown"
+                    f"{status!r} says something about right now, so it needs a "
+                    "window it is the now of — set at least one date. "
+                    "'unstaffed' and 'unknown' are standing states and need none."
                 ),
             )
         statement.status = StatusValue(status)
@@ -343,6 +352,32 @@ async def _fields(request: Request) -> dict[str, str]:
     return {k: v[0].strip() for k, v in parse_qs(raw).items() if v}
 
 
+ERROR_PAGE = """<!doctype html><meta charset=utf-8>
+<meta name=robots content="noindex, nofollow">
+<title>massif · review</title>
+<style>
+ body{{font:15px/1.6 system-ui,sans-serif;max-width:38rem;margin:4rem auto;
+   padding:0 1rem;color:#22282e}}
+ p.msg{{background:#fdf9ef;border:1px solid #d8bd7a;border-radius:8px;
+   padding:.8rem 1rem}}
+</style>
+<h1>That change was not applied</h1>
+<p class=msg>{message}</p>
+<p><a href="/admin/review">← back to the queue</a></p>"""
+
+
+def _error(message: str) -> HTMLResponse:
+    """A refusal a person can read, with a way back.
+
+    A raw JSON body is fine for the API and useless here: a reviewer who set a
+    status the guard would not take was dropped on a page of JSON with no link
+    back to the queue and no way to tell what to do instead.
+    """
+    return HTMLResponse(
+        ERROR_PAGE.format(message=html.escape(message)), status_code=400, headers=NO_INDEX
+    )
+
+
 def _decide(
     session: Session,
     statement_id: str,
@@ -356,7 +391,10 @@ def _decide(
         raise HTTPException(status_code=404, detail="no such statement")
     now = datetime.now(UTC)
     if accept:
-        overridden = apply_override(statement, fields or {})
+        try:
+            overridden = apply_override(statement, fields or {})
+        except HTTPException as refusal:
+            return _error(str(refusal.detail))
         if overridden:
             # Said in the note as well as the payload, so the decision reads as
             # a decision in the one place a person will look at it again.

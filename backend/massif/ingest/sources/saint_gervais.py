@@ -93,8 +93,6 @@ CLOSURE_WORDS = re.compile(
 )
 
 
-
-
 def classify(title: str, body: str = "") -> tuple[StatementType, StatusValue, int] | None:
     """Decide from the TITLE ALONE, on accent-stripped text.
 
@@ -162,11 +160,7 @@ def article_text(html: str) -> tuple[str, str]:
         or tree.css_first("[class*='content']")
         or tree.body
     )
-    body = (
-        " ".join(container.text(separator=" ", strip=True).split())
-        if container
-        else ""
-    )
+    body = " ".join(container.text(separator=" ", strip=True).split()) if container else ""
     return title, body
 
 
@@ -202,7 +196,6 @@ def extract_published_at(html: str) -> datetime | None:
                 parsed = parsed.replace(tzinfo=RESORT_TZ)
             return parsed.astimezone(UTC)
     return None
-
 
 
 # Specific, high-signal terms only, matched on accent-stripped text. This is
@@ -302,7 +295,6 @@ def english_summary(statement_type: StatementType, dates, title: str = "") -> st
     return f"Closure notice — no dates stated{tail}"
 
 
-
 def quoted_source_text(title: str, body: str) -> str:
     """What the mairie actually wrote, once.
 
@@ -323,7 +315,7 @@ def quoted_source_text(title: str, body: str) -> str:
     # compared on the same accent-stripped basis as everything else here.
     flat_title, flat_body = norm(title), norm(body)
     if flat_title and flat_body.startswith(flat_title):
-        trimmed = body[len(title):].lstrip(" .—-–:")
+        trimmed = body[len(title) :].lstrip(" .—-–:")
         if trimmed:
             body = trimmed
     return body[:2000]
@@ -360,9 +352,7 @@ def statements_for(
         and dates.rule.startswith("single")
         and dates.start is not None
     ):
-        dates = replace(
-            dates, end=dates.start + timedelta(days=STALE_DAYS_OPENING)
-        )
+        dates = replace(dates, end=dates.start + timedelta(days=STALE_DAYS_OPENING))
 
     # An undated notice is real but unbounded, and recompute_feature treats
     # unbounded validity as CURRENTLY valid — so a closure from a past season
@@ -397,7 +387,8 @@ def statements_for(
                     "open_ended": not (dates and dates.bounded),
                     # why this notice is not asserting open/closed
                     "undated_reason": (
-                        None if (dates and dates.bounded)
+                        None
+                        if (dates and dates.bounded)
                         else "no bounded date range found in the notice"
                     ),
                 },

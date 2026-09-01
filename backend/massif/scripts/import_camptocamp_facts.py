@@ -188,9 +188,7 @@ def main() -> int:
             )
         ).all()
 
-        headers = {
-            "User-Agent": "massif/0.1 hut facts (+https://github.com/Deltaspace2/massif)"
-        }
+        headers = {"User-Agent": "massif/0.1 hut facts (+https://github.com/Deltaspace2/massif)"}
         with httpx.Client(headers=headers) as client:
             index = fetch_index(client)
             print(f"{SOURCE_SLUG}: {len(index)} huts in the bbox")
@@ -202,7 +200,7 @@ def main() -> int:
             for hut in ours:
                 best = None
                 for document, point in placed:
-                    title = ((document.get("locales") or [{}])[0].get("title") or "")
+                    title = (document.get("locales") or [{}])[0].get("title") or ""
                     # A superseded building is not this building, however close.
                     if is_decoy(title):
                         continue

@@ -138,16 +138,12 @@ def seed_features(session) -> tuple[int, int]:
 
         # OSM supplies geometry only, and only to features that ARE points
         forms = (
-            [row["name_default"], *existing.aliases]
-            if row["feature_type"] in POINT_LIKE
-            else []
+            [row["name_default"], *existing.aliases] if row["feature_type"] in POINT_LIKE else []
         )
         for form in forms:
             candidate = osm.get(geo_key(form))
             if candidate:
-                existing.geom = (
-                    f"SRID=4326;POINT({candidate['lon']} {candidate['lat']})"
-                )
+                existing.geom = f"SRID=4326;POINT({candidate['lon']} {candidate['lat']})"
                 existing.geom_verified = False
                 existing.external_ids = {
                     **(existing.external_ids or {}),

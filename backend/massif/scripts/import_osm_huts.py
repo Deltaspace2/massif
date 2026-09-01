@@ -145,8 +145,8 @@ def km_from_summit(lat: float, lon: float) -> float:
 
 
 def metres_between(a: tuple[float, float], b: tuple[float, float]) -> float:
-    return (
-        math.hypot((a[0] - b[0]) * 111_000, (a[1] - b[1]) * 111_000 * math.cos(math.radians(a[0])))
+    return math.hypot(
+        (a[0] - b[0]) * 111_000, (a[1] - b[1]) * 111_000 * math.cos(math.radians(a[0]))
     )
 
 
@@ -166,7 +166,9 @@ def countries(points: list[tuple[str, float, float]]) -> dict[str, str | None]:
             OVERPASS,
             data={"data": query},
             timeout=240,
-            headers={"User-Agent": "massif/0.1 hut country lookup (+https://github.com/Deltaspace2/massif)"},
+            headers={
+                "User-Agent": "massif/0.1 hut country lookup (+https://github.com/Deltaspace2/massif)"
+            },
         )
         if response.status_code == 200 and response.text.lstrip().startswith("{"):
             break
@@ -200,16 +202,13 @@ def main() -> int:
         print(f"no massif_boundary.wkt — falling back to a {args.radius:g} km radius")
     candidates = yaml.safe_load((SEEDS / "osm_candidates.yaml").read_text(encoding="utf-8")) or []
     huts = [
-        c for c in candidates
-        if c.get("feature_type") == "hut" and c.get("lat") and c.get("lon")
+        c for c in candidates if c.get("feature_type") == "hut" and c.get("lat") and c.get("lon")
     ]
 
     with session_scope() as session:
         existing = session.scalars(select(Feature)).all()
         known_names = {
-            geo_key(form)
-            for f in existing
-            for form in [f.name_default, *(f.aliases or [])]
+            geo_key(form) for f in existing for form in [f.name_default, *(f.aliases or [])]
         }
         # Positions come out of PostGIS rather than off the model: geom is a
         # geometry, not a pair of columns.
@@ -229,8 +228,12 @@ def main() -> int:
 
         selected = []
         skipped = {
-            "far": 0, "decoy": 0, "known": 0,
-            "nearby": 0, "range": 0, "lodging": 0,
+            "far": 0,
+            "decoy": 0,
+            "known": 0,
+            "nearby": 0,
+            "range": 0,
+            "lodging": 0,
         }
         for hut in huts:
             if boundary is not None:
@@ -257,12 +260,15 @@ def main() -> int:
                 skipped["decoy"] += 1
                 print(f"  --   superseded, skipped: {hut['name_default']}")
                 continue
-            if any(geo_key(f) in known_names
-                   for f in [hut["name_default"], *(hut.get("aliases") or [])]):
+            if any(
+                geo_key(f) in known_names
+                for f in [hut["name_default"], *(hut.get("aliases") or [])]
+            ):
                 skipped["known"] += 1
                 continue
             near = [
-                slug for slug, lat, lon in known_points
+                slug
+                for slug, lat, lon in known_points
                 if metres_between((hut["lat"], hut["lon"]), (lat, lon)) < DEDUPE_METRES
             ]
             if near:

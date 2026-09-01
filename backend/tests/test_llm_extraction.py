@@ -386,3 +386,54 @@ def test_a_phrase_with_neither_end_is_still_nothing():
     """The relaxation must not turn "until further notice" into a window."""
     assert with_assumed_year("jusqu'à nouvel avis", 2026) is None
     assert with_assumed_year("à partir de fin septembre", 2026) is None
+
+
+def test_a_standing_state_is_not_demoted_for_want_of_dates():
+    """Rule 3 is about claims on the PRESENT, and `unstaffed` is not one.
+
+    The Cabane de Saleinaz says "La cabane n'est plus gardiennée depuis le 8
+    août et jusqu'à la fin de la saison 2026" — "fin de la saison" is not a
+    date, so the dates were dropped and the reading demoted to unknown. The
+    hut is unstaffed either way; an unguarded hut has no end date and needs
+    none.
+    """
+    reading = read_document(
+        [
+            {
+                "statement_type": "operational_status",
+                "status": "unstaffed",
+                "severity": 0,
+                "feature_mention": "La cabane",
+                "evidence": "La cabane n'est plus gardiennée depuis le 8 août",
+                "summary_en": "Unstaffed since 8 August",
+            }
+        ],
+        "La cabane n'est plus gardiennée depuis le 8 août.",
+        NOW,
+        model="test",
+    )
+    assert reading.statements[0].status is StatusValue.UNSTAFFED
+    assert "undated_status" not in reading.statements[0].payload
+
+
+def test_a_transient_claim_is_still_demoted():
+    """The exemption must not become a hole. Closed, open and restricted all
+    say something about right now."""
+    for status in ("closed", "open", "restricted"):
+        reading = read_document(
+            [
+                {
+                    "statement_type": "closure",
+                    "status": status,
+                    "severity": 1,
+                    "feature_mention": "Le refuge",
+                    "evidence": "Le refuge est concerné",
+                    "summary_en": "x",
+                }
+            ],
+            "Le refuge est concerné.",
+            NOW,
+            model="test",
+        )
+        assert reading.statements[0].status is StatusValue.UNKNOWN, status
+        assert reading.statements[0].payload["undated_status"] == status

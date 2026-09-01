@@ -84,8 +84,10 @@ def _get(url: str):
     except Exception as exc:
         print(f"    FAILED {type(exc).__name__}: {exc}")
         return None
-    print(f"    HTTP {response.status_code}  "
-          f"{response.headers.get('content-type','')}  {len(response.content)} bytes")
+    print(
+        f"    HTTP {response.status_code}  "
+        f"{response.headers.get('content-type', '')}  {len(response.content)} bytes"
+    )
     return response
 
 
@@ -224,7 +226,12 @@ def _list() -> int:
         heading = tree.css_first("h1")
         print(f"  h1: {heading.text(strip=True) if heading else None!r}")
         selectors = (
-            ".artitext", ".articontexte", "article", ".tag", "time", "[class*='date']",
+            ".artitext",
+            ".articontexte",
+            "article",
+            ".tag",
+            "time",
+            "[class*='date']",
         )
         for selector in selectors:
             nodes = tree.css(selector)
@@ -300,7 +307,7 @@ def _article() -> int:
         print(f"    {DATEISH.findall(flat)[:8]}")
         idx = flat.lower().find("posté")
         if idx >= 0:
-            print(f"    'Posté' context: {flat[idx:idx+60]!r}")
+            print(f"    'Posté' context: {flat[idx : idx + 60]!r}")
         print()
     return 0
 
@@ -347,11 +354,12 @@ def _probe() -> int:
         for probe_word in ("conditions", "course", "neige", "rocher", "glacier"):
             if probe_word in text.lower():
                 index = text.lower().find(probe_word)
-                print(f"    contains {probe_word!r}: ...{text[max(0,index-60):index+90]}...")
+                print(f"    contains {probe_word!r}: ...{text[max(0, index - 60) : index + 90]}...")
                 break
         else:
-            print("    no condition vocabulary in the rendered HTML "
-                  "— confirms client-side rendering")
+            print(
+                "    no condition vocabulary in the rendered HTML — confirms client-side rendering"
+            )
         print()
 
     if candidates:
@@ -437,11 +445,7 @@ def parse_article(html: str) -> dict | None:
     title = heading[: match.start()].strip(" -–—")
 
     body_node = tree.css_first("div.txtblc")
-    body = (
-        " ".join(body_node.text(separator=" ", strip=True).split())
-        if body_node
-        else ""
-    )
+    body = " ".join(body_node.text(separator=" ", strip=True).split()) if body_node else ""
     return {
         "title": title,
         "posted": datetime(year, month, day, tzinfo=UTC),
@@ -449,9 +453,7 @@ def parse_article(html: str) -> dict | None:
     }
 
 
-def statements_for(
-    article: dict, url: str, observed_at: datetime
-) -> list[ExtractedStatement]:
+def statements_for(article: dict, url: str, observed_at: datetime) -> list[ExtractedStatement]:
     """One verdict per SENTENCE, not per article.
 
     These articles are weekly digests covering the whole massif. Reading a
@@ -520,9 +522,7 @@ def statements_for(
                         # implying the OHM set it.
                         "window_inferred": True,
                         "window_days": ADVISORY_TTL_DAYS,
-                        "authority": (
-                            "institutional — the OHM advises, it cannot close"
-                        ),
+                        "authority": ("institutional — the OHM advises, it cannot close"),
                     },
                     extraction_method=ExtractionMethod.RULE,
                     extraction_confidence=0.8,
@@ -552,9 +552,7 @@ def article_links(html: str) -> list[str]:
 class ChamoniardeScraper(Scraper):
     slug = "chamoniarde-ohm"
 
-    def collect(
-        self, session, source
-    ):
+    def collect(self, session, source):
         listing = fetch(LISTING)
         store_document(session, source, LISTING, listing)
 
@@ -570,7 +568,10 @@ class ChamoniardeScraper(Scraper):
 
             article = parse_article(response.text)
             document, is_new = store_document(
-                session, source, url, response,
+                session,
+                source,
+                url,
+                response,
                 published_at=article["posted"] if article else None,
             )
             if not is_new or article is None:

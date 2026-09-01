@@ -35,8 +35,7 @@ FEATURE_PATTERNS: list[tuple[re.Pattern, str]] = [
     # filed it against the Grand Couloir du Goûter — wrong-feature attribution
     # on the most safety-critical name in the database. Only the bare form,
     # or one explicitly tied to the Goûter, counts.
-    (re.compile(r"grand couloir(?!\s+(?:ouest|est|nord|sud|central|du buet))"),
-     "grand-couloir"),
+    (re.compile(r"grand couloir(?!\s+(?:ouest|est|nord|sud|central|du buet))"), "grand-couloir"),
     (re.compile(r"cosmiques"), "cosmiques-arete"),
     (re.compile(r"midi[- ]plan"), "arete-midi-plan"),
     (re.compile(r"vallee blanche"), "vallee-blanche"),
@@ -86,7 +85,7 @@ def features_mentioned(text: str) -> list[str]:
 
     for match in GOUTER.finditer(flat):
         start = max(0, match.start() - GOUTER_WINDOW)
-        window = flat[start: match.end() + GOUTER_WINDOW]
+        window = flat[start : match.end() + GOUTER_WINDOW]
         if REFUGE_SENSE.search(window) and "refuge-du-gouter" not in found:
             found.append("refuge-du-gouter")
         if ROUTE_SENSE.search(window) and "gouter-route" not in found:

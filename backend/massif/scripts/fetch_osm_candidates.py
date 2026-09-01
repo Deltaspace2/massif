@@ -88,9 +88,7 @@ def classify(tags: dict) -> str | None:
         return "lift_station"
     if tags.get("natural") == "glacier":
         return "glacier"
-    if tags.get("railway") in (
-        "rail", "narrow_gauge", "funicular", "rack", "light_rail"
-    ):
+    if tags.get("railway") in ("rail", "narrow_gauge", "funicular", "rack", "light_rail"):
         return "lift"
     return None
 
@@ -149,8 +147,9 @@ def main() -> int:
                 "feature_type": kind,
                 "name_default": name,
                 "names": names,
-                "aliases": [v for k, v in tags.items()
-                            if k in ("alt_name", "old_name", "loc_name")],
+                "aliases": [
+                    v for k, v in tags.items() if k in ("alt_name", "old_name", "loc_name")
+                ],
                 "lat": round(lat, 6),
                 "lon": round(lon, 6),
                 "ele": tags.get("ele"),

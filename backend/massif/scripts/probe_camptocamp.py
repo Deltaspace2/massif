@@ -81,8 +81,7 @@ def _probe() -> int:
         for doc in routes[:3]:
             locales = doc.get("locales") or [{}]
             title = locales[0].get("title", "?")
-            print(f"      {doc['document_id']:>8}  {title[:56]!r}  "
-                  f"{doc.get('elevation_max')}m")
+            print(f"      {doc['document_id']:>8}  {title[:56]!r}  {doc.get('elevation_max')}m")
 
         # look at the best match in detail — is there a LineString?
         best = routes[0]["document_id"]

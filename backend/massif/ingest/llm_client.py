@@ -65,7 +65,10 @@ Each element:
 
   statement_type  one of: closure, restriction, opening, \
 operational_status, condition, hazard_observation
-  status          one of: open, closed, restricted, unknown
+  status          one of: open, unstaffed, closed, restricted, unknown. Use \
+"unstaffed" for a hut that is open with no warden — hors gardiennage, non \
+gardé, winter room only. That is a variant of OPEN, never a restriction: the \
+door is unlocked and nobody is running it.
   severity        integer 0-3, where 0 is routine and 3 is danger to life
   feature_mention the document's OWN words for the thing affected, copied \
 exactly. Never a tidied, translated or completed name.
@@ -98,7 +101,8 @@ a named place produces nothing.
 described in the past, attributed to someone else's recommendation, or \
 narrated as part of events is not a notice.
   If a closure states no end date, use status "unknown", not "closed". An \
-undated notice must never claim a present-tense status.
+undated notice must never claim a present-tense status. This does NOT apply \
+to "unstaffed", which is a standing state and needs no dates.
   Never combine two notices into one element, and never split one across \
 two.
 """

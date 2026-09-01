@@ -34,9 +34,7 @@ from massif.status import recompute_many
 _last_request_at: dict[str, float] = defaultdict(float)
 
 # root -> (monotonic time of the check, parser or None if it could not be read)
-_robots_cache: dict[
-    str, tuple[float, urllib.robotparser.RobotFileParser | None]
-] = {}
+_robots_cache: dict[str, tuple[float, urllib.robotparser.RobotFileParser | None]] = {}
 
 # How long a robots.txt verdict is reused before re-fetching.
 ROBOTS_TTL = 3600.0
@@ -237,9 +235,7 @@ def resolve_child(session: Session, parent_slug: str, name: str) -> Match | None
         return None
 
     target = normalise(name)
-    for child in session.scalars(
-        select(Feature).where(Feature.parent_id == parent.id)
-    ):
+    for child in session.scalars(select(Feature).where(Feature.parent_id == parent.id)):
         forms = [child.name_default, *(child.aliases or [])]
         if any(normalise(f) == target for f in forms):
             return Match(str(child.id), 100.0, child.name_default)
@@ -284,23 +280,17 @@ def retire_replaced(session: Session, incoming: Statement) -> int:
     )
     if incoming.valid_from is not None:
         query = query.where(
-            (Statement.valid_to.is_(None))
-            | (Statement.valid_to >= incoming.valid_from)
+            (Statement.valid_to.is_(None)) | (Statement.valid_to >= incoming.valid_from)
         )
     if incoming.valid_to is not None:
         query = query.where(
-            (Statement.valid_from.is_(None))
-            | (Statement.valid_from <= incoming.valid_to)
+            (Statement.valid_from.is_(None)) | (Statement.valid_from <= incoming.valid_to)
         )
 
     now = datetime.now(UTC)
     count = 0
     for older in session.scalars(query):
-        if (
-            older.observed_at
-            and incoming.observed_at
-            and older.observed_at > incoming.observed_at
-        ):
+        if older.observed_at and incoming.observed_at and older.observed_at > incoming.observed_at:
             continue  # the stored one is newer; leave it alone
         older.superseded_at = now
         count += 1
@@ -341,9 +331,7 @@ def lift_undated_closures(
     return count
 
 
-def _lift_undated_closures(
-    session: Session, incoming: Statement, now: datetime
-) -> int:
+def _lift_undated_closures(session: Session, incoming: Statement, now: datetime) -> int:
     """An opening retires the undated closures the same authority left standing.
 
     The type match above is deliberate — one source updating its own reading of
@@ -432,12 +420,8 @@ class Scraper(ABC):
                 )
                 return None
         elif item.feature_slug:
-            feature = session.scalar(
-                select(Feature).where(Feature.slug == item.feature_slug)
-            )
-            match = (
-                Match(str(feature.id), 100.0, item.feature_slug) if feature else None
-            )
+            feature = session.scalar(select(Feature).where(Feature.slug == item.feature_slug))
+            match = Match(str(feature.id), 100.0, item.feature_slug) if feature else None
             candidates = []
         else:
             match, candidates = resolver.resolve(item.feature_mention)
@@ -486,9 +470,7 @@ class Scraper(ABC):
             for document, extracted in self.collect(session, source):
                 run.documents_new += 1
                 for item in extracted:
-                    statement = self.resolve_and_build(
-                        session, source, document, item, resolver
-                    )
+                    statement = self.resolve_and_build(session, source, document, item, resolver)
                     if statement is None:
                         run.unresolved_new += 1
                         continue

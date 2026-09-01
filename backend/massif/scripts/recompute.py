@@ -27,9 +27,7 @@ def main() -> int:
         if orphans:
             print(f"dropped {orphans} orphaned status rows")
 
-        feature_ids = list(
-            session.scalars(select(Statement.feature_id).distinct())
-        )
+        feature_ids = list(session.scalars(select(Statement.feature_id).distinct()))
         for feature_id in feature_ids:
             recompute_feature(session, feature_id)
 
