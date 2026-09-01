@@ -67,7 +67,70 @@ def test_the_multiplier_is_what_separates_due_from_missed():
     missed and must be."""
     interval = 60
     assert _unchecked(ago(minutes=interval), interval, NOW) is False
-    assert (
-        _unchecked(ago(minutes=interval * UNCHECKED_INTERVALS + 1), interval, NOW)
-        is True
-    )
+    assert _unchecked(ago(minutes=interval * UNCHECKED_INTERVALS + 1), interval, NOW) is True
+
+
+class _Feature:
+    """The fields _feature_dict reads, and nothing else."""
+
+    slug = "mont-blanc-express"
+    feature_type = "lift"
+    name_default = "Mont-Blanc Express"
+    names: dict = {}
+    alt_min = None
+    alt_max = None
+    country = "FR"
+    geom = None
+    geom_verified = False
+
+
+def test_nothing_published_is_not_the_same_as_not_re_checked():
+    """UNVERIFIED means we are behind on a source's own rhythm. A feature no
+    source publishes about has no rhythm to be behind on, and no last_seen_at
+    either — so the badge appeared on every Swiss and Italian lift and on the
+    Mont-Blanc Express, directly beside the sentence saying nobody has
+    published anything about them. Two different stories on one page.
+
+    `_unchecked` itself still treats a missing check as unchecked; that is
+    right for a claim we hold and have not re-verified. What changed is that
+    the caller only asks the question when there is a claim.
+    """
+    from massif.main import _feature_dict
+
+    # A claim we hold and have not re-checked is still flagged...
+    assert _unchecked(None, 30, NOW) is True
+    # ...but a feature with no status and no statement never reaches it.
+    payload = _feature_dict(_Feature(), None, None)
+    assert payload["status"]["unchecked"] is False
+    assert payload["status"]["value"] == "unknown"
+
+
+class _Status:
+    status = "closed"
+    severity = 2
+    summary_en = "Closed"
+    observed_at = ago(days=9)
+    last_seen_at = ago(days=9)
+    stale_after = None
+
+
+class _Statement:
+    statement_type = "closure"
+    status = "closed"
+    summary_en = "Closed"
+    valid_from = None
+    valid_to = None
+    payload: dict = {}
+
+
+def test_a_claim_we_hold_and_stopped_re_checking_is_still_flagged():
+    """The other side of the guard above, and the reason it is narrow.
+
+    Skipping the question when there is no claim must not turn the badge off
+    for a claim there IS — nine days without a look at a six-hourly source is
+    exactly what UNVERIFIED is for.
+    """
+    from massif.main import _feature_dict
+
+    payload = _feature_dict(_Feature(), _Status(), _Statement(), source_interval_minutes=360)
+    assert payload["status"]["unchecked"] is True

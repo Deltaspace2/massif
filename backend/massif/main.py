@@ -319,10 +319,18 @@ def _feature_dict(
             # than a number the UI picked. Computed here because the cadence
             # is a backend fact, and the last thing that re-derived one of
             # those in the frontend flagged every valid decree in the massif.
-            "unchecked": _unchecked(
-                status.last_seen_at if status else None,
-                source_interval_minutes,
-                now,
+            # Only where there is a claim to re-check. A feature nothing has
+            # ever been published about has no last_seen_at, and flagging that
+            # as UNVERIFIED says we are behind on a source's rhythm when the
+            # truth is that no source has a rhythm here — printed directly
+            # beside "no source this site watches has published anything about
+            # this", which is the same page telling the reader two different
+            # stories. It put the badge on every Swiss and Italian lift and on
+            # the Mont-Blanc Express, none of which anyone publishes.
+            "unchecked": (
+                _unchecked(status.last_seen_at, source_interval_minutes, now)
+                if status is not None and statement is not None
+                else False
             ),
             # "outside_hours" means routine: shut because it is night or out
             # of season. The map must render that quietly. Anything else is
