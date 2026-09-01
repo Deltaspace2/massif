@@ -432,6 +432,41 @@ def test_a_reason_on_its_own_is_a_valid_override(monkeypatch):
     assert _Statement.status is StatusValue.CLOSED
 
 
+def test_the_reason_field_takes_more_than_one_line(monkeypatch):
+    """A closure that needs a reason rarely fits in one clause.
+
+    Steven: "for the 'what the site should say' text entry, I want to be able
+    to put multiple lines of text (shift + enter)." An <input> cannot hold a
+    newline at all — the browser strips it — so the element itself is the
+    guard, not the handler.
+    """
+    app, _, _ = build()
+    body = TestClient(app).get("/admin/review", headers=AUTH).text
+    assert '<textarea name="summary"' in body
+    assert '<input name="summary"' not in body
+    # Enter still accepts the card, as it did when this was an input. Losing
+    # that silently is the trap in swapping the element: the reviewer presses
+    # Enter, gets a blank line, and goes looking for the button.
+    assert "requestSubmit" in body
+    assert "event.shiftKey" in body
+
+
+def test_a_line_break_from_the_textarea_survives_intact(monkeypatch):
+    """A browser sends textarea breaks as CRLF, per the url-encoded form spec.
+
+    Left alone the carriage returns ride into `summary_en`, out through the
+    API and into the rendered page, where they are invisible until something
+    splits on newlines and finds a trailing "\r" on every line.
+    """
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    got = _post(app, b"summary=Closed+by+the+mairie.%0D%0A%0D%0AThe+bridge+is+out.")
+    assert got.status_code == 303
+    assert _Statement.summary_en == "Closed by the mairie.\n\nThe bridge is out."
+    assert "\r" not in _Statement.summary_en
+
+
 def test_a_standing_state_needs_no_dates(monkeypatch):
     """Requiring them was simply wrong. `unstaffed` is a STANDING state — "this
     is an unguarded cabin" has no end — and refuges.info emits it undated by

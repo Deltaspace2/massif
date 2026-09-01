@@ -386,7 +386,13 @@ a:hover { text-decoration: underline; }
 .card.closed { border-left-color: var(--closed); }
 .card.restricted { border-left-color: var(--restricted); }
 .card.routine { border-left-color: var(--decor); }
-.card h3 { margin: 0 0 3px; font-size: 15px; }
+/* A reviewer's override is "what the site should say", and the admin field
+   takes more than one line — a closure that needs a reason rarely fits in a
+   clause. HTML would collapse those breaks into spaces and run the reason
+   into the headline, so the two places that print a statement's own sentence
+   in full keep them. Every compact surface — the list rows, the map popup,
+   the <title> — still collapses, which is what a single line wants. */
+.card h3 { margin: 0 0 3px; font-size: 15px; white-space: pre-line; }
 .card p { margin: 0; color: var(--secondary); font-size: 13px; }
 .pill {
   display: inline-block; font-size: 11px; text-transform: uppercase;
@@ -543,7 +549,8 @@ table.history th { color: var(--secondary); font-weight: 500; }
   border: 1px solid var(--rule); border-left: 3px solid var(--restricted);
   background: var(--card); border-radius: 8px; padding: 10px 13px; margin-bottom: 8px;
 }
-.notice h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+.notice h4 { margin: 0 0 4px; font-size: 14px; font-weight: 600;
+  white-space: pre-line; }
 /* Undated notices are real and quiet. They must not carry the amber of a live
    restriction, because they are not asserting anything about today. */
 .notice--undated { border-left-color: var(--decor); background: var(--bg); }

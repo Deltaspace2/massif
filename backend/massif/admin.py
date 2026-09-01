@@ -443,8 +443,9 @@ def _card(
       <label>from <input type="date" name="valid_from" value="{from_value}"></label>
       <label>to <input type="date" name="valid_to" value="{to_value}"></label>
       <label class=wide>what the site should say
-        <input name="summary" placeholder="leave blank to keep the reading above"
-               value=""></label>
+        <textarea name="summary" rows="3"
+          placeholder="leave blank to keep the reading above &#10;\
+Enter accepts · Shift+Enter starts a new line"></textarea></label>
     </fieldset>
     <input name="note" placeholder="why (optional)">
     <button class=ok>Accept</button>
@@ -471,8 +472,10 @@ PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
  blockquote{{margin:.6rem 0;padding:.4rem .8rem;border-left:2px solid #e3e7ea;
    color:#4d545c;font-size:14px}}
  form{{display:inline}}
- input{{padding:.3rem .5rem;border:1px solid #c6ccd2;border-radius:6px;
-   width:16rem}}
+ input,textarea{{padding:.3rem .5rem;border:1px solid #c6ccd2;border-radius:6px;
+   width:16rem;font:inherit}}
+ textarea{{resize:vertical;min-height:3.4rem}}
+ label.wide textarea{{width:100%}}
  button{{padding:.35rem .9rem;border-radius:999px;border:1px solid #c6ccd2;
    background:#fff;cursor:pointer}}
  .ok{{border-color:#3d8f63;color:#3d8f63}}
@@ -523,6 +526,19 @@ addEventListener("click", function (event) {{
     ? "show the English translation"
     : "show the original";
 }});
+
+/* "What the site should say" is a textarea so a reviewer can write more than
+   one line — Steven asked for shift+enter. It was an <input>, where Enter
+   accepted the card, and turning it into a plain textarea would have quietly
+   taken that away: Enter would insert a newline and the reviewer would be
+   hunting for the button. So both are kept, the way every chat box does it. */
+addEventListener("keydown", function (event) {{
+  if (event.key !== "Enter" || event.shiftKey) return;
+  var box = event.target;
+  if (box.tagName !== "TEXTAREA" || box.name !== "summary") return;
+  event.preventDefault();
+  box.form.requestSubmit();
+}});
 </script>
 <p class=meta>{count} waiting. A machine read these out of prose; none can take a
 status slot until you accept it. Read the quoted evidence, not the summary —
@@ -551,7 +567,11 @@ async def _fields(request: Request) -> dict[str, str]:
     ever completed an accept.
     """
     raw = (await request.body()).decode("utf-8", "replace")
-    return {k: v[0].strip() for k, v in parse_qs(raw).items() if v}
+    # A browser sends every textarea line break as CRLF, per the URL-encoded
+    # form spec. Left alone, the carriage returns ride into `summary_en`, the
+    # API and the rendered page, where they are invisible until something
+    # splits on "\n" and finds a trailing "\r" on every line.
+    return {k: v[0].replace("\r\n", "\n").strip() for k, v in parse_qs(raw).items() if v}
 
 
 ERROR_PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
