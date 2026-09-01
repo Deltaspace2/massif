@@ -122,6 +122,15 @@
     Carries its own caveat that dates are indicative and subject to change —
     reproduce that caveat, do not launder it into certainty.
 
+    DOES NOT COVER THE TRAMWAY DU MONT-BLANC, and this was checked rather than
+    assumed. Both this page and infos-live contain the string "Tramway du
+    Mont-Blanc" against the slug `tramway-montblanc`, which looks exactly like
+    a row we are dropping. It is not: the only occurrence on either page is
+    inside the RSC payload's `resort` translation dictionary, a table of
+    display labels. There is no season row and no live row behind it. The
+    Tramway therefore has no status from any source we carry, and would need
+    one of its own.
+
 - slug: skyway-monte-bianco
   name: Skyway Monte Bianco
   url: https://www.montebianco.com/
@@ -131,6 +140,31 @@
   trust_weight: 0.95
   fetch_interval_minutes: 30
   active: false
+  notes: >
+    BLOCKED ON TLS, not unstarted. Recorded so nobody spends another afternoon
+    on it. This is the operator of the only Italian lift we carry, so its
+    absence is why Skyway has no status.
+
+    Neither of their hostnames presents a chain a strict client can verify:
+
+      www.montebianco.com   verify error 21, unable to verify the first
+                            certificate — the leaf is a Sectigo DV cert whose
+                            ISSUING INTERMEDIATE the server never sends. The
+                            root is in certifi; the chain is simply incomplete.
+                            Browsers paper over this by fetching the
+                            intermediate from the AIA extension. httpx does not.
+      skywaymontebianco.com verify error 18, self-signed.
+
+    We do not turn verification off, and we do not pin their missing
+    intermediate ourselves: an operator's TLS is theirs to fix, and a
+    conditions site that quietly lowers its own standards to read one source
+    has made a decision nobody reviewed. Same discipline as treating an
+    unreachable robots.txt as a refusal.
+
+    Re-check by running the diagnosis again; if `openssl s_client -connect
+    www.montebianco.com:443` stops saying 21, this becomes a normal scraper.
+    Until then the Italian lift carries directory data and no status, which is
+    the honest state.
 
 # The operator of fifteen of the huts inside this massif, publishing per hut the
 # "Période de gardiennage": the dated window it is open to the public. The first

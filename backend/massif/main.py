@@ -47,10 +47,7 @@ NOTEWORTHY_TYPES = ("closure", "restriction", "hazard_observation")
 def _noteworthy(statement: Statement) -> bool:
     if (statement.payload or {}).get("schedule"):
         return False
-    return (
-        statement.severity >= 1
-        or str(statement.statement_type) in NOTEWORTHY_TYPES
-    )
+    return statement.severity >= 1 or str(statement.statement_type) in NOTEWORTHY_TYPES
 
 
 def _live(now: datetime):
@@ -111,7 +108,8 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
     # that bug and published the Goûter route as closed on the day
     # Saint-Gervais reopened it.
     blocking = [
-        st for st in statements
+        st
+        for st in statements
         if str(st.statement_type) in ("closure", "restriction")
         and str(st.status) in ("closed", "restricted")
     ]
@@ -143,9 +141,7 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
     # have no information when we have some is the same species of error as a
     # stale open: a confident claim that is not true.
     openings = [
-        st for st in statements
-        if str(st.statement_type) == "opening"
-        and str(st.status) == "open"
+        st for st in statements if str(st.statement_type) == "opening" and str(st.status) == "open"
     ]
     if openings:
         newest = max(openings, key=lambda st: st.observed_at)
@@ -165,6 +161,24 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
     return {"value": StatusValue.UNKNOWN, "reason": None, "kind": None}
 
 
+def _published_day(moment: datetime) -> DateRange:
+    """The single calendar day this instant stands for, as the source wrote it.
+
+    `fr_dates` encodes a French calendar date as a UTC day boundary: "13
+    septembre" becomes 13 Sep 00:00–23:59:59 UTC. Postgres hands the value back
+    in the server's own timezone, and east of UTC that end boundary lands after
+    midnight — so a season FFCAM published as ending on the 13th rendered as
+    "Wardened until 14 Sep 2026" on this machine, a date the source never
+    printed, and the same page would have said something different again on a
+    server in another region.
+
+    Normalising back to UTC recovers the day the date was built from. It is not
+    a time-of-day conversion: these are calendar dates, and the only correct
+    answer is the one the source wrote.
+    """
+    day = moment.astimezone(UTC)
+    return DateRange(start=day, end=day, rule="stored")
+
 
 def phrase_for_now(statement, now: datetime) -> str | None:
     """Re-tense an opening against today, at read time.
@@ -179,9 +193,22 @@ def phrase_for_now(statement, now: datetime) -> str | None:
     stored string survives that. Everything else keeps its stored wording:
     a closure's dates are the claim itself and must not be paraphrased.
 
-    The end date is deliberately not mentioned. What Saint-Gervais stated was a
-    reopening ON the 26th; the window's end is our own staleness widening, and
-    printing it would hand the reader a date the source never gave.
+    The end date is deliberately not mentioned — UNLESS the source stated one.
+    What Saint-Gervais stated was a reopening ON the 26th; that window's end is
+    our own staleness widening, and printing it would hand the reader a date
+    the source never gave.
+
+    A warden season is the other case. FFCAM publishes both ends of it
+    ("Fermeture du refuge au public le 4 octobre 2026"), and for a hut the end
+    is the half that matters: the warden leaving is the thing a reader is
+    planning around, and "Open since 23 May" says nothing about it. Those
+    statements carry `wardened` in their payload, which is how this tells the
+    two apart — a property of the statement, not a source slug.
+
+    It says "Wardened until", never "Open until". Most of these huts have a
+    winter room, so the end of the season means unstaffed and emphatically not
+    shut, and a phrase that let a reader infer otherwise would be this site
+    inventing a closure.
     """
     if statement is None:
         return None
@@ -193,8 +220,11 @@ def phrase_for_now(statement, now: datetime) -> str | None:
     # A single day, not an open-ended range: describe() renders end=None as
     # "from 26 Aug 2026", which would read "Open since from 26 Aug". Caught by
     # the test, not by me.
-    when = describe(DateRange(start=start, end=start, rule="stored"))
+    when = describe(_published_day(start))
     if start <= now:
+        end = statement.valid_to
+        if end is not None and (getattr(statement, "payload", None) or {}).get("wardened"):
+            return f"Wardened until {describe(_published_day(end))}"
         return f"Open since {when}"
     return f"Reopening {when}"
 
@@ -214,9 +244,7 @@ UNCHECKED_INTERVALS = 2
 FALLBACK_INTERVAL_MINUTES = 1440
 
 
-def _unchecked(
-    last_seen: datetime | None, interval_minutes: int | None, now: datetime
-) -> bool:
+def _unchecked(last_seen: datetime | None, interval_minutes: int | None, now: datetime) -> bool:
     """Have we failed to re-check this within the source's own rhythm?
 
     Separate from `stale`, which asks whether the CLAIM has aged out. This asks
@@ -270,9 +298,7 @@ def _feature_dict(
             # standing. The UI shows both; only the second is a statement
             # about our own diligence.
             "last_seen_at": (status.last_seen_at if status else None),
-            "stale": bool(
-                status and status.stale_after and status.stale_after < now
-            ),
+            "stale": bool(status and status.stale_after and status.stale_after < now),
             # Our diligence, judged against the source's own cadence rather
             # than a number the UI picked. Computed here because the cadence
             # is a backend fact, and the last thing that re-derived one of
@@ -295,8 +321,7 @@ def _feature_dict(
         },
         # What a trip planner actually asks. status is "right now"; this is
         # "this season", and it is what the UI colours by.
-        "season": season
-        or {"value": StatusValue.UNKNOWN, "reason": None, "kind": None},
+        "season": season or {"value": StatusValue.UNKNOWN, "reason": None, "kind": None},
     }
 
 
@@ -409,9 +434,7 @@ def health(session: Session = Depends(get_session)) -> dict:
     """Last successful ingest, front and centre. Abandonment is the real
     failure mode — a site that stopped updating in November is worse than no
     site, because people trust it anyway."""
-    last_ok = session.scalar(
-        select(func.max(IngestRun.finished_at)).where(IngestRun.ok.is_(True))
-    )
+    last_ok = session.scalar(select(func.max(IngestRun.finished_at)).where(IngestRun.ok.is_(True)))
     return {
         "ok": True,
         "last_successful_ingest": last_ok,
@@ -470,7 +493,11 @@ def list_features(
     items = []
     for f, st, stmt, parent in rows:
         payload = _feature_dict(
-            f, st, stmt, parent, others.get(f.id, 0),
+            f,
+            st,
+            stmt,
+            parent,
+            others.get(f.id, 0),
             _season_status(live_by_feature.get(f.id, []), f.id in schedule_features),
             intervals.get(stmt.source_id) if stmt else None,
         )
@@ -526,9 +553,7 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
     ]
 
     live_here = list(
-        session.scalars(
-            select(Statement).where(Statement.feature_id == feature.id, *_live(now))
-        )
+        session.scalars(select(Statement).where(Statement.feature_id == feature.id, *_live(now)))
     )
     publishes_seasons = bool(
         session.scalar(
@@ -541,7 +566,11 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
 
     parent = session.get(Feature, feature.parent_id) if feature.parent_id else None
     payload = _feature_dict(
-        feature, status, current, parent.slug if parent else None, len(others),
+        feature,
+        status,
+        current,
+        parent.slug if parent else None,
+        len(others),
         _season_status(live_here, publishes_seasons),
         _source_intervals(session).get(current.source_id) if current else None,
     )
@@ -571,9 +600,7 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
     # an emergency shelter at 4362 m.
     payload["notes"] = feature.notes or None
 
-    payload["parent"] = (
-        {"slug": parent.slug, "name": parent.name_default} if parent else None
-    )
+    payload["parent"] = {"slug": parent.slug, "name": parent.name_default} if parent else None
     payload["children"] = [
         {
             "slug": child.slug,

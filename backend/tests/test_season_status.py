@@ -5,7 +5,7 @@ the one screen most people will ever see.
 """
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 from massif.enums import StatusValue
 from massif.main import _season_status
@@ -64,10 +64,12 @@ def test_a_closure_still_outranks_a_reopening():
 def test_the_newest_reopening_wins():
     season = _season_status(
         [
-            Fake("opening", "open", summary_en="older",
-                 observed_at=datetime(2026, 7, 1, tzinfo=UTC)),
-            Fake("opening", "open", summary_en="newer",
-                 observed_at=datetime(2026, 8, 25, tzinfo=UTC)),
+            Fake(
+                "opening", "open", summary_en="older", observed_at=datetime(2026, 7, 1, tzinfo=UTC)
+            ),
+            Fake(
+                "opening", "open", summary_en="newer", observed_at=datetime(2026, 8, 25, tzinfo=UTC)
+            ),
         ],
         has_schedule=False,
     )
@@ -123,6 +125,62 @@ def test_a_reopening_whose_day_has_passed_reads_as_open_since():
 def test_a_reopening_still_ahead_stays_in_the_future():
     said = phrase_for_now(FakeOpening(), datetime(2026, 8, 20, tzinfo=UTC))
     assert said == "Reopening 26 Aug 2026"
+
+
+@dataclass
+class FakeWardenSeason:
+    """FFCAM publishes both ends of a warden season, in its own words."""
+
+    statement_type: str = "opening"
+    summary_en: str | None = "Wardened and open to the public 23 May – 13 Sep 2026"
+    valid_from: datetime | None = datetime(2026, 5, 23, tzinfo=UTC)
+    valid_to: datetime | None = datetime(2026, 9, 13, tzinfo=UTC)
+    payload: dict | None = None
+
+    def __post_init__(self):
+        self.payload = {"wardened": True}
+
+
+def test_a_warden_season_is_phrased_by_the_end_the_source_stated():
+    """For a hut the end is the half that matters — the warden leaving is what
+    a reader plans around, and "Open since 23 May" says nothing about it. This
+    date is FFCAM's own ("Fermeture du refuge au public le 13 septembre"), not
+    our staleness widening, which is what makes it printable."""
+    said = phrase_for_now(FakeWardenSeason(), datetime(2026, 9, 1, tzinfo=UTC))
+    assert said == "Wardened until 13 Sep 2026"
+
+
+def test_the_day_printed_is_the_day_the_source_published():
+    """Postgres hands timestamps back in the server's timezone. `fr_dates`
+    builds "13 septembre" as 13 Sep 23:59:59 UTC, so east of UTC that end
+    boundary lands after midnight and the page said "until 14 Sep" — a date
+    FFCAM never printed, and a different one again depending on where the API
+    happens to run."""
+    east = FakeWardenSeason()
+    east.valid_to = datetime(2026, 9, 13, 23, 59, 59, tzinfo=UTC).astimezone(
+        timezone(timedelta(hours=8))
+    )
+    assert east.valid_to.day == 14  # the shape of the bug, before conversion
+    said = phrase_for_now(east, datetime(2026, 9, 1, tzinfo=UTC))
+    assert said == "Wardened until 13 Sep 2026"
+
+
+def test_a_warden_season_never_reads_as_a_closure():
+    """Most of these huts have a winter room and the operator sells "hors
+    gardiennage" bookings for it. The end of the season means unstaffed, never
+    shut, so this must not say "Open until" — a reader would take it as the
+    building closing on the 13th, which would be us inventing a closure."""
+    said = phrase_for_now(FakeWardenSeason(), datetime(2026, 9, 1, tzinfo=UTC))
+    assert "until" in said
+    assert "Open until" not in said
+    assert "clos" not in said.lower()
+
+
+def test_an_opening_with_no_warden_flag_keeps_the_start_date_wording():
+    """The distinction is a property of the statement, not of the source. An
+    opening that does not claim a stated end still gets "Open since"."""
+    said = phrase_for_now(FakeOpening(), datetime(2026, 8, 31, tzinfo=UTC))
+    assert said == "Open since 26 Aug 2026"
 
 
 def test_the_widened_end_date_is_never_printed():
