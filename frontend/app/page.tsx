@@ -3,11 +3,13 @@ import MapKey from "@/components/MapKey";
 import MassifMap from "@/components/MassifMap";
 import {
   listFeatures,
+  getFeed,
   getHealth,
   resortTime,
   sinceLabel,
   type Feature,
   type FactBlock,
+  type FeedItem,
 } from "@/lib/api";
 
 export const revalidate = 60;
@@ -40,7 +42,12 @@ function ageHours(iso: string | null): number | null {
  *  "24 hours" that replaced half of it was exactly mbnr-openings' fetch
  *  interval, so a healthy daily source drifted into the badge before every run.
  *  Numbers chosen here to stand in for facts the backend holds have been wrong
- *  twice; there are none left. */
+ *  twice; there are none left.
+ *
+ *  The 9C handoff asks for one UNVERIFIED pill on "ages > 48h". The pill is
+ *  implemented; the 48 hours is not, and the single label is not. Both of those
+ *  are the two bugs above, written down as a spec by someone who had not hit
+ *  them. */
 type Doubt = "old" | "unchecked";
 
 function doubt(feature: Feature): Doubt | null {
@@ -81,7 +88,8 @@ function rank(feature: Feature): number {
 const GLYPH: Record<string, string> = {
   open: "●",
   // Hollow, in the open colour: open, and nobody home. Never a triangle —
-  // that is the caution glyph and this is not a caution.
+  // that is the caution glyph and this is not a caution. The handoff's glyph
+  // set is ● ▲ ■ ○ and predates this state existing.
   unstaffed: "◍",
   restricted: "▲",
   closed: "■",
@@ -109,113 +117,143 @@ function saidAbout(feature: Feature): { text: string; quoted: boolean } {
   return { text: "no notices in force", quoted: false };
 }
 
-function Row({ feature }: { feature: Feature }) {
+function altitudeLabel(feature: Feature): string | null {
+  if (feature.alt_min && feature.alt_max && feature.alt_min !== feature.alt_max) {
+    return `${feature.alt_min}–${feature.alt_max} m`;
+  }
+  if (feature.alt_max ?? feature.alt_min) return `${feature.alt_max ?? feature.alt_min} m`;
+  return feature.status.altitude_m ? `${feature.status.altitude_m} m` : null;
+}
+
+/** The right-hand end of a ledger row: how old, and whether that is a problem.
+ *
+ *  Two clocks, two lines — rule 10. `observed_at` is when the source published;
+ *  `last_seen_at` is when we last fetched and found it still standing. The
+ *  handoff shows a single age, which is the conflation that badged a decree
+ *  valid till September as unverified. */
+function Age({ feature }: { feature: Feature }) {
+  const flag = doubt(feature);
+  return (
+    <span className={`lrow__age mono${flag ? " lrow__age--caution" : ""}`}>
+      {flag && (
+        <span className="pill-doubt" title={DOUBT_WHY[flag]}>
+          {DOUBT_LABEL[flag]}
+        </span>
+      )}
+      <span className="lrow__age-pub">{shortAge(feature.status.observed_at)}</span>
+      <span className="lrow__age-chk">
+        checked {shortAge(feature.status.last_seen_at)}
+      </span>
+    </span>
+  );
+}
+
+/** One ruled line in the ledger: glyph, name, what was said, how old.
+ *
+ *  `emphasis` is the IN FORCE NOW treatment — a status word at the head of the
+ *  line and a larger name. Everything else about the row is identical, so the
+ *  two never drift apart.
+ */
+function LedgerRow({
+  feature,
+  emphasis = false,
+}: {
+  feature: Feature;
+  emphasis?: boolean;
+}) {
   const said = saidAbout(feature);
   const isUnknown = feature.season.value === "unknown";
-  const flag = doubt(feature);
-  const altitude =
-    feature.alt_min && feature.alt_max && feature.alt_min !== feature.alt_max
-      ? `${feature.alt_min}–${feature.alt_max} m`
-      : feature.status.altitude_m
-        ? `${feature.status.altitude_m} m`
-        : null;
+  const value = feature.season.value;
+  const altitude = altitudeLabel(feature);
 
   return (
-    <>
-      <span
-        className={`glyph ${feature.season.value}`}
-        style={{ color: `var(--${feature.season.value})` }}
-        aria-hidden="true"
-      >
-        {GLYPH[feature.season.value] ?? "○"}
-      </span>
-      <span className="name">
+    <div className={`lrow${emphasis ? " lrow--force" : ""}`}>
+      {emphasis ? (
+        <span className={`lrow__status ${value}`} style={{ color: `var(--${value})` }}>
+          {GLYPH[value] ?? "○"} {value.toUpperCase()}
+        </span>
+      ) : (
+        <span
+          className={`lrow__glyph ${value}`}
+          style={{ color: `var(--${value})` }}
+          aria-hidden="true"
+        >
+          {GLYPH[value] ?? "○"}
+        </span>
+      )}
+      <span className="lrow__name">
         <a href={`/${feature.type}/${feature.slug}`}>{feature.name}</a>
         <Flag code={feature.country} />
-        {altitude && <span className="alt"> {altitude}</span>}
-        {flag && (
-          <span className={`pill-unverified pill-unverified--${flag}`} title={DOUBT_WHY[flag]}>
-            {DOUBT_LABEL[flag]}
-          </span>
-        )}
+        {altitude && <span className="lrow__alt mono"> {altitude}</span>}
       </span>
-      <span className={`what${isUnknown ? " unknown" : said.quoted ? " quoted" : ""}`}>
+      <span className={`lrow__what${isUnknown ? " unknown" : said.quoted ? " quoted" : ""}`}>
         {isUnknown ? "unknown — no information, not “fine”" : said.text}
-        {/* The old quiet table carried this and the rewrite dropped it. It
-            matters most exactly where it went missing: the Goûter route
+        {/* The old quiet table carried this and the first rewrite dropped it.
+            It matters most exactly where it went missing: the Goûter route
             headlined OPEN on the front page while an 11 August notice about
             lethal rockfall sat one click away with nothing to hint at it. */}
         {feature.status.other_notices > 0 && (
-          <span className="what__more">
+          <span className="lrow__more">
             {" · "}
             {feature.status.other_notices} other notice
             {feature.status.other_notices === 1 ? "" : "s"} in force
           </span>
         )}
       </span>
-      {/* Two facts, not one. "published" is the mairie's date; "checked" is
-          ours. Conflating them is what produced "last confirmed 6 days ago"
-          for a decree we had re-read minutes earlier. */}
-      <span className={`age mono${flag ? " caution" : ""}`}>
-        <span className="age__published">{shortAge(feature.status.observed_at)}</span>
-        <span className="age__checked">
-          checked {shortAge(feature.status.last_seen_at)}
-        </span>
-      </span>
-    </>
+      <Age feature={feature} />
+    </div>
   );
 }
 
-/** The newsworthy ones, given room and their source. The design showed these
- *  on the mobile frame only because its desktop frame was a quiet day with
- *  none to show — they belong on both. */
-function NoticeCard({ feature }: { feature: Feature }) {
-  const flag = doubt(feature);
-  const value = feature.season.value;
-  const altitude = feature.status.altitude_m ? `${feature.status.altitude_m} m` : null;
+/** A band of the ledger: a label rail on the left, content on the right.
+ *
+ *  The rail is what makes this a ledger rather than a stack of tables — the
+ *  section name and its caveat sit beside the rows, not above them, so the
+ *  rows themselves stay a single unbroken column of ruled lines. */
+function Band({
+  label,
+  note,
+  tone,
+  first = false,
+  children,
+}: {
+  label: React.ReactNode;
+  note?: React.ReactNode;
+  tone?: "alert";
+  first?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <article className={`notice-card${flag ? " unverified-card" : ""}`}>
-      <div className="notice-card__head">
-        <span className={`notice-card__status ${value}`}>
-          {GLYPH[value]} {value.toUpperCase()}
-        </span>
-        <span className={`notice-card__age mono${flag ? " caution" : ""}`}>
-          {flag && (
-            <span className={`pill-unverified pill-unverified--${flag}`} title={DOUBT_WHY[flag]}>
-              {DOUBT_LABEL[flag]}
-            </span>
-          )}{" "}
-          {shortAge(feature.status.observed_at)}
-        </span>
+    <section className={`band${first ? " band--first" : ""}`}>
+      <div className="band__rail">
+        <h2 className={`band__label${tone === "alert" ? " band__label--alert" : ""}`}>
+          {label}
+        </h2>
+        {note && <p className="band__note">{note}</p>}
       </div>
-      <h3>
-        <a href={`/${feature.type}/${feature.slug}`}>{feature.name}</a>
-        <Flag code={feature.country} />{" "}
-        {altitude && <span className="alt">{altitude}</span>}
-      </h3>
-      {feature.season.reason && <p>{feature.season.reason}</p>}
-      {feature.status.summary && feature.status.summary !== feature.season.reason && (
-        <p>Today: {feature.status.summary}</p>
-      )}
-      {feature.status.other_notices > 0 && (
-        <p className="notices">
-          {feature.status.other_notices} other notice
-          {feature.status.other_notices === 1 ? "" : "s"} also in force
-        </p>
-      )}
-    </article>
+      <div className="band__body">{children}</div>
+    </section>
   );
 }
 
 export default async function Home() {
   let features: Feature[] = [];
   let lastIngest: string | null = null;
+  let latest: FeedItem | null = null;
   let error: string | null = null;
 
   try {
-    const [list, health] = await Promise.all([listFeatures(), getHealth()]);
+    // One try, one catch: the page either has its data or it does not. A
+    // separate fetch with its own failure path would let the page render a
+    // confident verdict beside a silently missing "latest change".
+    const [list, health, feed] = await Promise.all([
+      listFeatures(),
+      getHealth(),
+      getFeed(1),
+    ]);
     features = list.features;
     lastIngest = health.last_successful_ingest;
+    latest = feed.items[0] ?? null;
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
@@ -260,16 +298,29 @@ export default async function Home() {
     .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
   // Huts are excluded: they have their own complete section below, and listing
   // the two that happen to carry a notice here as well printed each of them
-  // twice on one screen. A hut that is actually shut still appears above as an
-  // alert card, which is a different job from an index — that pairing is
+  // twice on one screen. A hut that is actually shut still appears above in
+  // IN FORCE NOW, which is a different job from an index — that pairing is
   // intentional, two rows in two routine listings was not.
   const rest = routine
     .filter((f) => f.type !== "lift" && f.type !== "hut")
     .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 
-  // Every hut, not just the ones with a notice. Seventeen of nineteen have
-  // nothing published about them, so a status listing shows two — while their
-  // capacity, warden and phone are the only reason most people arrive at all.
+  // Within a band, what still deserves a line of its own. The handoff shows
+  // exceptions above a collapsed "9 lifts routine" row, and the thing that
+  // makes a row an exception is that it is NOT plainly running, or that we
+  // cannot vouch for how fresh it is. Both are the reader's business; a lift
+  // running its normal season is not.
+  const exceptional = (f: Feature) => f.season.value !== "open" || doubt(f) !== null;
+  const split = (rows: Feature[]) => ({
+    shown: rows.filter(exceptional),
+    quiet: rows.filter((f) => !exceptional(f)),
+  });
+  const liftRows = split(lifts);
+  const restRows = split(rest);
+
+  // Every hut, not just the ones with a notice. Most have nothing published
+  // about them, so a status listing shows a handful — while their capacity,
+  // warden and phone are the only reason most people arrive at all.
   // Highest first: it is how the massif is described and how they are climbed.
   // Everything the directories say about one hut, merged across ALL of its
   // blocks. Reading `facts[0]` only was why most rows in this list were blank:
@@ -349,36 +400,47 @@ export default async function Home() {
             what&rsquo;s shut.
           </h1>
         </div>
-
       </section>
-
-      {/* Sibling of the hero, not a child. As a child its only option is
-          absolute positioning, and the mobile layout needs it in flow. It laps
-          up over the photo with a negative margin instead, which behaves the
-          same at every card height. */}
-      <div className="verdict">
-        <span className={`verdict__dot ${quiet ? "verdict__dot--ok" : "verdict__dot--alert"}`} />
-        <span className="verdict__line">
-          {quiet
-            ? "Nothing unexpectedly shut."
-            : `${notices.length} notice${notices.length === 1 ? "" : "s"} in force.`}
-          </span>
-        {/* One full rendering per fact. When something is in force the headline
-            already says how many, so repeating it here is noise; when nothing
-            is, saying "0 notices in force" out loud is exactly the point. */}
-        <span className="verdict__counts">
-          {quiet && "0 notices in force · "}
-          {asleep} lift{asleep === 1 ? "" : "s"} asleep on schedule ·{" "}
-          {features.length} features tracked
-        </span>
-        <span className="verdict__sweep mono">
-          sweep {sinceLabel(lastIngest)}
-          {lastIngest && ` · ${resortTime(lastIngest)}`}
-        </span>
-      </div>
 
       <div className="layout">
         <div className="col">
+          {/* The verdict, stated once. It used to be a white card lapping over
+              the photo; 9C opens the ledger with it instead, and running both
+              would have printed the same count twice within one screen. */}
+          <header className="verdict">
+            <span
+              className={`verdict__count${quiet ? " verdict__count--ok" : ""}`}
+              aria-hidden="true"
+            >
+              {notices.length}
+            </span>
+            <div className="verdict__said">
+              <p className="verdict__line">
+                {quiet
+                  ? "Nothing unexpectedly shut."
+                  : `notice${notices.length === 1 ? "" : "s"} in force.`}
+              </p>
+              <p className="verdict__counts">
+                {tracked.length - notices.length} of {tracked.length} features
+                routine · {asleep} lift{asleep === 1 ? "" : "s"} asleep on
+                schedule · sweep {sinceLabel(lastIngest)}
+                {lastIngest && ` · ${resortTime(lastIngest)}`}
+              </p>
+            </div>
+            <div className="verdict__latest">
+              {latest && (
+                <p className="verdict__change">
+                  Latest: {latest.feature.name} marked{" "}
+                  <b style={{ color: `var(--${latest.status})` }}>{latest.status}</b>{" "}
+                  · {sinceLabel(latest.observed_at)}
+                </p>
+              )}
+              <a className="verdict__feed" href="/feed">
+                All changes → feed
+              </a>
+            </div>
+          </header>
+
           {doubted.length > 0 && (
             <div className="unverified">
               {/* Named separately, because they are separate problems: one is
@@ -408,74 +470,70 @@ export default async function Home() {
           )}
 
           {notices.length > 0 && (
-            <div>
-              <div className="sec-head">
-                <h2>In force now</h2>
-                <span>each with the source that published it</span>
-              </div>
-              <div style={{ marginTop: 14 }}>
-                {notices.map((f) => (
-                  <NoticeCard key={f.slug} feature={f} />
-                ))}
-              </div>
-            </div>
+            <Band
+              first
+              tone="alert"
+              label="IN FORCE NOW"
+              note="each with the source that published it, on its own page"
+            >
+              {notices.map((f) => (
+                <LedgerRow key={f.slug} feature={f} emphasis />
+              ))}
+            </Band>
           )}
 
-          {/* Closed by default. The mock has these open on desktop and collapsed
-              on mobile, which server-rendered CSS cannot express without either
-              JS or shipping the rows twice — and moment three of the brief is a
-              phone on bad signal, so the phone wins the tie. The answer above is
-              always visible; this is the routine remainder. */}
-          <details className="remainder">
-            <summary>
-              <b>
-                Everything else — {lifts.length + rest.length} features, routine
-              </b>
-              <span>SHOW ↓</span>
-            </summary>
-            <div className="remainder__body">
+          {lifts.length > 0 && (
+            <Band
+              first={notices.length === 0}
+              label="LIFTS & RAILWAYS"
+              note={
+                <>
+                  {lifts.length + notices.filter((f) => f.type === "lift").length} tracked
+                  <br />
+                  coloured by season,
+                  <br />
+                  not by the clock
+                </>
+              }
+            >
+              {liftRows.shown.map((f) => (
+                <LedgerRow key={f.slug} feature={f} />
+              ))}
+              <QuietRows rows={liftRows.quiet} noun="lift" />
+            </Band>
+          )}
 
-            {lifts.length > 0 && (
-              <div style={{ marginTop: 18 }}>
-                <div className="sec-head">
-                  <h2>Lifts &amp; railways</h2>
-                  <span>coloured by season, not by the clock</span>
-                </div>
-                <div className="tbl">
-                  {lifts.map((f) => (
-                    <Row key={f.slug} feature={f} />
-                  ))}
-                </div>
-              </div>
-            )}
+          {rest.length > 0 && (
+            <Band
+              label="ROUTES & ACCESS"
+              note="routes, glaciers and the roads that reach them"
+            >
+              {restRows.shown.map((f) => (
+                <LedgerRow key={f.slug} feature={f} />
+              ))}
+              <QuietRows rows={restRows.quiet} noun="feature" />
+            </Band>
+          )}
 
-            {rest.length > 0 && (
-              <div style={{ marginTop: 26 }}>
-                <div className="sec-head">
-                  <h2>Routes &amp; access</h2>
-                </div>
-                <div className="tbl">
-                  {rest.map((f) => (
-                    <Row key={f.slug} feature={f} />
-                  ))}
-                </div>
-              </div>
-            )}
-            </div>
-          </details>
-
-          {/* Outside the "everything else" drawer on purpose. That drawer is
-              about status; this is a directory, and it is the half of the site
-              that has something to say about a hut nobody has published a
-              notice for. Also the SEO surface — people search "refuge du
-              requin", not "mont blanc closures". */}
+          {/* A directory, not a status listing — which is why it is not folded
+              into any "everything else" drawer. It is the half of the site that
+              has something to say about a hut nobody has published a notice
+              for, and the SEO surface: people search "refuge du requin", not
+              "mont blanc closures". */}
           {huts.length > 0 && (
-            <div style={{ marginTop: 30 }}>
-              <div className="sec-head">
-                <h2>Huts &amp; refuges</h2>
-                <span>{huts.length} in the massif, highest first</span>
-              </div>
-              <div className="huts">
+            <Band
+              label="HUTS & REFUGES"
+              note={
+                <>
+                  {huts.length} tracked · highest first
+                  <br />
+                  these describe the building,
+                  <br />
+                  not today
+                </>
+              }
+            >
+              <div className="cells">
                 {huts.map((f) => {
                   const values = hutValues(f);
                   const known = (f.facts ?? []).length > 0;
@@ -548,42 +606,40 @@ export default async function Home() {
                         .join(" · ")
                     : "no directory entry";
                   return (
-                    <a className="huts__row" key={f.slug} href={`/hut/${f.slug}`}>
-                      <span className="huts__name">
-                        {f.name}
-                        <Flag code={f.country} />
+                    <a className="cell" key={f.slug} href={`/hut/${f.slug}`}>
+                      <span className="cell__head">
+                        <span className="cell__name">{f.name}</span>
+                        <span className="cell__alt mono">
+                          {alt ? `${alt} · ` : ""}
+                          {f.country ?? "—"}
+                        </span>
+                        {/* A hut with a live notice must not look like one
+                            without. The same omission on the status table put
+                            the Goûter route on this page as OPEN with an 11
+                            August notice about lethal rockfall one click away
+                            and nothing to hint at it — and the Goûter refuge
+                            carries those notices too. A capacity is not a
+                            reason to drop them a second time. */}
+                        {isNotice(f) ? (
+                          <span className={`chip chip--${f.season.value}`}>
+                            {f.season.value}
+                          </span>
+                        ) : f.status.other_notices > 0 ? (
+                          <span className="chip">
+                            {f.status.other_notices} notice
+                            {f.status.other_notices === 1 ? "" : "s"}
+                          </span>
+                        ) : null}
                       </span>
-                      <span className="huts__alt mono">
-                        {alt ? `${alt} m` : "—"}
-                      </span>
-                      <span
-                        className={`huts__detail${known ? "" : " huts__detail--none"}`}
-                      >
+                      <span className={`cell__detail${known ? "" : " cell__detail--none"}`}>
                         {detail}
                       </span>
-                      {/* A hut with a live notice must not look like one
-                          without. The same omission on the status table put
-                          the Goûter route on this page as OPEN with an 11
-                          August notice about lethal rockfall one click away
-                          and nothing to hint at it — and the Goûter refuge
-                          carries those notices too. A capacity is not a
-                          reason to drop them a second time. */}
-                      {isNotice(f) ? (
-                        <span className={`pill ${f.season.value}`}>
-                          {f.season.value}
-                        </span>
-                      ) : f.status.other_notices > 0 ? (
-                        <span className="huts__notices">
-                          {f.status.other_notices} notice
-                          {f.status.other_notices === 1 ? "" : "s"}
-                        </span>
-                      ) : null}
                     </a>
                   );
                 })}
               </div>
               {hutSources.length > 0 && (
-                <p className="meta huts__credit">
+                <p className="band__credit">
                   Capacities, warden and water from{" "}
                   {hutSources.map((block, index) => (
                     <span key={block.source.name}>
@@ -603,63 +659,75 @@ export default async function Home() {
                   ))}
                   . Each hut&rsquo;s page links the entry its community wrote.
                   These describe the building, not today — a hut being listed
-                  here is not a report that it is open.
+                  here is not a report that it is open. Country is shown per row:
+                  the massif spans FR · IT · CH.
                 </p>
               )}
-            </div>
+            </Band>
           )}
 
           {routes.length > 0 && (
-            <div style={{ marginTop: 30 }}>
-              <div className="sec-head">
-                <h2>Routes &amp; couloirs</h2>
-                <span>{routes.length} tracked, highest first</span>
-              </div>
-              <div className="huts">
+            <Band
+              label="ROUTES & COULOIRS"
+              note={
+                <>
+                  {routes.length} tracked · highest first
+                  <br />
+                  only the Goûter has a source
+                  <br />
+                  that publishes about it
+                </>
+              }
+            >
+              <div className="cells">
                 {routes.map((f) => {
                   const span =
                     f.alt_min && f.alt_max && f.alt_min !== f.alt_max
-                      ? `${f.alt_min}–${f.alt_max} m`
+                      ? `${f.alt_min}–${f.alt_max}`
                       : f.alt_max
-                        ? `${f.alt_max} m`
+                        ? `${f.alt_max}`
                         : null;
                   return (
-                    <a className="huts__row" key={f.slug} href={`/${f.type}/${f.slug}`}>
-                      <span className="huts__name">
-                        {f.name}
-                        <Flag code={f.country} />
+                    <a className="cell" key={f.slug} href={`/${f.type}/${f.slug}`}>
+                      <span className="cell__head">
+                        <span className="cell__name">{f.name}</span>
+                        <span className="cell__alt mono">
+                          {span ? `${span} · ` : ""}
+                          {f.country ?? "—"}
+                        </span>
+                        {isNotice(f) ? (
+                          <span className={`chip chip--${f.season.value}`}>
+                            {f.season.value}
+                          </span>
+                        ) : f.status.other_notices > 0 ? (
+                          <span className="chip">
+                            {f.status.other_notices} notice
+                            {f.status.other_notices === 1 ? "" : "s"}
+                          </span>
+                        ) : null}
                       </span>
-                      <span className="huts__alt mono">{span ?? "—"}</span>
                       {/* A route with nothing published says so, rather than
                           leaving a blank the reader has to interpret. */}
                       <span
-                        className={`huts__detail${
-                          f.season.reason || f.status.summary ? "" : " huts__detail--none"
+                        className={`cell__detail${
+                          f.season.reason || f.status.summary ? "" : " cell__detail--none"
                         }`}
                       >
                         {f.season.reason ??
                           f.status.summary ??
                           "nothing published about this route"}
                       </span>
-                      {isNotice(f) ? (
-                        <span className={`pill ${f.season.value}`}>{f.season.value}</span>
-                      ) : f.status.other_notices > 0 ? (
-                        <span className="huts__notices">
-                          {f.status.other_notices} notice
-                          {f.status.other_notices === 1 ? "" : "s"}
-                        </span>
-                      ) : null}
                     </a>
                   );
                 })}
               </div>
-              <p className="meta huts__credit">
-                Only the Goûter route has a source that publishes about it —
-                Saint-Gervais, which regulates it. The rest are tracked and
-                findable, and will carry a status the day anybody publishes one.
-                Absence here is our coverage, not a report that a route is fine.
+              <p className="band__credit">
+                Saint-Gervais regulates the Goûter and publishes about it. The
+                rest are tracked and findable, and will carry a status the day
+                anybody publishes one. Absence here is our coverage, not a
+                report that a route is fine.
               </p>
-            </div>
+            </Band>
           )}
 
           <p className="disclaimer">
@@ -687,5 +755,36 @@ export default async function Home() {
         </aside>
       </div>
     </main>
+  );
+}
+
+/** The routine remainder of one band, behind a pill.
+ *
+ *  `<details>`, not a button: moment three of the brief is a phone in a hut on
+ *  bad signal, so this has to open with no JavaScript at all. The pill in the
+ *  handoff is the summary's styling, not a control of its own. */
+function QuietRows({ rows, noun }: { rows: Feature[]; noun: string }) {
+  if (rows.length === 0) return null;
+  return (
+    <details className="quiet">
+      <summary className="quiet__summary">
+        <span className="lrow__glyph open" style={{ color: "var(--open)" }} aria-hidden="true">
+          ●
+        </span>
+        <span className="quiet__text">
+          {rows.length} {noun}
+          {rows.length === 1 ? "" : "s"} routine, in season · all checked this
+          sweep
+        </span>
+        <span className="quiet__pill">
+          Show all {rows.length} <span aria-hidden="true">▾</span>
+        </span>
+      </summary>
+      <div className="quiet__body">
+        {rows.map((f) => (
+          <LedgerRow key={f.slug} feature={f} />
+        ))}
+      </div>
+    </details>
   );
 }

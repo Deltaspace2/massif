@@ -32,8 +32,11 @@
   --card-caution: #fdf9ef;
   --edge-caution: #d8bd7a;
 
-  --rule:       #e3e7ea;
-  --rule-faint: #eef1f3;
+  --rule:        #e3e7ea;
+  --rule-faint:  #eef1f3;
+  /* The handoff's #c6ccd2. A rule, never text: 1.9:1 and it only ever
+     draws link underlines and the pill border. */
+  --rule-strong: #c6ccd2;
   --hover:      #f4f6f8;
 
   --scrim-ink: 26, 31, 36;   /* #1a1f24, as rgb parts for alpha ramps */
@@ -52,7 +55,6 @@
   --restricted-glass: #a97c1b;
   --glass-edge: rgba(34, 40, 46, 0.10);
   --shadow-card: 0 2px 10px #22282e0f;
-  --shadow-lift: 0 -8px 30px #22282e2b;
 
   --gutter: 40px;
 }
@@ -138,28 +140,35 @@ a:hover { text-decoration: underline; }
   font-size: 62px; font-weight: 200; letter-spacing: 0.01em; line-height: 1.05;
 }
 
-/* ------------------------------------------------------------ verdict card
-   The answer to the page's question, overlapping the photo so it reads as the
-   point of the page rather than a caption under a picture. */
+/* ------------------------------------------------------- verdict header
+   9C opens the ledger with the answer, under a 3px rule that is the heaviest
+   line on the page. It used to be a white card lapping over the photo; running
+   both would have stated the same count twice within one screen. */
 .verdict {
-  position: relative; z-index: 1;
-  margin: -52px var(--gutter) 0;
-  background: var(--bg);
-  border-radius: 10px;
-  padding: 18px 26px;
-  display: flex; align-items: center; gap: 22px;
-  box-shadow: var(--shadow-lift);
+  display: flex; align-items: flex-end; gap: 24px;
+  border-bottom: 3px solid var(--ink); padding-bottom: 18px;
 }
-/* Modifier names are namespaced. `notice` collided with the feature page's
-   .notice block — padding 10px 13px and a border — and inflated this 12px dot
-   to a 30x22 rounded rectangle. Measured in the DOM; it was not obvious at a
-   glance, which is the whole argument for measuring. */
-.verdict__dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 12px; }
-.verdict__dot--ok { background: var(--open); }
-.verdict__dot--alert { background: var(--closed); }
-.verdict__line { font-size: 19px; font-weight: 500; }
-.verdict__counts { font-size: 13px; color: var(--secondary); }
-.verdict__sweep { margin-left: auto; font-size: 11.5px; color: var(--tertiary); white-space: nowrap; }
+.verdict__count {
+  font-size: 68px; font-weight: 700; line-height: 0.85;
+  color: var(--closed); font-variant-numeric: tabular-nums;
+}
+/* A quiet day is a verdict, not an absence: the zero is green and the sentence
+   beside it says so in words. */
+.verdict__count--ok { color: var(--open); }
+.verdict__said { min-width: 0; }
+.verdict__line { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.15; }
+.verdict__counts { margin: 3px 0 0; font-size: 13px; color: var(--secondary); }
+.verdict__latest {
+  margin-left: auto; text-align: right;
+  font-size: 12.5px; color: var(--body); line-height: 1.6;
+}
+.verdict__change { margin: 0; }
+.verdict__feed {
+  font-weight: 600;
+  text-decoration: underline; text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+}
+.verdict__feed:hover { text-decoration-color: var(--ink); }
 
 /* ------------------------------------------------------------------ layout */
 .layout {
@@ -167,7 +176,7 @@ a:hover { text-decoration: underline; }
   display: grid; grid-template-columns: 1fr 440px; gap: 44px;
   align-items: start;
 }
-.col { display: flex; flex-direction: column; gap: 26px; }
+.col { display: flex; flex-direction: column; gap: 44px; }
 
 /* ------------------------------------------------------ unverified banner */
 .unverified {
@@ -180,63 +189,184 @@ a:hover { text-decoration: underline; }
 }
 .unverified__text { font-size: 13px; line-height: 1.55; color: var(--body); }
 
-/* ------------------------------------------------------------------ tables */
-.sec-head {
-  display: flex; align-items: baseline; justify-content: space-between;
-  padding-bottom: 8px; border-bottom: 1px solid var(--rule);
+/* -------------------------------------------------------------- the ledger
+   A label rail beside the rows, not a heading above them. That is what makes
+   this a ledger rather than a stack of tables: the rows stay one unbroken
+   column of ruled lines from the top of the page to the bottom, and the rail
+   carries the section name and the caveat that belongs with it. */
+.band { display: grid; grid-template-columns: 200px 1fr; gap: 0 36px; }
+.band + .band, .band--ruled {
+  border-top: 1.5px solid var(--ink); padding-top: 16px;
 }
-.sec-head h2 {
-  margin: 0; font-size: 12px; font-weight: 600; letter-spacing: 0.18em;
-  color: var(--secondary); text-transform: uppercase;
+/* The first band sits under the verdict's own 3px rule; a second line 16px
+   below it reads as a mistake. */
+.band--first { border-top: 0; padding-top: 0; }
+.band__label {
+  margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.18em;
+  color: var(--ink);
 }
-.sec-head span { font-size: 11.5px; color: var(--tertiary); }
+.band__label--alert { color: var(--closed); }
+.band__note {
+  margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--tertiary);
+}
+.band__body { min-width: 0; }
+.band__credit {
+  margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--secondary);
+}
+.band__credit a { text-decoration: underline; text-underline-offset: 2px; }
 
-/* No column-gap: the row divider is drawn by each cell's own bottom border, so
-   a gap leaves the rule visibly broken between columns. Cells carry the
-   spacing as padding instead, which keeps the line continuous. */
-.tbl { display: grid; grid-template-columns: 20px 1fr auto 96px; font-size: 14px; }
-.tbl > * { padding: 10px 0; border-bottom: 1px solid var(--rule-faint); }
-.tbl > .name, .tbl > .what { padding-right: 14px; }
-.tbl > .glyph { align-self: center; font-size: 9px; line-height: 1; }
-.tbl > .glyph.unknown { font-size: 11px; }
-.tbl .name { font-weight: 500; }
-.tbl .name a:hover { text-decoration: underline; }
-.tbl .alt { color: var(--secondary); font-weight: 400; font-size: 12.5px; }
-.tbl .what { color: var(--secondary); font-size: 13px; }
-.tbl .what.quoted { font-style: italic; }
-.tbl .what.unknown { color: var(--unknown); font-style: italic; }
-/* Rule 1: the age is part of the claim, not metadata about it. The handoff set
-   it in the 2.51:1 grey; here it sits at the same weight as the status text. */
-.tbl .age { font-size: 11.5px; color: var(--tertiary); text-align: right; line-height: 1.35; }
-.tbl .age.caution { color: var(--restricted-text); font-weight: 600; }
-/* Both lines stay on one line each: at 72px "checked 20 h" wrapped its unit
-   onto a third row and the column read as three unrelated numbers. */
-.tbl .age__published { display: block; white-space: nowrap; }
-.tbl .age__checked {
+/* ------------------------------------------------------------ ledger rows */
+/* A grid, not the handoff's single baseline row.
+   The 9C frame keeps glyph, name, status and age on one line — but that frame
+   is an 1100px content column with no map beside it, and inside the real
+   `1fr 440px` layout at 1280 the rows get 465px. Measured there, the one-line
+   version left the operator's own sentence about 140px and wrapped it three
+   deep: 90px median row, 124px worst. Letting it wrap onto its own line under
+   the name instead, with the age spanning both lines on the right, is 56px
+   median. Same information, same order, one ruled line per feature.
+
+     ●  Chemin de fer du Montenvers  1913 m        OLD  25 d
+        scheduled summer season                  checked 40 min
+*/
+.lrow {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  column-gap: 14px; align-items: baseline;
+  padding: 11px 0; border-bottom: 1px solid var(--rule);
+}
+.lrow__glyph, .lrow__status { grid-column: 1; grid-row: 1; }
+.lrow__name { grid-column: 2; grid-row: 1; }
+.lrow__what { grid-column: 2; grid-row: 2; }
+/* Spans both rows so the published age sits beside the name and "checked"
+   beside the status text — two clocks, still two lines, no third row. */
+.lrow__age { grid-column: 3; grid-row: 1 / span 2; align-self: start; }
+.lrow:last-child { border-bottom: 0; }
+.lrow--force { padding: 12px 0; }
+.lrow__status {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; white-space: nowrap;
+}
+.lrow__glyph { font-size: 9px; line-height: 1; }
+.lrow__glyph.unknown, .lrow__glyph.unstaffed { font-size: 11px; }
+.lrow__name { font-size: 14.5px; font-weight: 500; }
+.lrow--force .lrow__name { font-size: 16px; font-weight: 600; }
+/* Every feature name is a real link to its own page, and says so without
+   borrowing browser blue: a hairline underline that darkens on hover. */
+.lrow__name a {
+  text-decoration: underline; text-decoration-color: var(--rule-strong);
+  text-decoration-thickness: 1px; text-underline-offset: 3px;
+}
+.lrow__name a:hover { text-decoration-color: var(--ink); }
+/* --tertiary, not the handoff's #9aa2ab. That grey measures 2.51:1 on this
+   background and these are words, not rules — the same finding that respaced
+   the whole text ramp at the top of this file. */
+/* nowrap: at 390px "2174 m" broke before the unit and left a lone "m" on
+   the next line under the hut's name. */
+.lrow__alt {
+  white-space: nowrap; font-weight: 400; font-size: 12px; color: var(--tertiary);
+}
+/* Grows into the free space, and is the one part of the row allowed to wrap.
+   Without the grow, the browser shrank the name and the status text in
+   proportion and clipped both — measured: "Closed" wanted 41px and had 27. */
+.lrow__what {
+  font-size: 13px; color: var(--secondary); overflow-wrap: break-word;
+}
+.lrow__what.quoted { font-style: italic; }
+.lrow__what.unknown { color: var(--unknown); font-style: italic; }
+.lrow__more { color: var(--restricted-text); font-weight: 500; }
+/* Rule 1: the age is part of the claim, not metadata about it. */
+.lrow__age {
+  text-align: right; white-space: nowrap;
+  font-size: 11.5px; color: var(--tertiary); line-height: 1.35;
+}
+.lrow__age--caution { color: var(--restricted-text); font-weight: 600; }
+/* Two clocks, two lines — rule 10. `published` is the source's date, `checked`
+   is ours, and the handoff's single age is the conflation that badged a decree
+   valid till September as unverified. Each stays on its own line: at this
+   width "checked 20 h" wrapped its unit onto a third row and the column read
+   as three unrelated numbers. */
+.lrow__age-pub { white-space: nowrap; }
+.lrow__age-chk {
   display: block; white-space: nowrap;
   font-size: 10.5px; color: var(--tertiary); font-weight: 400;
-}
-.what__more { color: var(--restricted-text); font-weight: 500; }
-.tbl-row:hover { background: var(--hover); }
-
-.pill-unverified {
-  display: inline-block; margin-left: 6px;
-  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
-  color: #fff; background: var(--restricted); padding: 2px 7px; border-radius: 999px;
-  white-space: nowrap;
 }
 
 /* Two badges, two problems, and they should not look the same.
    OLD is amber: the information itself may no longer hold, which is a caution
    about the mountain. UNCHECKED is grey: nothing is wrong with the claim, we
    have simply not re-read the source — a statement about us, not about
-   conditions, and it must not borrow the colour that means "be careful". */
-/* --restricted-text, not --restricted. The palette marks the lighter amber as
-   a glyph colour, and white on it measures 3.40:1 — under the 4.5 floor for
-   words. The badge carries a word. The old single UNVERIFIED badge had the
-   same fault and it went unmeasured because nobody had touched it since. */
-.pill-unverified--old { background: var(--restricted-text); }
-.pill-unverified--unchecked { background: var(--unknown); }
+   conditions, and it must not borrow the colour that means "be careful".
+   --restricted-text, not --restricted: the palette marks the lighter amber as
+   a glyph colour, and white on it measures 3.40:1, under the 4.5 floor for
+   words. The badge carries a word. */
+.pill-doubt {
+  /* Inline, beside the age it qualifies — not stacked above it. On its own
+     line the badge made the age column 49px tall, which set the height of
+     every flagged row in the ledger and left the two lines of text beside it
+     floating in the middle of it. */
+  display: inline-block; margin-right: 5px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.1em;
+  color: #fff; background: var(--unknown);
+  padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+}
+.lrow__age--caution .pill-doubt { background: var(--unknown); }
+.lrow__age--caution:has(.pill-doubt) { color: var(--restricted-text); }
+
+/* --------------------------------------------------------- directory cells
+   Huts and routes are an index, not a status listing: two columns, because 74
+   huts in one column is a page nobody scrolls to the bottom of. */
+/* Two columns where two columns fit, and one where they do not. Fixed at
+   `1fr 1fr` these were 129px wide inside a 1100px window — every hut name
+   wrapped to four lines, and grid rows size to their tallest cell, so one long
+   name inflated the row beside it too. Measured, not guessed at. */
+.cells {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 0 28px;
+}
+.cell {
+  display: block; padding: 8px 0; border-bottom: 1px solid var(--rule-faint);
+  color: inherit;
+}
+.cell:hover { background: var(--hover); text-decoration: none; }
+.cell:hover .cell__name { text-decoration-color: var(--ink); }
+.cell__head { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.cell__name {
+  font-size: 13.5px; font-weight: 500; color: var(--ink);
+  text-decoration: underline; text-decoration-color: var(--rule-strong);
+  text-decoration-thickness: 1px; text-underline-offset: 3px;
+}
+.cell__alt { font-size: 11px; color: var(--tertiary); white-space: nowrap; }
+.cell__detail { display: block; font-size: 11.5px; color: var(--tertiary); }
+.cell__detail--none { color: var(--unknown); font-style: italic; }
+/* Not a status pill — these are not shut. It says "there is something
+   published here you have not read", which is the one thing a capacity must
+   never be allowed to bury. */
+.chip {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--restricted-text); background: var(--tint-caution);
+  padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+}
+.chip--closed { color: #fff; background: var(--closed); }
+.chip--restricted { color: #fff; background: var(--restricted-text); }
+
+/* ---------------------------------------------------- the routine remainder
+   <details>, not a button. Moment three of the brief is a phone in a hut on
+   bad signal, so this opens with no JavaScript at all — the handoff's pill is
+   the summary's styling, not a control of its own. */
+.quiet > summary { list-style: none; cursor: pointer; }
+.quiet > summary::-webkit-details-marker { display: none; }
+.quiet__summary {
+  display: flex; align-items: center; gap: 14px; padding: 11px 0;
+}
+.quiet__text { font-size: 13.5px; color: var(--body); }
+.quiet__pill {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--ink);
+  border: 1px solid var(--rule-strong); border-radius: 999px;
+  padding: 5px 13px; background: var(--card); white-space: nowrap;
+}
+.quiet__summary:hover .quiet__pill { border-color: var(--ink); }
+.quiet[open] .quiet__summary { border-bottom: 1px solid var(--rule); }
+.quiet[open] .quiet__pill { display: none; }
 
 .disclaimer { font-size: 12.5px; line-height: 1.65; color: var(--secondary); max-width: 640px; }
 
@@ -320,40 +450,6 @@ a:hover { text-decoration: underline; }
 .mapfull__note { color: var(--secondary); }
 .mapfull__sweep { margin-left: auto; font-size: 11.5px; color: var(--secondary); }
 .mapfull__sweep a { text-decoration: underline; text-underline-offset: 3px; }
-
-/* ------------------------------------------------------- notice cards */
-.notice-card {
-  background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
-  padding: 16px; box-shadow: var(--shadow-card);
-}
-.notice-card + .notice-card { margin-top: 12px; }
-.notice-card.unverified-card { border-color: var(--edge-caution); background: var(--card-caution); }
-.notice-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.notice-card__status { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; }
-.notice-card__status.closed { color: var(--closed); }
-.notice-card__status.restricted { color: var(--restricted-text); }
-.notice-card__age { font-size: 11px; color: var(--tertiary); }
-.notice-card h3 { margin: 8px 0 0; font-size: 17px; font-weight: 600; }
-.notice-card h3 .alt { font-size: 12px; color: var(--secondary); font-weight: 400; }
-.notice-card p { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--body); }
-.notice-card blockquote {
-  margin: 10px 0 0; padding-left: 12px; border-left: 2px solid var(--rule);
-  font-style: italic; color: var(--secondary); font-size: 13.5px;
-}
-.notice-card__source {
-  display: inline-block; margin-top: 10px;
-  font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tertiary);
-}
-
-/* --------------------------------------------------------- remainder */
-.remainder { border-top: 1px solid var(--rule); }
-.remainder > summary {
-  list-style: none; cursor: pointer;
-  display: flex; justify-content: space-between; align-items: baseline;
-  padding: 14px 0; font-size: 13px; color: var(--secondary);
-}
-.remainder > summary::-webkit-details-marker { display: none; }
-.remainder > summary b { font-weight: 600; font-size: 11.5px; letter-spacing: 0.08em; color: var(--ink); }
 
 /* ------------------------------------------------------------- feature page
    Not redesigned in this pass — given the new tokens so it does not look
@@ -493,52 +589,6 @@ table.history th { color: var(--secondary); font-weight: 500; }
   color: var(--tertiary);
 }
 
-.huts { margin-top: 10px; }
-/* Every column fixed except the name. Each row is its own grid container, so
-   any column sized to its own content — `auto`, or a minmax that resolves to
-   content — is computed per row and lines up with nothing. The notices column
-   is the clearest case: it is present on two rows out of nineteen, and when it
-   collapsed to zero it dragged the two columns before it sideways. Fixed
-   widths mean the row a hut lands on cannot change where its text sits. */
-.huts__row {
-  /* The last column fits the widest pill the row can carry: RESTRICTED
-     measures 94 px at this size, UNKNOWN 79, CLOSED 66. Sized to the longest
-     rather than the common case, because the columns are fixed so that every
-     row lines up — a cell that fits most words is a cell that clips one. */
-  display: grid; grid-template-columns: 1fr 76px 224px 96px;
-  gap: 12px; align-items: baseline;
-  padding: 9px 0; border-bottom: 1px solid var(--rule-faint);
-  font-size: 14px;
-}
-.huts__row:hover { background: var(--hover); text-decoration: none; }
-.huts__row:hover .huts__name { text-decoration: underline; }
-.huts__name { font-weight: 500; color: var(--ink); }
-.huts__alt { color: var(--secondary); font-size: 12.5px; text-align: right; }
-.huts__detail { color: var(--secondary); font-size: 13px; }
-.huts__detail--none { color: var(--unknown); font-style: italic; }
-/* Not a status pill — these huts are not shut. It says "there is something
-   published here you have not read", which is the one thing a capacity must
-   never be allowed to bury. --restricted-text is 4.74:1, safe carrying words. */
-/* The pill is a grid item, and grid items stretch. Left alone it inflated to
-   the full 96 px column, so CLOSED sat in a capsule sized for RESTRICTED with
-   the difference as empty space. Sizing to its own text and sitting at the
-   column edge keeps the column wide enough for the longest word without
-   padding out the shortest. */
-.huts__row > .pill { justify-self: end; }
-
-.huts__notices {
-  font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em;
-  color: var(--restricted-text); white-space: nowrap; text-align: right;
-}
-.huts__credit { margin-top: 10px; line-height: 1.5; }
-.huts__credit a { text-decoration: underline; text-underline-offset: 2px; }
-
-/* Two columns, so a row folds to name/altitude then detail/notices. The
-   altitude stays right-aligned: it is the same column, one line down. */
-@media (max-width: 720px) {
-  .huts__row { grid-template-columns: 1fr 96px; row-gap: 2px; }
-}
-
 .lifts { list-style: none; padding: 0; margin: 12px 0 0; }
 .lifts li {
   display: flex; justify-content: space-between; gap: 12px;
@@ -589,6 +639,21 @@ table.history th { color: var(--secondary); font-weight: 500; }
 }
 .feature-map-note b { color: var(--restricted-text); }
 
+/* ------------------------------------------------- between the two designs
+   The handoff has one desktop frame, at 1280. Below about 1180 the fixed 440px
+   map plus the 200px label rail leaves the rows under 300px and every status
+   string wraps three deep — so the rail folds up into a header first, and the
+   map pane narrows, before the layout goes single-column at 900. */
+@media (max-width: 1180px) and (min-width: 901px) {
+  .layout { grid-template-columns: 1fr 360px; gap: 30px; }
+  .band { grid-template-columns: 1fr; gap: 10px; }
+  .band__rail {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  .band__note br { display: none; }
+  .band__note { margin: 0; }
+}
+
 /* ------------------------------------------------------------------ mobile
    Moment three from the brief: a phone, in a hut, on bad signal. Single
    column, map after the answer, routine rows behind a <details> so the
@@ -600,20 +665,24 @@ table.history th { color: var(--secondary); font-weight: 500; }
   .hero__copy { bottom: 34px; }
   .hero__headline { font-size: 32px; }
   .hero__kicker { font-size: 10.5px; letter-spacing: 0.2em; }
-  /* Taken out of the hero entirely. Absolutely positioned at this width the
-     card is three lines tall and covers the headline it is supposed to
-     answer — it cut "what's shut." in half. It now sits under the photo and
-     laps up over the edge by 14px, which keeps the overlap without the
-     collision. */
-  .verdict {
-    margin: -18px 16px 0;
-    padding: 14px 16px;
-    flex-wrap: wrap; gap: 8px;
-    box-shadow: var(--shadow-card);
-    border: 1px solid var(--rule);
+  /* The verdict header wraps rather than shrinks: the count is the one thing
+     on this page that must stay large on a phone. */
+  .verdict { flex-wrap: wrap; gap: 4px 18px; padding-bottom: 14px; }
+  .verdict__count { font-size: 52px; }
+  .verdict__line { font-size: 18px; }
+  .verdict__latest {
+    margin-left: 0; text-align: left; width: 100%; margin-top: 8px;
   }
-  .verdict__line { font-size: 17px; }
-  .verdict__counts, .verdict__sweep { width: 100%; margin-left: 0; }
+  /* The 200px label rail collapses: section labels become full-width headers
+     above their rows. Written as one column rather than a narrower rail —
+     at 390px a rail wide enough for "LIFTS & RAILWAYS" leaves nothing for the
+     rows beside it. */
+  .band { grid-template-columns: 1fr; gap: 10px; }
+  .band__note { margin-top: 2px; }
+  .band__note br { display: none; }
+  .col { gap: 30px; }
+  /* One column of cells: two 165px columns cut every hut name in half. */
+  .cells { grid-template-columns: 1fr; }
   .layout { grid-template-columns: 1fr; gap: 24px; padding-top: 26px; }
   .mappane { min-height: 0; position: static; }
   .mappane__map { min-height: 220px; height: 220px; }
@@ -623,25 +692,6 @@ table.history th { color: var(--secondary); font-weight: 500; }
   .mappane__head span { font-size: 11px; }
   .mapfull__sweep { margin-left: 0; width: 100%; }
   .mapfull__bar { padding: 10px 16px; gap: 8px 16px; }
-  .tbl { grid-template-columns: 14px 1fr 58px; }
-  .tbl .what { grid-column: 2 / 4; padding-top: 0; border-top: 0; }
-  .tbl > .name { border-bottom: 0; padding-bottom: 2px; }
-}
-
-
-/* --------------------------------------------------- routine tables, desktop
-   Open on desktop, collapsed on a phone: no JS, no duplicated markup. Browsers
-   hide a closed <details>' children two different ways depending on version —
-   a UA `display: none` on the children, or `content-visibility` on the
-   ::details-content pseudo — so both are overridden. This block lives at the
-   end of the file deliberately: an earlier attempt placed it above the
-   `.remainder > summary` rule it needs to beat, matched on specificity, and
-   lost on source order, which left "SHOW" showing next to already-open tables.
-   Verified in Chromium at 1280 and 390. */
-@media (min-width: 901px) {
-  .remainder > summary { display: none; }
-  .remainder > .remainder__body { display: block; }
-  .remainder::details-content { content-visibility: visible; block-size: auto; }
 }
 
 
