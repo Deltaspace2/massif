@@ -68,11 +68,19 @@ class _Document:
 class _Session:
     """Enough of a Session for the page and one decision."""
 
-    def __init__(self, rows):
+    def __init__(self, rows, siblings=()):
         self.rows = rows
+        self.siblings = siblings
         self.flushed = False
+        # Every query this session was asked for, compiled to SQL. A fake
+        # session answers whatever it likes, so a WHERE clause it ignores is
+        # invisible — and the two clauses that keep retired statements off the
+        # page are exactly that shape. Reading the SQL back is the only way to
+        # hold them without a database.
+        self.sql: list[str] = []
 
-    def execute(self, _q):
+    def execute(self, q, params=None, *args, **kwargs):
+        self.sql.append(str(q))
         return self
 
     def all(self):
@@ -81,21 +89,38 @@ class _Session:
     def get(self, _model, _id):
         return _Statement
 
+    def scalars(self, q):
+        """Everything the same page produced. The queue holds only what is
+        waiting; this asks for the live set."""
+        self.sql.append(str(q))
+        return list(self.siblings)
+
     def flush(self):
         self.flushed = True
 
 
-def build(token=TOKEN, rows=None):
+def build(token=TOKEN, rows=None, siblings=()):
     settings.admin_token = token
     app = FastAPI()
     mounted = admin.include_admin(app)
-    session = _Session(rows if rows is not None else [(_Statement, _Feature, _Source, _Document)])
+    session = _Session(
+        rows if rows is not None else [(_Statement, _Feature, _Source, _Document)],
+        siblings=siblings,
+    )
     app.dependency_overrides[get_session] = lambda: session
     return app, mounted, session
 
 
 @pytest.fixture(autouse=True)
-def _restore():
+def _restore(monkeypatch):
+    """Never let this suite reach the API.
+
+    `.env` is loaded by pydantic-settings, so a machine with a real key would
+    otherwise translate every card in every test — slow, non-deterministic and
+    billed. Stubbed rather than disabled, so the English block still renders
+    and can be asserted on.
+    """
+    monkeypatch.setattr(admin, "translate", lambda text, session, **kw: "ENGLISH")
     original = settings.admin_token
     yield
     settings.admin_token = original
@@ -472,10 +497,19 @@ def test_the_page_text_is_escaped_like_everything_else():
     assert "<script>alert('x')</script>" not in body
 
 
-def test_the_quoted_sentence_is_marked_inside_the_page():
+def test_the_quoted_sentence_is_marked_inside_the_page(monkeypatch):
     """So the reviewer can see at a glance which sentence became the statement
-    and read what surrounds it."""
-    _Statement.original_text = "En dehors de la période gardée, le refuge d'hiver est accessible."
+    and read what surrounds it.
+
+    monkeypatch, not a bare assignment: `_Statement` is shared by every test in
+    this file, so setting the attribute outright left every LATER test reading
+    a sentence nobody wrote. It passed alone and failed in the suite.
+    """
+    monkeypatch.setattr(
+        _Statement,
+        "original_text",
+        "En dehors de la p\u00e9riode gard\u00e9e, le refuge d'hiver est accessible.",
+    )
     app, _, _ = build()
     body = TestClient(app).get("/admin/review", headers=AUTH).text
     assert "<mark>" in body
@@ -500,32 +534,63 @@ def test_the_page_panel_is_collapsed_but_present():
     assert "<details class=prose open>" not in body
 
 
-def test_a_card_says_what_else_came_off_the_same_page():
-    """Two cards that split one notice look like two notices, and a page that
-    produced only this statement looks the same as one that produced five."""
+def test_a_card_says_what_else_came_off_the_same_page_and_where_it_stands():
+    """Steven, on Plan Glacier: why did it not highlight both facts?
 
-    class _Other:
+    It had read both — the summer season and the off-season unstaffed line —
+    as two cards, each marking only its own sentence. And the sibling list
+    came from the QUEUE, so a sibling already accepted showed nothing and the
+    page looked as though half of it had been missed.
+
+    Live statements only, and each says where it stands. Superseded ones are
+    excluded: every re-extraction retires the previous set, so a page read six
+    times carried six retired copies of everything — the Abri Simond listed
+    twenty siblings, nearly all its own history, every one labelled "rejected"
+    when no person had rejected anything.
+    """
+
+    class _Accepted:
         id = "44444444-4444-4444-4444-444444444444"
         document_id = _Document.id
         status = StatusValue.OPEN
         statement_type = StatementType.OPENING
         summary_en = "The refuge is staffed until 30 August"
-        original_text = "Le Refuge sera gardé jusqu'au 30/08"
+        original_text = (
+        "Le Refuge sera gard\u00e9 jusqu\u2019au 30/08 puis les WE d\u00e9but septembre."
+    )
         original_language = "fr"
         valid_from = None
         valid_to = None
+        reviewed_at = "cleared"
+        superseded_at = None
         payload: dict = {"needs_review": True}
 
-    _Statement.document_id = _Document.id
-    app, _, _ = build(
-        rows=[
-            (_Statement, _Feature, _Source, _Document),
-            (_Other, _Feature, _Source, _Document),
-        ]
-    )
+    class _Waiting(_Accepted):
+        id = "55555555-5555-5555-5555-555555555555"
+        summary_en = "The winter room stays reachable"
+        original_text = "En dehors de la p\u00e9riode gard\u00e9e, le refuge d'hiver est accessible."
+        reviewed_at = None
+
+    app, _, session = build(siblings=[_Accepted, _Waiting])
     body = TestClient(app).get("/admin/review", headers=AUTH).text
     assert "Also taken from this page" in body
     assert "staffed until 30 August" in body
+    # Where each one stands, from its own review clock. Both said "accepted"
+    # once, which told the reviewer nothing about what was still theirs to do.
+    assert "<b>accepted</b>" in body
+    assert "<b>waiting</b>" in body
+    # Their sentences are marked faintly in the page panel, so what is left
+    # UNMARKED is what nothing read at all. Steven, on Plan Glacier: why did
+    # it not highlight both facts? Because each card marked only its own.
+    assert body.count("<mark class=other>") == 2
+    # Retired statements are excluded in the QUERY, not by the fake session,
+    # so the clause itself is what has to be checked: a page re-read six times
+    # carries six superseded copies of every statement and the Abri Simond
+    # listed twenty siblings, nearly all of them its own history.
+    assert any(
+        "statements.superseded_at IS NULL" in sql and "statements.document_id =" in sql
+        for sql in session.sql
+    ), session.sql
 
 
 def test_a_deactivated_feature_is_not_queued_for_review():

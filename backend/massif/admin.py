@@ -50,6 +50,7 @@ from massif.db import get_session
 from massif.enums import TRANSIENT_STATUSES, StatusValue
 from massif.ingest.fr_dates import published_date
 from massif.ingest.llm import normalise_space, readable_text
+from massif.ingest.llm_client import translate
 from massif.models import Document, Feature, Source, Statement
 from massif.status import recompute_feature
 
@@ -234,7 +235,12 @@ def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
 CONTEXT_CHARS = 6000
 
 
-def _source_prose(document: Document | None, evidence: str, lang: str = "fr") -> str:
+def _source_prose(
+    document: Document | None,
+    evidence: str,
+    lang: str = "fr",
+    also: list[str] | None = None,
+) -> tuple[str, str]:
     """The page as the model read it, with the quoted sentence marked.
 
     A card used to show one sentence and ask whether to publish it, which is
@@ -249,44 +255,81 @@ def _source_prose(document: Document | None, evidence: str, lang: str = "fr") ->
     sentence became the statement and read what surrounds it.
     """
     if document is None:
-        return ""
+        return "", ""
     raw = document.raw_text or (document.raw_content or b"").decode("utf-8", "replace")
     prose = readable_text(raw)[:CONTEXT_CHARS]
     if not prose:
-        return ""
+        return "", ""
     marked = html.escape(prose)
     quoted = html.escape(normalise_space(evidence or ""))
     if quoted and quoted in marked:
         marked = marked.replace(quoted, f"<mark>{quoted}</mark>", 1)
-    return marked
+    # Every OTHER sentence the extraction took off this page, marked faintly.
+    #
+    # Steven, looking at Plan Glacier: why did it not highlight both facts? It
+    # had read both — "ouverture du 12 juin au 8 septembre" and "Automne /
+    # Hiver / Printemps : ouvert mais non gardé" — as two separate cards, and
+    # each card marked only its own sentence. So the panel looked as though
+    # the second fact had been missed.
+    #
+    # With the others marked too, what is left UNMARKED is what nothing read,
+    # which is the question this panel exists to answer.
+    for other in also or []:
+        span = html.escape(normalise_space(other))
+        if span and span in marked and f"<mark>{span}</mark>" not in marked:
+            marked = marked.replace(span, f"<mark class=other>{span}</mark>", 1)
+    return marked, prose
 
 
-def _siblings(statement: Statement, rows: list) -> str:
-    """The other statements taken from the same page.
+def _document_statements(session: Session | None, statement: Statement) -> list:
+    """Everything ever taken off this page, whatever became of it.
+
+    The queue holds only what is still WAITING, so a page whose other notice
+    was accepted last week showed no siblings at all — and looked identical to
+    a page that produced one statement. A reviewer needs the whole set.
+    """
+    if session is None or statement.document_id is None:
+        return []
+    return list(
+        session.scalars(
+            select(Statement)
+            .where(
+                Statement.document_id == statement.document_id,
+                Statement.id != statement.id,
+                # LIVE only. Every re-extraction supersedes the previous set
+                # and writes a fresh one, so a document that has been re-read
+                # six times carries six retired copies of every statement —
+                # the Abri Simond listed twenty siblings, nearly all of them
+                # its own history.
+                Statement.superseded_at.is_(None),
+            )
+            .order_by(Statement.observed_at)
+        )
+    )
+
+
+def _siblings(others: list) -> str:
+    """The other statements taken from the same page, and where each stands.
 
     A reviewer deciding on one sentence needs to know what else the page
-    produced, or two cards that split one notice look like two notices — and a
-    page that produced only this one looks the same as a page that produced
-    five.
+    produced — two cards that split one notice look like two notices, and an
+    already-accepted sibling explains why this card seems to ignore half the
+    page.
     """
-    others = [
-        other
-        for other, _f, _s, doc in rows
-        if doc is not None
-        and other.document_id == statement.document_id
-        and other.id != statement.id
-    ]
     if not others:
         return ""
-    items = "".join(
-        f"<li>{html.escape(other.status.value)} — "
-        f"{html.escape((other.summary_en or '')[:110])}</li>"
-        for other in others
-    )
-    return (
-        f"<p class=w>Also taken from this page, and waiting separately:</p>"
-        f"<ul class=sib>{items}</ul>"
-    )
+    items = ""
+    for other in others:
+        # Only two states can appear: a superseded statement is filtered out
+        # above. Calling those "rejected" was wrong anyway — supersession is
+        # what re-extraction does, not a verdict anybody reached.
+        state = "accepted" if other.reviewed_at is not None else "waiting"
+        items += (
+            f"<li><b>{html.escape(state)}</b> · "
+            f"{html.escape(other.status.value)} — "
+            f"{html.escape((other.summary_en or '')[:110])}</li>"
+        )
+    return f"<p class=w>Also taken from this page:</p><ul class=sib>{items}</ul>"
 
 
 def _card(
@@ -295,6 +338,7 @@ def _card(
     source: Source,
     document: Document | None = None,
     rows: list | None = None,
+    session: Session | None = None,
 ) -> str:
     e = html.escape  # every interpolation below is third-party text
     payload = statement.payload or {}
@@ -334,21 +378,43 @@ def _card(
     # The source's own language, so a browser knows this is not English and —
     # with translate="no" below — leaves it alone.
     lang = statement.original_language or "fr"
-    siblings = _siblings(statement, rows or [])
-    prose = _source_prose(document, statement.original_text or "", lang)
-    context = (
-        # COLLAPSED by default: it is a lot of text on every card, and a
-        # reviewer who wants it is one click away. lang + translate="no" keep
-        # a browser's page translation off the source's own words — the whole
-        # value of an evidence span is that it is verbatim, and a translated
-        # one is a paraphrase of a paraphrase.
-        "<details class=prose><summary>the whole page we read "
-        f"({len(prose)} characters) — check what is NOT here</summary>"
-        f'<div lang="{lang}" translate="no" class="notranslate">{prose}</div>'
-        "</details>"
-        if prose
-        else ""
+    others = _document_statements(session, statement)
+    siblings = _siblings(others)
+    marked, plain = _source_prose(
+        document,
+        statement.original_text or "",
+        lang,
+        [o.original_text or "" for o in others],
     )
+    # Asked for once per page and then cached on content, so opening the queue
+    # again costs nothing. None when there is no key, which is not an error:
+    # the original is always there and the translation is the extra.
+    english = translate(plain, session) if plain and session is not None else None
+    context = ""
+    if marked:
+        english_block = (
+            f"<div class=en>{html.escape(english)}</div>"
+            if english
+            else "<div class=en><i>no translation available — no API key</i></div>"
+        )
+        context = (
+            # Collapsed by default; English first inside it, because a reviewer
+            # who does not read French cannot use the panel at all otherwise.
+            # The original is one button away and is what the guards checked
+            # and what the decision is finally about — a translation is OURS,
+            # and is labelled as such.
+            "<details class=prose><summary>the whole page we read "
+            f"({len(plain)} characters) — check what is NOT here</summary>"
+            "<div class=swap>"
+            "<button type=button class=swapbtn>show the original</button>"
+            " <span class=note>machine translation; the original is what counts</span>"
+            "</div>"
+            f"{english_block}"
+            f'<div class=fr hidden lang="{lang}" translate="no" '
+            f'class="notranslate">{marked}</div>'
+            "</details>"
+        )
+
     page = (
         f'<p><a href="{e(str(payload["url"]))}" rel="noopener nofollow" '
         f'target="_blank">the page it came from</a></p>'
@@ -418,8 +484,17 @@ PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
    border-radius:8px;white-space:pre-wrap;color:#4d545c;max-height:22rem;
    overflow:auto}}
  mark{{background:#f4f0e4;color:#22282e;padding:0 .1rem}}
+ .swap{{margin:.5rem 0 .2rem}}
+ .swapbtn{{padding:.2rem .6rem;font-size:12px;border-radius:999px;
+   border:1px solid #c6ccd2;background:#fff;cursor:pointer}}
+ .note{{font-size:11.5px;color:#9aa2ab}}
+ .en,.fr{{margin-top:.4rem;padding:.7rem .9rem;background:#f4f6f8;
+   border-radius:8px;white-space:pre-wrap;color:#4d545c;max-height:22rem;
+   overflow:auto}}
+ [hidden]{{display:none}}
  ul.sib{{margin:.2rem 0 .6rem;padding-left:1.1rem;font-size:12.5px;
    color:#6d7681}}
+ mark.other{{background:#eef1f3;color:#6d7681}}
  .pre{{background:#f4f6f8;border-radius:6px;padding:.5rem .7rem;font-size:13.5px;
    margin:.7rem 0}}
  fieldset{{border:1px dashed #c6ccd2;border-radius:8px;padding:.5rem .7rem;
@@ -432,6 +507,23 @@ PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
    border-radius:6px;width:auto;font:inherit;font-size:12.5px}}
 </style>
 <h1>Statements waiting for a person</h1>
+<script>
+/* One button per card, swapping the English for the original. Inline and
+   five lines because this page has no build step and does not want one. */
+addEventListener("click", function (event) {{
+  var button = event.target.closest(".swapbtn");
+  if (!button) return;
+  var box = button.closest("details");
+  var en = box.querySelector(".en");
+  var fr = box.querySelector(".fr");
+  var showingEnglish = !en.hidden;
+  en.hidden = showingEnglish;
+  fr.hidden = !showingEnglish;
+  button.textContent = showingEnglish
+    ? "show the English translation"
+    : "show the original";
+}});
+</script>
 <p class=meta>{count} waiting. A machine read these out of prose; none can take a
 status slot until you accept it. Read the quoted evidence, not the summary —
 the summary is the only field the model wrote rather than copied.</p>
@@ -441,7 +533,7 @@ the summary is the only field the model wrote rather than copied.</p>
 @router.get("/review", response_class=HTMLResponse, dependencies=[Depends(require_token)])
 def review_page(session: Session = Depends(get_session)) -> HTMLResponse:
     rows = _waiting(session)
-    cards = "".join(_card(s, f, src, d, rows) for s, f, src, d in rows) or (
+    cards = "".join(_card(s, f, src, d, rows, session) for s, f, src, d in rows) or (
         "<p class=none>Nothing waiting.</p>"
     )
     return HTMLResponse(PAGE.format(count=len(rows), cards=cards), headers=NO_INDEX)
