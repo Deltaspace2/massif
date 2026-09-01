@@ -128,13 +128,33 @@ export default function MassifMap({ features }: { features: Feature[] }) {
 
       // The outer element is only ever a hit area: constant size, never
       // styled, so a feature stays clickable at every zoom regardless of what
-      // is drawn inside it. position:relative so the status pip can hang off
-      // the corner rather than sitting on top of the symbol.
+      // is drawn inside it.
+      //
+      // NEVER set `position` here. MapLibre positions markers with
+      // `.maplibregl-marker { position: absolute }` from its own stylesheet
+      // and then writes a transform onto this element. An inline `position`
+      // beats that class, so the markers fall into normal document flow and
+      // the transform offsets them from wherever the flow happened to put
+      // them — which looks fine at high zoom, where the offsets are large, and
+      // collapses the whole map into a line as you zoom out and they shrink.
+      // I did exactly that to hang the status pip off the corner; the pip goes
+      // in the wrapper below instead.
       Object.assign(marker.style, {
         width: "18px",
         height: "18px",
         cursor: "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      });
+
+      // Ours to position against, so the pip can sit on a corner without
+      // touching the element MapLibre owns.
+      const holder = document.createElement("div");
+      Object.assign(holder.style, {
         position: "relative",
+        width: "100%",
+        height: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -172,7 +192,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
           boxShadow: `0 0 0 1px ${colourFor(feature)}55, 0 1px 3px rgba(34,40,46,0.35)`,
         });
       }
-      marker.appendChild(dot);
+      holder.appendChild(dot);
 
       // ---- the pip: what a source has SAID about it
       //
@@ -200,8 +220,9 @@ export default function MassifMap({ features }: { features: Feature[] }) {
           border: "1.5px solid #ffffff",
           boxShadow: "0 1px 2px rgba(34,40,46,0.45)",
         });
-        marker.appendChild(pip);
+        holder.appendChild(pip);
       }
+      marker.appendChild(holder);
 
       new maplibregl.Marker({ element: marker })
         .setLngLat([lon, lat])
