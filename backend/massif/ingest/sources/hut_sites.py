@@ -44,6 +44,7 @@ pointed at a handful of curated huts rather than every site that would answer.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -53,6 +54,7 @@ from sqlalchemy.orm import Session
 
 from massif.db import session_scope
 from massif.ingest.base import ExtractedStatement, Scraper, fetch, store_document
+from massif.ingest.fr_dates import _norm as normalise_fr
 from massif.ingest.llm import read_document, readable_text
 from massif.ingest.llm_client import build_extractor
 from massif.ingest.resolve import FeatureResolver
@@ -68,6 +70,22 @@ MAX_CHARS = 20000
 # hut produces nothing" and "this hut could not be fetched" are different
 # facts and only one of them is about the hut.
 MIN_CHARS = 400
+
+# A mention that names the WAY TO a place, rather than the place.
+#
+# The Cabane de Saleinaz publishes "l'accès à la cabane depuis la prise d'eau
+# de Saleinaz est toujours fermé" — the APPROACH is shut, and the very next
+# sentence says the hut is still reachable from La Fouly. The site-of fallback
+# filed that on the hut as a closure, so accepting it would have said the hut
+# was closed on the strength of a page saying it is open.
+#
+# We carry no feature for the approach to Saleinaz, so the honest outcome is
+# nothing at all — queued for a person, not attached to the nearest thing we
+# happen to have. The fallback is for a page calling its own hut "la cabane",
+# never for a notice about something else on the same page.
+NAMES_AN_APPROACH = re.compile(
+    r"\b(acces|itineraire|sentier|chemin|voie|route|passage|approche|montee)\b"
+)
 
 SEEDS = Path(__file__).resolve().parents[3] / "seeds" / "hut_sites.yaml"
 
@@ -183,6 +201,24 @@ class HutSiteScraper(Scraper):
         back, because on a one-hut website that is what those words mean.
         """
         from massif.ingest.sources.ffcam import HutResolver
+
+        # BEFORE resolving, not only in the fallback. "l'accès à la cabane
+        # depuis la prise d'eau de Saleinaz" contains the hut's own name, so
+        # the resolver matches it happily and the fallback never runs — which
+        # is how a closure of the APPROACH was filed on the hut while the next
+        # sentence said the hut was reachable.
+        if NAMES_AN_APPROACH.search(normalise_fr(item.feature_mention)):
+            resolver.queue_unresolved(
+                item.feature_mention,
+                [],
+                source_id=source.id,
+                document_id=document.id,
+                context=(
+                    "names an approach, not the hut — we carry no feature for "
+                    f"it: {(item.original_text or '')[:120]}"
+                ),
+            )
+            return None
 
         if self._huts is None:
             self._huts = HutResolver(session)

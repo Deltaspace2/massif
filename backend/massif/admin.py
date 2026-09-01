@@ -149,7 +149,8 @@ def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
     """
     status = fields.get("status") or ""
     start, end = fields.get("valid_from") or "", fields.get("valid_to") or ""
-    if not (status or start or end):
+    summary = fields.get("summary") or ""
+    if not (status or start or end or summary):
         return None
 
     changed: dict = {}
@@ -183,7 +184,22 @@ def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
         changed["status"] = status
 
     payload = dict(statement.payload or {})
-    # Recorded as a human's reading, never merged into what the model said.
+
+    if summary:
+        # What the SITE will say, not a note to ourselves. A reviewer who moves
+        # a hut to restricted has to be able to say why in the words a reader
+        # sees — otherwise the badge changes and the sentence under it still
+        # describes whatever the model made of the page.
+        #
+        # The model's wording is kept alongside, captured BEFORE the
+        # replacement: it is the record of what was read, and the reviewer's
+        # sentence is a different claim by a different author. Only the first
+        # override captures it, so re-editing does not overwrite the original
+        # with the previous edit.
+        payload.setdefault("model_summary", statement.summary_en)
+        statement.summary_en = summary
+        changed["summary"] = summary
+
     payload["reviewer_override"] = changed
     statement.payload = payload
     return ", ".join(f"{k}={v}" for k, v in changed.items())
@@ -249,6 +265,9 @@ def _card(statement: Statement, feature: Feature, source: Source) -> str:
         <select name="status">{options}</select></label>
       <label>from <input type="date" name="valid_from" value="{from_value}"></label>
       <label>to <input type="date" name="valid_to" value="{to_value}"></label>
+      <label class=wide>what the site should say
+        <input name="summary" placeholder="leave blank to keep the reading above"
+               value=""></label>
     </fieldset>
     <input name="note" placeholder="why (optional)">
     <button class=ok>Accept</button>
@@ -288,6 +307,8 @@ PAGE = """<!doctype html><meta charset=utf-8>
    margin:.6rem 0;display:inline-block}}
  legend{{font-size:11.5px;color:#9aa2ab;padding:0 .3rem}}
  label{{font-size:12.5px;color:#6d7681;margin-right:.7rem}}
+ label.wide{{display:block;margin-top:.5rem}}
+ label.wide input{{width:26rem;display:block;margin-top:.2rem}}
  select,input[type=date]{{padding:.25rem .4rem;border:1px solid #c6ccd2;
    border-radius:6px;width:auto;font:inherit;font-size:12.5px}}
 </style>

@@ -341,3 +341,48 @@ def test_a_status_that_is_not_one_of_ours_is_refused(monkeypatch):
     assert got.status_code == 400
     assert _Statement.reviewed_at is None
     assert _Statement.status is StatusValue.CLOSED
+
+
+def test_a_reviewer_can_say_what_the_site_should_say(monkeypatch):
+    """Steven, reviewing: setting restricted or closed needs a why.
+
+    Without this the badge changes and the sentence under it still describes
+    whatever the model made of the page — a hut reading "restricted" over a
+    summary about something else entirely.
+    """
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    _Statement.summary_en = "The hut will be unstaffed from August 8th"
+    app, _, _ = build()
+    got = _post(
+        app,
+        b"status=restricted&valid_from=2026-08-08"
+        b"&summary=Unstaffed+since+8+August%2C+winter+room+only",
+    )
+    assert got.status_code == 303
+    assert _Statement.summary_en == "Unstaffed since 8 August, winter room only"
+    assert _Statement.payload["reviewer_override"]["summary"] == _Statement.summary_en
+
+
+def test_the_model_s_own_wording_is_kept_when_a_reviewer_replaces_it(monkeypatch):
+    """It is the record of what was READ. The reviewer's sentence is a
+    different claim by a different author, and both have to survive."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    _Statement.summary_en = "what the model wrote"
+    app, _, _ = build()
+    _post(app, b"status=restricted&valid_from=2026-08-08&summary=what+the+reviewer+wrote")
+    assert _Statement.payload["model_summary"] == "what the model wrote"
+    assert _Statement.summary_en == "what the reviewer wrote"
+
+
+def test_a_reason_on_its_own_is_a_valid_override(monkeypatch):
+    """Correcting only the wording, leaving the reading alone."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    _Statement.summary_en = "clumsy"
+    app, _, _ = build()
+    got = _post(app, b"summary=said+plainly")
+    assert got.status_code == 303
+    assert _Statement.summary_en == "said plainly"
+    assert _Statement.status is StatusValue.CLOSED
