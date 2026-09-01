@@ -5,6 +5,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { FeatureDetail } from "@/lib/api";
 import { COLOURS, HUT_GLYPH, pipElement } from "./mapSymbols";
+import { IGN_SYMBOLISED } from "./ignSymbolised";
 
 const IGN_PLAN =
   "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
@@ -113,7 +114,11 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
       });
 
       const symbol = document.createElement("div");
-      if (feature.type === "hut") {
+      // This map opens at z14, above IGN's z13 threshold, so a hut they draw
+      // already has a symbol here and ours would be the second one. Huts they
+      // skip — every Swiss one, nearly every Italian one — get ours.
+      const ignDrawsIt = IGN_SYMBOLISED.has(feature.slug);
+      if (feature.type === "hut" && !ignDrawsIt) {
         symbol.innerHTML = HUT_GLYPH;
         Object.assign(symbol.style, {
           width: "18px",
