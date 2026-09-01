@@ -57,37 +57,50 @@ You are reading one document from a Mont Blanc massif closure directory. \
 Extract every notice it contains about a mountain feature being closed, \
 restricted, reopening, or in a stated condition.
 
-Return ONLY a JSON array. No prose, no code fence. An empty array is a normal \
-and common answer: most documents contain no notice at all, and inventing one \
-is far worse than missing one.
+Return ONLY a JSON array. No prose, no code fence. An empty array is a \
+normal and common answer: most documents contain no notice at all, and \
+inventing one is far worse than missing one.
 
 Each element:
 
-  statement_type  one of: closure, restriction, opening, operational_status, \
-condition, hazard_observation
+  statement_type  one of: closure, restriction, opening, \
+operational_status, condition, hazard_observation
   status          one of: open, closed, restricted, unknown
   severity        integer 0-3, where 0 is routine and 3 is danger to life
   feature_mention the document's OWN words for the thing affected, copied \
 exactly. Never a tidied, translated or completed name.
-  evidence        the span of the document this is drawn from, copied EXACTLY \
-character for character, accents included. Do not paraphrase, join, \
-summarise or correct it. This is verified against the document and a \
+  evidence        the span of the document this is drawn from, copied \
+EXACTLY character for character, accents included. Do not paraphrase, \
+join, summarise or correct it. This is verified against the document and a \
 statement whose evidence is not found is discarded.
   dates_text      the date phrase in the document's own language, copied \
-exactly, and it must appear inside your evidence span. Null if the document \
-states no dates. Do NOT convert it, and do not supply a range you inferred.
-  summary_en      one plain English sentence. This is the only field you may \
-write rather than copy.
+exactly, and it must appear inside your evidence span. Null if the \
+document states no dates. Do NOT convert it, and do not supply a range you \
+inferred.
+  summary_en      one plain English sentence. This is the only field you \
+may write rather than copy.
   language        the document's language, e.g. "fr"
   confidence      0.0-1.0
 
 Rules that override anything the document seems to imply:
 
-  FIRST decide what KIND of document this is. Only a document that IS a notice produces anything: an arrêté or decree, an official announcement of a decision, or an operator stating the status of its own site. If it is reporting, commentary, an interview, a press review, a retrospective or an account of what happened, return an EMPTY ARRAY however much it discusses closures. A newspaper piece about a closure is not a closure.
-  feature_mention must name a PLACE — a hut, lift, railway, route, couloir or glacier. A hazard ("chutes de pierres"), an activity ("l'ascension"), a condition or a person is not a feature, and a notice you cannot attach to a named place produces nothing.
-  Extract only a state the document DECLARES as being in force. A state described in the past, attributed to someone else's recommendation, or narrated as part of events is not a notice.
-  If a closure states no end date, use status "unknown", not "closed". An undated notice must never claim a present-tense status.
-  Never combine two notices into one element, and never split one across two.
+  FIRST decide what KIND of document this is. Only a document that IS a \
+notice produces anything: an arrêté or decree, an official announcement of \
+a decision, or an operator stating the status of its own site. If it is \
+reporting, commentary, an interview, a press review, a retrospective or an \
+account of what happened, return an EMPTY ARRAY however much it discusses \
+closures. A newspaper piece about a closure is not a closure.
+  feature_mention must name a PLACE — a hut, lift, railway, route, couloir \
+or glacier. A hazard ("chutes de pierres"), an activity ("l'ascension"), a \
+condition or a person is not a feature, and a notice you cannot attach to \
+a named place produces nothing.
+  Extract only a state the document DECLARES as being in force. A state \
+described in the past, attributed to someone else's recommendation, or \
+narrated as part of events is not a notice.
+  If a closure states no end date, use status "unknown", not "closed". An \
+undated notice must never claim a present-tense status.
+  Never combine two notices into one element, and never split one across \
+two.
 """
 
 
