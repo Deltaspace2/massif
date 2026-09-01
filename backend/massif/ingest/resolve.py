@@ -29,7 +29,14 @@ CANDIDATE_FLOOR = 60.0
 _NOISE = re.compile(
     r"\b(refuge|rifugio|refugio|h[uü]tte|cabane|bivouac|bivacco|"
     r"voie|route|via|arete|arête|cresta|couloir|glacier|ghiacciaio|"
-    r"aiguille|mont|monte|pointe|punta|du|de|des|la|le|les|del|della|di)\b"
+    r"aiguille|mont|monte|pointe|punta|du|de|des|la|le|les|del|della|di|"
+    # The ELIDED articles. Stripping punctuation turns "Refuge d'Argentière"
+    # into "d argentiere" and leaves the orphaned "d" in the key, where it
+    # costs enough similarity to drop a match under the floor: our own hut
+    # scored 86 against its own alias and went to the review queue instead of
+    # taking FFCAM's season. Same family as rule 1 — French that is normalised
+    # almost right matches nothing, quietly.
+    r"d|l)\b"
 )
 
 

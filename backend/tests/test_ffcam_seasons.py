@@ -76,28 +76,37 @@ def test_a_hut_with_two_seasons_gets_two_statements():
 # ------------------------------------------------------- what it must not say
 
 
-def test_a_season_without_a_year_emits_nothing():
-    """Refuge du Couvercle publishes "De début avril à fin septembre".
+def test_the_couvercle_s_worded_season_is_read_rather_than_skipped():
+    """It publishes "De début avril à fin septembre" and nothing else.
 
-    That is a description of a habit, not a window on a calendar. CLAUDE.md
-    rule 3: an undated notice must never claim a present-tense status. Guess a
-    year here and the hut goes green on the strength of the word "avril".
+    This used to assert the opposite — that it emitted nothing — on the
+    reading that an undated notice must never claim a present-tense status
+    (CLAUDE.md rule 3). That rule is about a notice with NO bounds. This one is
+    bounded, just bounded in words, and refusing it left the hut blank while
+    its own operator said when it is wardened. It is read, and narrowed to the
+    days the words certainly cover.
     """
-    assert extract(fixture("ffcam_couvercle.html"), FETCHED) == []
+    found = extract(fixture("ffcam_couvercle.html"), FETCHED)
+    assert len(found) == 1
+    assert found[0].valid_from.date() == datetime(2026, 4, 10).date()
+    assert found[0].valid_to.date() == datetime(2026, 9, 21).date()
+    assert found[0].original_text.startswith("Période de gardiennage")
 
 
-def test_the_date_parser_is_the_only_thing_deciding_what_is_a_date():
-    """Both sides of the one decision point.
+def test_the_date_parser_still_decides_what_counts_as_a_DATE():
+    """Both sides of that decision point, which is unchanged.
 
     A local "must contain a four-digit year" screen used to sit in front of
-    this. It was removed because it rejected nothing parse_range does not
-    already reject, while silently dropping the `30/05/26` form — so the second
-    assertion here is what stops it being reintroduced.
+    parse_range. It was removed because it rejected nothing parse_range does
+    not already reject, while silently dropping the `30/05/26` form — so the
+    second assertion is what stops it being reintroduced. What changed is only
+    that a phrase parse_range refuses now gets a second reading as a worded
+    season; a phrase that is neither still says nothing.
     """
-    assert _windows("Printemps : 14 mars au 3 mai 2026") != []
-    assert _windows("Ouverture le 30/05/26\nFermeture le 04/10/26") != []
-    assert _windows("De début avril à fin septembre") == []
-    assert _windows("Ouverture au printemps\nFermeture à l'automne") == []
+    assert _windows("Printemps : 14 mars au 3 mai 2026", 2026) != []
+    assert _windows("Ouverture le 30/05/26\nFermeture le 04/10/26", 2026) != []
+    assert _windows("Ouvert selon conditions", 2026) == []
+    assert _windows("Ouverture au printemps\nFermeture à l'automne", 2026) == []
 
 
 def page_publishing_a_season_for(name: str) -> str:
@@ -314,3 +323,70 @@ def test_a_season_with_no_altitude_to_check_is_queued_not_guessed():
     )
     assert built is None
     assert "no altitude" in shared.queued[0][1]
+
+
+# ------------------------------------------------- seasons written in words
+
+
+def test_a_season_in_words_is_read_and_narrowed_to_what_it_certainly_covers():
+    """Four of the fifteen FFCAM huts publish only words — Argentière,
+    Couvercle, Leschaux, Durier — and skipping them left every one of them
+    with no status while their own operator was saying when it is wardened.
+
+    Read CONSERVATIVELY: the LAST day a start could mean, the FIRST day an end
+    could mean. "Début avril to fin septembre" is 10 Apr – 21 Sep, never
+    1 Apr – 30 Sep. The window is always a subset of what the words allow, so
+    this can fail to speak on a day the hut is open and can never claim it is
+    open on a day the words do not cover.
+    """
+    ((label, window),) = _windows("De début avril à fin septembre", 2026)
+    assert window.start.date() == datetime(2026, 4, 10).date()
+    assert window.end.date() == datetime(2026, 9, 21).date()
+    assert window.rule == "ffcam_coarse"
+
+
+def test_the_narrowing_goes_inwards_at_both_ends():
+    """Pinned as its own fact, because the direction is the whole safety of
+    it and an off-by-one here widens a claim instead of tightening it."""
+    ((_, mid),) = _windows("De mi juin a mi septembre", 2026)
+    assert mid.start.date() == datetime(2026, 6, 20).date()  # latest "mi juin"
+    assert mid.end.date() == datetime(2026, 9, 11).date()  # earliest "mi sept"
+
+
+def test_one_end_in_words_and_one_in_dates():
+    """Refuge Durier publishes "De début juin au 24 août 2026" — one of each.
+    Requiring both ends to be worded lost the hut entirely."""
+    ((_, window),) = _windows("De début juin au 24 août 2026", 2026)
+    assert window.start.date() == datetime(2026, 6, 10).date()
+    assert window.end.date() == datetime(2026, 8, 24).date()
+
+
+def test_the_heading_is_skipped_only_when_it_is_the_whole_line():
+    """Leschaux repeats it inline: "Période de gardiennage : De mi juin a mi
+    septembre". Skipping on a prefix match threw that hut's only season away."""
+    assert _windows("Période de gardiennage", 2026) == []
+    assert _windows("Période de gardiennage : De mi juin a mi septembre", 2026)
+
+
+def test_words_that_are_not_a_season_still_say_nothing():
+    """Refuge Vallot's "Refuge bivouac non gardé", and any phrase with only one
+    end. A bare month name is not a date."""
+    assert _windows("Refuge bivouac non gardé", 2026) == []
+    assert _windows("De début juin", 2026) == []
+    assert _windows("D'avril à septembre", 2026) == []
+    assert _windows("Ouvert l'été", 2026) == []
+
+
+def test_a_season_the_narrowing_turns_inside_out_says_nothing():
+    """Pulling both ends inward can cross them over.
+
+    "De fin août à mi août" narrows to 31 Aug – 11 Aug, which is not a window.
+    Silence is the answer: a backwards range would either be dropped further
+    down or, worse, be stored and treated as valid at both ends. The same
+    guard is what keeps a season written within a single month honest.
+    """
+    assert _windows("De fin août à mi août", 2026) == []
+    # ...while a short season that survives the narrowing is still carried.
+    ((_, july),) = _windows("De début juillet à fin juillet", 2026)
+    assert july.start.date() == datetime(2026, 7, 10).date()
+    assert july.end.date() == datetime(2026, 7, 21).date()

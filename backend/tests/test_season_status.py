@@ -232,3 +232,32 @@ def test_closures_are_never_paraphrased():
     closure.valid_from = datetime(2026, 5, 26, tzinfo=UTC)
     said = phrase_for_now(closure, datetime(2026, 8, 31, tzinfo=UTC))
     assert said == "Closed 26–29 May 2026"
+
+
+@dataclass
+class FakeApproximateSeason:
+    """A season narrowed out of words, not published as dates."""
+
+    statement_type: str = "opening"
+    status: str = "open"
+    summary_en: str | None = (
+        "Wardened roughly 10 Apr 2026 – 21 Sep 2026 — the operator publishes "
+        "this season in words, not dates, so these are the days those words "
+        "certainly cover"
+    )
+    valid_from: datetime | None = datetime(2026, 4, 10, tzinfo=UTC)
+    valid_to: datetime | None = datetime(2026, 9, 21, tzinfo=UTC)
+    payload: dict | None = None
+
+    def __post_init__(self):
+        self.payload = {"wardened": True, "approximate": True}
+
+
+def test_a_narrowed_season_is_not_printed_as_a_published_date():
+    """The Couvercle publishes "De début avril à fin septembre". We narrow it
+    to 10 Apr – 21 Sep so we never over-claim, but those dates are OURS.
+    Printing "Wardened until 21 Sep 2026" would hand the reader a precision
+    the operator never gave."""
+    said = phrase_for_now(FakeApproximateSeason(), datetime(2026, 9, 1, tzinfo=UTC))
+    assert said == FakeApproximateSeason.summary_en
+    assert "Wardened until" not in said

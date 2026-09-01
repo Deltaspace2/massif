@@ -51,6 +51,7 @@ and "early April" is not a date. The guard is an explicit four-digit year.
 
 from __future__ import annotations
 
+import calendar
 import re
 from datetime import UTC, datetime
 
@@ -60,7 +61,7 @@ from sqlalchemy.orm import Session
 
 from massif.enums import ExtractionMethod, FeatureType, StatementType, StatusValue
 from massif.ingest.base import ExtractedStatement, Scraper, fetch, store_document
-from massif.ingest.fr_dates import DateRange, parse_range, strip_accents
+from massif.ingest.fr_dates import MONTHS, DateRange, parse_range, strip_accents
 from massif.ingest.resolve import FeatureResolver
 from massif.models import Document, Feature, Source
 
@@ -118,7 +119,61 @@ def _altitude_near(node) -> int | None:
     return None
 
 
-def _windows(text: str) -> list[tuple[str, DateRange]]:
+# A season written in words rather than dates: "De début avril à fin
+# septembre". Four of the fifteen FFCAM huts publish only this, and skipping
+# them left Argentière, Couvercle, Leschaux and Durier with no status at all
+# while their own operator was saying when they are wardened.
+#
+# Read CONSERVATIVELY, and that is the whole safety of it. Each end of the
+# phrase is a range of days, and we take the narrowest window the words can
+# mean — the LAST day a start could be, the FIRST day an end could be. "Début
+# avril to fin septembre" becomes 10 Apr – 21 Sep, never 1 Apr – 30 Sep. The
+# statement is therefore always a subset of what the source said: we may say
+# nothing on a day the hut is in fact wardened, and can never say it is
+# wardened on a day the words do not cover.
+QUALIFIERS = {"debut": (1, 10), "mi": (11, 20), "fin": (21, 31)}
+COARSE_END = re.compile(
+    r"(?:(\d{1,2})\s+)?(?:(debut|mi|fin)\s*-?\s*)?(" + "|".join(MONTHS) + r")\b(?:\s+(\d{4}))?"
+)
+
+
+def _last_day(year: int, month: int) -> int:
+    return calendar.monthrange(year, month)[1]
+
+
+def _coarse_windows(line: str, year: int) -> DateRange | None:
+    """A worded season narrowed to the days it certainly covers.
+
+    Each end may be worded ("début juin") or exact ("24 août 2026"), in any
+    mix — Refuge Durier publishes "De début juin au 24 août 2026", one of each.
+    An end that is neither is not an end, and a phrase without two of them gets
+    the same silence as no phrase at all.
+    """
+    found = COARSE_END.findall(_norm(line))
+    if len(found) != 2:
+        return None
+
+    ends = []
+    for index, (day, word, month, explicit_year) in enumerate(found):
+        if not day and not word:
+            return None  # a bare month name is not a date
+        month_number = MONTHS[month]
+        on = int(explicit_year) if explicit_year else year
+        # Latest a start could be; earliest an end could be. The window is
+        # always a subset of what the words allow, never a superset.
+        number = int(day) if day else QUALIFIERS[word][1 if index == 0 else 0]
+        number = min(number, _last_day(on, month_number))
+        ends.append((on, month_number, number))
+
+    (y1, m1, d1), (y2, m2, d2) = ends
+    start = datetime(y1, m1, d1, tzinfo=UTC)
+    end = datetime(y2, m2, d2, 23, 59, 59, tzinfo=UTC)
+    if start >= end:
+        return None
+    return DateRange(start, end, "ffcam_coarse")
+
+
+def _windows(text: str, year: int | None = None) -> list[tuple[str, DateRange]]:
     """The dated season(s) in one "Période de gardiennage" block.
 
     Two shapes, both real:
@@ -131,15 +186,18 @@ def _windows(text: str) -> list[tuple[str, DateRange]]:
     covering the gap between them: `retire_replaced` keeps them apart on the
     overlap test, exactly as it does for mbnr-openings' two seasons.
 
-    `fr_dates.parse_range` is the ONLY thing here that decides whether a phrase
-    is a date, and that is deliberate. "De début avril à fin septembre" emits
-    nothing because it cannot be placed on a calendar (CLAUDE.md rule 3) — but
-    the rejecting is left to the parser rather than done twice. A local
-    "the line must contain a four-digit year" screen was tried and removed: it
-    changed nothing about the prose it was written for, since parse_range
-    already refuses it, and its only real effect was to silently drop the
-    `30/05/26` form that Saint-Gervais publishes in and this source may yet.
+    `fr_dates.parse_range` decides whether a phrase carries DATES, and a local
+    "must contain a four-digit year" screen in front of it was tried and
+    removed: it rejected nothing parse_range does not already reject, and its
+    only real effect was to silently drop the `30/05/26` form.
+
+    A phrase it refuses gets one more reading, by `_coarse_windows`, as a
+    season written in words. That is not a loosening of rule 3 — an undated
+    notice still says nothing — it is reading a season that IS bounded, just
+    bounded in words, and narrowing it to the days those words certainly
+    cover.
     """
+    year = year or datetime.now(UTC).year
     opened: datetime | None = None
     closed: datetime | None = None
     out: list[tuple[str, DateRange]] = []
@@ -148,7 +206,10 @@ def _windows(text: str) -> list[tuple[str, DateRange]]:
         if not line:
             continue
         low = _norm(line)
-        if low.startswith("periode de gardiennage"):
+        # Only when the line is nothing BUT the heading. Leschaux repeats it
+        # inline — "Période de gardiennage : De mi juin a mi septembre" — and
+        # skipping on a prefix match threw that hut's only season away.
+        if low.rstrip(" :.-") == "periode de gardiennage":
             continue
         if low.startswith("ouverture"):
             found = parse_range(line)
@@ -171,6 +232,15 @@ def _windows(text: str) -> list[tuple[str, DateRange]]:
         found = parse_range(rest)
         if found and found.start and found.end and found.start < found.end:
             out.append((_clean_name(label) or "Gardiennage", found))
+            continue
+        coarse = _coarse_windows(rest, year)
+        if coarse is not None:
+            named = _clean_name(label)
+            # Leschaux repeats the heading as its own label; that is not a
+            # season name.
+            if _norm(named) == "periode de gardiennage":
+                named = ""
+            out.append((named or "Gardiennage", coarse))
 
     if opened and closed and opened < closed:
         out.append(("Gardiennage", DateRange(opened, closed, "ffcam_open_close")))
@@ -220,7 +290,7 @@ def extract(html: str, observed_at: datetime) -> list[ExtractedStatement]:
     for name, altitude, text in _season_blocks(tree):
         if _norm(name) in EXCLUDED:
             continue
-        for label, window in _windows(text):
+        for label, window in _windows(text, observed_at.year):
             out.append(
                 ExtractedStatement(
                     feature_mention=name,
@@ -231,7 +301,12 @@ def extract(html: str, observed_at: datetime) -> list[ExtractedStatement]:
                     valid_from=window.start,
                     valid_to=window.end,
                     summary_en=(
-                        f"Wardened and open to the public "
+                        f"Wardened roughly {_english(window.start)} – "
+                        f"{_english(window.end)} — the operator publishes this "
+                        f"season in words, not dates, so these are the days "
+                        f"those words certainly cover"
+                        if window.rule == "ffcam_coarse"
+                        else f"Wardened and open to the public "
                         f"{_english(window.start)} – {_english(window.end)}"
                     ),
                     original_text=" ".join(text.split()),
@@ -241,6 +316,10 @@ def extract(html: str, observed_at: datetime) -> list[ExtractedStatement]:
                         # Says the warden is there, NOT that the hut is shut the
                         # rest of the year. Most of these have a winter room.
                         "wardened": True,
+                        # Our narrowing of a season the operator wrote in
+                        # words. The dates are ours, not theirs, and nothing
+                        # may present them as though they were published.
+                        "approximate": window.rule == "ffcam_coarse",
                         "season": label,
                         "altitude_m": altitude,
                         "ffcam_name": name,

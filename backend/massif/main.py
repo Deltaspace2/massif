@@ -232,7 +232,14 @@ def phrase_for_now(statement, now: datetime) -> str | None:
     when = describe(_published_day(start))
     if start <= now:
         end = statement.valid_to
-        if end is not None and (getattr(statement, "payload", None) or {}).get("wardened"):
+        payload = getattr(statement, "payload", None) or {}
+        if payload.get("approximate"):
+            # A season we narrowed out of words like "de début avril à fin
+            # septembre". Re-tensing it to "Wardened until 21 Sep 2026" would
+            # hand the reader a precision the operator never published — the
+            # stored wording says both the window and where it came from.
+            return statement.summary_en
+        if end is not None and payload.get("wardened"):
             return f"Wardened until {describe(_published_day(end))}"
         return f"Open since {when}"
     return f"Reopening {when}"

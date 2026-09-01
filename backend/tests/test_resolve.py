@@ -25,3 +25,21 @@ def test_distinct_features_do_not_collapse():
 def test_empty_input_is_safe():
     assert normalise("   ") == ""
     assert normalise("de la du") == ""
+
+
+def test_the_elided_french_article_is_not_left_in_the_key():
+    """`d'` and `l'` lose their apostrophe when punctuation is stripped, and
+    the orphaned letter stays in the key as its own token.
+
+    That is enough similarity to matter: "REFUGE D'ARGENTIÈRE" normalised to
+    "d argentiere" and scored 86 against our own hut's alias "Argentière hut"
+    — under the 88 floor — so FFCAM's season for it went to the review queue
+    instead of onto the hut. Same family as rule 1: French normalised almost
+    right matches nothing, and does it quietly.
+    """
+    assert normalise("REFUGE D'ARGENTIÈRE") == "argentiere"
+    assert normalise("Cabane d'Orny") == "orny"
+    assert normalise("L'Index") == "index"
+    # A real word that merely starts with those letters is untouched.
+    assert normalise("Dent du Géant") == "dent geant"
+    assert normalise("Refuge du Lac Blanc") == "lac blanc"
