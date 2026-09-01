@@ -37,7 +37,7 @@ from __future__ import annotations
 import base64
 import html
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from urllib.parse import parse_qs, urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -47,6 +47,7 @@ from sqlalchemy.orm import Session
 
 from massif.config import settings
 from massif.db import get_session
+from massif.enums import StatusValue
 from massif.ingest.fr_dates import published_date
 from massif.models import Feature, Source, Statement
 from massif.status import recompute_feature
@@ -120,6 +121,74 @@ def _window(statement: Statement) -> str:
     return f"{start} to {end}{tail}"
 
 
+def _would_say(statement: Statement) -> str:
+    """Exactly what the site would print if this were accepted.
+
+    Read off the same function the feature page uses, rather than described,
+    because a preview that is written separately from the renderer drifts from
+    it — and the whole reason to preview is to be shown the real thing.
+    """
+    # Imported here, not at module scope: main.py imports this module to mount
+    # the router, so a top-level import back into it is circular.
+    from massif.main import phrase_for_now
+
+    return phrase_for_now(statement, datetime.now(UTC)) or statement.summary_en or ""
+
+
+def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
+    """Let a person correct a reading before accepting it.
+
+    The point of the escape hatch: the Cabane de Saleinaz says "depuis le 8
+    août et jusqu'à la fin de la saison 2026", which our parser cannot read and
+    a person can. Rather than lose the notice or teach the parser every French
+    idiom first, the reviewer states the window and it is recorded AS THEIRS.
+
+    RULE 3 STILL HOLDS. A status about the present needs a window it is the
+    present of, and a hand-set `closed` with no dates would sit on the map for
+    ever exactly as a model-set one would. Refused, with a reason.
+    """
+    status = fields.get("status") or ""
+    start, end = fields.get("valid_from") or "", fields.get("valid_to") or ""
+    if not (status or start or end):
+        return None
+
+    changed: dict = {}
+    if start or end:
+        try:
+            if start:
+                parsed = date.fromisoformat(start)
+                statement.valid_from = datetime(parsed.year, parsed.month, parsed.day, tzinfo=UTC)
+                changed["valid_from"] = start
+            if end:
+                parsed = date.fromisoformat(end)
+                statement.valid_to = datetime(
+                    parsed.year, parsed.month, parsed.day, 23, 59, 59, tzinfo=UTC
+                )
+                changed["valid_to"] = end
+        except ValueError:
+            raise HTTPException(status_code=400, detail="dates must be YYYY-MM-DD") from None
+
+    if status:
+        if status not in {v.value for v in StatusValue}:
+            raise HTTPException(status_code=400, detail=f"unknown status {status!r}")
+        if status != StatusValue.UNKNOWN.value and not (statement.valid_from or statement.valid_to):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "a status about the present needs dates — set at least one, "
+                    "or leave the status as unknown"
+                ),
+            )
+        statement.status = StatusValue(status)
+        changed["status"] = status
+
+    payload = dict(statement.payload or {})
+    # Recorded as a human's reading, never merged into what the model said.
+    payload["reviewer_override"] = changed
+    statement.payload = payload
+    return ", ".join(f"{k}={v}" for k, v in changed.items())
+
+
 def _card(statement: Statement, feature: Feature, source: Source) -> str:
     e = html.escape  # every interpolation below is third-party text
     payload = statement.payload or {}
@@ -149,6 +218,13 @@ def _card(statement: Statement, feature: Feature, source: Source) -> str:
         if payload.get("attributed_by")
         else ""
     )
+    # "keep" first and selected, so submitting the form untouched changes
+    # nothing — an override must be a deliberate act, never a default.
+    options = '<option value="">keep</option>' + "".join(
+        f'<option value="{v.value}">{v.value}</option>' for v in StatusValue
+    )
+    from_value = f"{published_date(statement.valid_from):%Y-%m-%d}" if statement.valid_from else ""
+    to_value = f"{published_date(statement.valid_to):%Y-%m-%d}" if statement.valid_to else ""
     page = (
         f'<p><a href="{e(str(payload["url"]))}" rel="noopener nofollow" '
         f'target="_blank">the page it came from</a></p>'
@@ -164,7 +240,16 @@ def _card(statement: Statement, feature: Feature, source: Source) -> str:
   <p class=sum>{e(statement.summary_en or "")}</p>
   <blockquote>{e(statement.original_text or "")}</blockquote>
   {page}
+  <p class=pre>If accepted the site says:
+     <b>{e(statement.status.value)}</b> — {e(_would_say(statement))}</p>
   <form method="post" action="/admin/review/{statement.id}/accept">
+    <fieldset>
+      <legend>override (optional — your reading, recorded as yours)</legend>
+      <label>status
+        <select name="status">{options}</select></label>
+      <label>from <input type="date" name="valid_from" value="{from_value}"></label>
+      <label>to <input type="date" name="valid_to" value="{to_value}"></label>
+    </fieldset>
     <input name="note" placeholder="why (optional)">
     <button class=ok>Accept</button>
   </form>
@@ -197,6 +282,14 @@ PAGE = """<!doctype html><meta charset=utf-8>
  .ok{{border-color:#3d8f63;color:#3d8f63}}
  .no{{border-color:#b23c31;color:#b23c31;margin-left:.4rem}}
  .none{{color:#6d7681}}
+ .pre{{background:#f4f6f8;border-radius:6px;padding:.5rem .7rem;font-size:13.5px;
+   margin:.7rem 0}}
+ fieldset{{border:1px dashed #c6ccd2;border-radius:8px;padding:.5rem .7rem;
+   margin:.6rem 0;display:inline-block}}
+ legend{{font-size:11.5px;color:#9aa2ab;padding:0 .3rem}}
+ label{{font-size:12.5px;color:#6d7681;margin-right:.7rem}}
+ select,input[type=date]{{padding:.25rem .4rem;border:1px solid #c6ccd2;
+   border-radius:6px;width:auto;font:inherit;font-size:12.5px}}
 </style>
 <h1>Statements waiting for a person</h1>
 <p class=meta>{count} waiting. A machine read these out of prose; none can take a
@@ -214,31 +307,39 @@ def review_page(session: Session = Depends(get_session)) -> HTMLResponse:
     return HTMLResponse(PAGE.format(count=len(rows), cards=cards), headers=NO_INDEX)
 
 
-async def _note(request: Request) -> str | None:
-    """The reviewer's note, out of a plain url-encoded form.
+async def _fields(request: Request) -> dict[str, str]:
+    """The submitted form, url-encoded, parsed by hand.
 
-    Parsed by hand rather than with fastapi.Form or request.form(), both of
+    Parsed this way rather than with fastapi.Form or request.form(), both of
     which require python-multipart — and adding a dependency to the deployed
     function for a page that is usually not even mounted is the wrong trade.
-    An HTML form posts url-encoded by default, which is three lines to read.
 
     request.form() was tried first and raised in production while every test
     passed, because every test stopped at a 401, 403 or 405 and none of them
-    ever completed an accept. The guards were covered and the working path was
-    not.
+    ever completed an accept.
     """
     raw = (await request.body()).decode("utf-8", "replace")
-    values = parse_qs(raw).get("note") or []
-    value = values[0].strip() if values else ""
-    return value or None
+    return {k: v[0].strip() for k, v in parse_qs(raw).items() if v}
 
 
-def _decide(session: Session, statement_id: str, *, accept: bool, note: str | None):
+def _decide(
+    session: Session,
+    statement_id: str,
+    *,
+    accept: bool,
+    note: str | None,
+    fields: dict[str, str] | None = None,
+):
     statement = session.get(Statement, statement_id)
     if statement is None:
         raise HTTPException(status_code=404, detail="no such statement")
     now = datetime.now(UTC)
     if accept:
+        overridden = apply_override(statement, fields or {})
+        if overridden:
+            # Said in the note as well as the payload, so the decision reads as
+            # a decision in the one place a person will look at it again.
+            note = f"[override {overridden}] {note or ''}".strip()
         statement.reviewed_at = now
     else:
         # Superseded rather than deleted: the document still holds the page and
@@ -255,7 +356,14 @@ def _decide(session: Session, statement_id: str, *, accept: bool, note: str | No
     dependencies=[Depends(require_token), Depends(same_origin)],
 )
 async def accept(statement_id: str, request: Request, session: Session = Depends(get_session)):
-    return _decide(session, statement_id, accept=True, note=await _note(request))
+    fields = await _fields(request)
+    return _decide(
+        session,
+        statement_id,
+        accept=True,
+        note=fields.get("note") or None,
+        fields=fields,
+    )
 
 
 @router.post(
@@ -263,7 +371,8 @@ async def accept(statement_id: str, request: Request, session: Session = Depends
     dependencies=[Depends(require_token), Depends(same_origin)],
 )
 async def reject(statement_id: str, request: Request, session: Session = Depends(get_session)):
-    return _decide(session, statement_id, accept=False, note=await _note(request))
+    fields = await _fields(request)
+    return _decide(session, statement_id, accept=False, note=fields.get("note") or None)
 
 
 def include_admin(app) -> bool:

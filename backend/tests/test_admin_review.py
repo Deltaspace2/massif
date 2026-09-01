@@ -5,6 +5,7 @@ and can change what the map says. Each test below is a way that goes wrong.
 """
 
 import base64
+from datetime import date
 
 import pytest
 from fastapi import FastAPI
@@ -249,3 +250,94 @@ def test_extract_stored_finds_the_site_owner_the_same_way_collect_does():
     by_url = {url: slug for slug, url in sites.items()}
     for slug, url in sites.items():
         assert by_url[url] == slug
+
+
+# ------------------------------------------------------------- overriding
+
+
+def _fresh():
+    _Statement.status = StatusValue.CLOSED
+    _Statement.valid_from = None
+    _Statement.valid_to = None
+    _Statement.payload = {"needs_review": True}
+    _Statement.reviewed_at = None
+    _Statement.superseded_at = None
+    _Statement.review_note = None
+
+
+def _post(app, body, path="accept"):
+    return TestClient(app, follow_redirects=False).post(
+        f"/admin/review/{_Statement.id}/{path}",
+        headers={**AUTH, **HERE, "Content-Type": "application/x-www-form-urlencoded"},
+        content=body,
+    )
+
+
+def test_a_reviewer_can_state_the_window_the_parser_could_not_read(monkeypatch):
+    """The point of the escape hatch. Saleinaz says "depuis le 8 août et
+    jusqu'à la fin de la saison 2026", which our parser cannot read and a
+    person can — so rather than lose the notice or teach the parser every
+    French idiom first, the reviewer states the window."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    got = _post(app, b"status=restricted&valid_from=2026-08-08&valid_to=2026-09-30")
+    assert got.status_code == 303
+    assert _Statement.status is StatusValue.RESTRICTED
+    assert _Statement.valid_from.date() == date(2026, 8, 8)
+    assert _Statement.valid_to.date() == date(2026, 9, 30)
+
+
+def test_an_override_is_recorded_as_the_reviewer_s_and_not_the_model_s(monkeypatch):
+    """It must never read later as though the source or the model said it."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    _post(app, b"status=restricted&valid_from=2026-08-08&note=read+it+myself")
+    assert _Statement.payload["reviewer_override"]["status"] == "restricted"
+    assert _Statement.payload["needs_review"] is True
+    assert "override" in _Statement.review_note
+
+
+def test_rule_3_still_holds_against_a_human(monkeypatch):
+    """A hand-set "closed" with no dates would sit on the map for ever exactly
+    as a model-set one would. The guard is about the claim, not its author."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    got = _post(app, b"status=closed")
+    assert got.status_code == 400
+    assert _Statement.reviewed_at is None
+
+
+def test_submitting_the_form_untouched_changes_nothing(monkeypatch):
+    """ "keep" is the default option, so an override has to be a deliberate act
+    — accepting a reading as it stands must not silently rewrite it."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    got = _post(app, b"status=&valid_from=&valid_to=&note=looks+right")
+    assert got.status_code == 303
+    assert _Statement.status is StatusValue.CLOSED
+    assert "reviewer_override" not in _Statement.payload
+    assert _Statement.review_note == "looks right"
+
+
+def test_a_nonsense_date_is_refused_rather_than_ignored(monkeypatch):
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    assert _post(app, b"valid_from=not-a-date").status_code == 400
+    assert _Statement.reviewed_at is None
+
+
+def test_a_status_that_is_not_one_of_ours_is_refused(monkeypatch):
+    """The select offers four values; a hand-made POST can offer anything, and
+    an unrecognised one must not reach the enum or the database."""
+    monkeypatch.setattr(admin, "recompute_feature", lambda s, f: None)
+    _fresh()
+    app, _, _ = build()
+    got = _post(app, b"status=probably-fine&valid_from=2026-08-08")
+    assert got.status_code == 400
+    assert _Statement.reviewed_at is None
+    assert _Statement.status is StatusValue.CLOSED
