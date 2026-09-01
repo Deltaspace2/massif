@@ -4,7 +4,16 @@
 
 const API = process.env.MASSIF_API ?? "http://localhost:8000";
 
-export type StatusValue = "open" | "closed" | "restricted" | "unknown";
+/** "unstaffed" is a VARIANT OF OPEN: the door is unlocked and nobody is
+ *  running the hut. A third of the huts in this massif are in that state, and
+ *  it renders in the open colour with a hollow marker — never as a warning.
+ *  Making an open hut look shut is the one thing this site must not do. */
+export type StatusValue =
+  | "open"
+  | "unstaffed"
+  | "closed"
+  | "restricted"
+  | "unknown";
 
 export interface FeatureStatus {
   value: StatusValue;

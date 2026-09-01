@@ -114,6 +114,9 @@ class FakeOpening:
     summary_en: str | None = "Reopening 26 Aug 2026"
     valid_from: datetime | None = datetime(2026, 8, 26, tzinfo=UTC)
     valid_to: datetime | None = datetime(2026, 9, 25, tzinfo=UTC)
+    severity: int = 0
+    observed_at: datetime = datetime(2026, 8, 24, tzinfo=UTC)
+    payload: dict | None = None
 
 
 def test_a_reopening_whose_day_has_passed_reads_as_open_since():
@@ -261,3 +264,57 @@ def test_a_narrowed_season_is_not_printed_as_a_published_date():
     said = phrase_for_now(FakeApproximateSeason(), datetime(2026, 9, 1, tzinfo=UTC))
     assert said == FakeApproximateSeason.summary_en
     assert "Wardened until" not in said
+
+
+@dataclass
+class FakeUnstaffed:
+    statement_type: str = "operational_status"
+    status: str = "unstaffed"
+    summary_en: str | None = "Open all year and unstaffed"
+    valid_from: datetime | None = None
+    valid_to: datetime | None = None
+    severity: int = 0
+    observed_at: datetime = datetime(2026, 6, 1, tzinfo=UTC)
+    payload: dict | None = None
+
+
+def test_an_unstaffed_hut_has_an_answer_rather_than_unknown():
+    """Nineteen huts whose only statement is `unstaffed` fell through every
+    branch to UNKNOWN, so `status` said unstaffed and `season` said unknown on
+    the same page — and the map, which colours by season, showed "no
+    information" about huts we had an answer for."""
+    from massif.main import _season_status
+
+    said = _season_status([FakeUnstaffed()], has_schedule=False)
+    assert said["value"] is StatusValue.UNSTAFFED
+    assert said["reason"] == "Open all year and unstaffed"
+
+
+def test_a_warden_season_outranks_a_standing_unstaffed_claim():
+    """A hut with both should answer with the season. The unstaffed claim is
+    what is left when there is no season to speak of, not a competitor to
+    one."""
+    from massif.main import _season_status
+
+    said = _season_status([FakeUnstaffed(), FakeOpening()], has_schedule=False)
+    assert said["value"] is StatusValue.OPEN
+
+
+def test_a_closure_still_outranks_unstaffed():
+    """The order that matters most: a shut hut must never read as merely
+    unstaffed."""
+    from massif.main import _season_status
+
+    @dataclass
+    class Shut:
+        statement_type: str = "closure"
+        status: str = "closed"
+        summary_en: str | None = "Closed"
+        severity: int = 2
+        observed_at: datetime = datetime(2026, 8, 1, tzinfo=UTC)
+        payload: dict | None = None
+        valid_from: datetime | None = None
+        valid_to: datetime | None = None
+
+    said = _season_status([FakeUnstaffed(), Shut()], has_schedule=False)
+    assert said["value"] is StatusValue.CLOSED

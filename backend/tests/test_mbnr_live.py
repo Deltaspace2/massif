@@ -91,14 +91,22 @@ def test_unknown_icon_modifier_is_recorded_not_guessed():
 @pytest.mark.parametrize(
     "text,expected",
     [
-        ("Remontées ( 0 / 4 ) Visites ( 0 / 5 ) Restaurants ( 0 / 2 )",
-         {"remontées": {"open": 0, "total": 4},
-          "visites": {"open": 0, "total": 5},
-          "restaurants": {"open": 0, "total": 2}}),
-        ("Remontées ( 0 / 3 ) Pistes ( 7 / 7 ) Restaurants ( 0 / 1 )",
-         {"remontées": {"open": 0, "total": 3},
-          "pistes": {"open": 7, "total": 7},
-          "restaurants": {"open": 0, "total": 1}}),
+        (
+            "Remontées ( 0 / 4 ) Visites ( 0 / 5 ) Restaurants ( 0 / 2 )",
+            {
+                "remontées": {"open": 0, "total": 4},
+                "visites": {"open": 0, "total": 5},
+                "restaurants": {"open": 0, "total": 2},
+            },
+        ),
+        (
+            "Remontées ( 0 / 3 ) Pistes ( 7 / 7 ) Restaurants ( 0 / 1 )",
+            {
+                "remontées": {"open": 0, "total": 3},
+                "pistes": {"open": 7, "total": 7},
+                "restaurants": {"open": 0, "total": 1},
+            },
+        ),
     ],
 )
 def test_sector_counts_parsed(text, expected):
@@ -139,11 +147,13 @@ def test_pending_sector_wording_depends_on_the_resort_clock():
     items = [_item(ITEM_PENDING)]
     paris = ZoneInfo("Europe/Paris")
     morning = sector_status(
-        items, {"open": 0, "total": 1},
+        items,
+        {"open": 0, "total": 1},
         datetime(2026, 8, 24, 6, 45, tzinfo=paris),
     )[2]
     evening = sector_status(
-        items, {"open": 0, "total": 1},
+        items,
+        {"open": 0, "total": 1},
         datetime(2026, 8, 24, 21, 16, tzinfo=paris),
     )[2]
     assert morning != evening

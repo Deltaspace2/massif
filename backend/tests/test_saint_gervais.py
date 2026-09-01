@@ -39,6 +39,7 @@ TOWN_NEWS = "L'Ambassade d'Inde en visite à Saint-Gervais"
 
 # ---------------------------------------------------------------- classify --
 
+
 def test_accented_reouverture_is_an_opening():
     """The bug this exists for: 'Réouverture' did not match 'reouverture',
     so a reopening was published as a closure on the morning the refuges
@@ -75,6 +76,7 @@ def test_earlier_word_wins_when_a_title_has_both():
 
 # ------------------------------------------------------- feature detection --
 
+
 def test_one_notice_names_several_features():
     """'les refuges de Tête Rousse et du Goûter' is two huts, not one."""
     found = features_mentioned(REOPENING)
@@ -98,12 +100,11 @@ def test_gouter_disambiguated_by_context():
 
 
 def test_grand_couloir_recognised():
-    assert features_mentioned("Traversée du Grand Couloir déconseillée") == [
-        "grand-couloir"
-    ]
+    assert features_mentioned("Traversée du Grand Couloir déconseillée") == ["grand-couloir"]
 
 
 # ------------------------------------------------------------------- gate ---
+
 
 @pytest.mark.parametrize("title", [REOPENING, MAY_CLOSURE, DEMOLITION])
 def test_gate_admits_mountain_notices(title):
@@ -119,6 +120,7 @@ def test_gate_rejects_town_news(title):
 
 
 # -------------------------------------------------------------- statements --
+
 
 def test_dated_closure_asserts_a_status_and_window():
     statements = statements_for(MAY_CLOSURE, "", "http://x", NOW)
@@ -277,8 +279,13 @@ def test_expired_closure_does_not_linger():
 
 # ----------------------------------------------------- re-extraction --------
 
-def _doc(raw_text, url="https://www.saintgervais.com/mairie/actualites/x/",
-         published_at=None, fetched_at=None):
+
+def _doc(
+    raw_text,
+    url="https://www.saintgervais.com/mairie/actualites/x/",
+    published_at=None,
+    fetched_at=None,
+):
     return Document(
         url=url,
         raw_text=raw_text,
@@ -335,8 +342,8 @@ def test_extract_stored_handles_a_document_with_no_text():
     assert SaintGervaisScraper().extract_stored(_doc(None)) == []
 
 
-
 # --------------------------------------------------------- english summary --
+
 
 def test_summary_is_composed_english_not_french():
     """Cards were showing the French notice title verbatim. We already know

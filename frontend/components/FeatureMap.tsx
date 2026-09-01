@@ -140,6 +140,7 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
             colour,
             feature.season?.value === "closed" ||
               feature.season?.value === "restricted",
+            feature.season?.value === "unstaffed",
           ),
         );
       }

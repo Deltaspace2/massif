@@ -92,7 +92,8 @@ STATES: dict[str, tuple[StatementType, StatusValue, int, str]] = {
 UNGUARDED_TYPES = {"cabane non gardée", "cabane non gardee"}
 
 UNGUARDED_SUMMARY = (
-    "Unstaffed shelter, open year-round — no warden, so there is no season to open or close"
+    "Open all year and unstaffed — no warden, so there is no season to open "
+    "or close. Carry everything you need"
 )
 
 
@@ -180,7 +181,7 @@ def extract(payload: dict, fetched_at: datetime) -> list[ExtractedStatement]:
                     # operational_status' one day: a wiki classification is a
                     # standing state, not a live reading.
                     statement_type=StatementType.OPERATIONAL_STATUS,
-                    status=StatusValue.OPEN,
+                    status=StatusValue.UNSTAFFED,
                     # Never competes with a notice. An unguarded cabin being
                     # open is the ordinary state of the world, not news.
                     severity=0,

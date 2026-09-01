@@ -147,9 +147,25 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
     # a day Saint-Gervais had it explicitly open until 25 September. Saying we
     # have no information when we have some is the same species of error as a
     # stale open: a confident claim that is not true.
+    # Open and nobody home. Read BEFORE the plain openings below, because a
+    # hut with both a warden season and a standing "unstaffed all year" should
+    # answer with the season; the unstaffed claim is what is left when there
+    # is no season to speak of. Without this branch, nineteen huts whose only
+    # statement was `unstaffed` fell through to UNKNOWN, so the map and the
+    # front page said "no information" about huts we had an answer for — and
+    # `status` said unstaffed while `season` said unknown on the same page.
+    unstaffed = [st for st in statements if str(st.status) == "unstaffed"]
+
     openings = [
         st for st in statements if str(st.statement_type) == "opening" and str(st.status) == "open"
     ]
+    if not openings and unstaffed:
+        newest = max(unstaffed, key=lambda st: st.observed_at)
+        return {
+            "value": StatusValue.UNSTAFFED,
+            "reason": newest.summary_en,
+            "kind": "notice",
+        }
     if openings:
         newest = max(openings, key=lambda st: st.observed_at)
         return {

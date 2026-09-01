@@ -6,7 +6,6 @@ FACT — a property of the arrangement, not a dated claim about today — so it
 must never reach the status pipeline.
 """
 
-
 from massif.scripts.import_camptocamp_facts import (
     ALTITUDE_TOLERANCE_M,
     CUSTODIANSHIP,

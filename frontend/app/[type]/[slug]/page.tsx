@@ -192,7 +192,14 @@ export default async function FeaturePage({ params }: { params: Params }) {
             camptocamp this is a licence condition rather than a courtesy:
             CC BY-SA attaches to the individual report somebody wrote, so a
             line we cannot link back to is a line we must not print. Rendered
-            from the API's own field — never assembled here from an id. */}
+            from the API's own field — never assembled here from an id.
+
+            The wording is deliberately NEUTRAL. It used to read "one person's
+            account of one day", which is true of a camptocamp trip report and
+            false of everything else carrying a permalink — refuges.info also
+            publishes one, so a wiki classification of a bivouac was captioned
+            as somebody's day out. A caption that fits one source and is shown
+            for all of them is a wrong sentence with a correct link. */}
         {feature.status.permalink && (
           <div className="meta">
             <a
@@ -200,10 +207,9 @@ export default async function FeaturePage({ params }: { params: Params }) {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Read the report this came from
+              Read the entry this came from
             </a>{" "}
-            — one person&rsquo;s account of one day, not a statement about
-            whether the route is open.
+            — what the source published, in their words.
           </div>
         )}
       </div>

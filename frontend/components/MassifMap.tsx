@@ -173,7 +173,11 @@ export default function MassifMap({ features }: { features: Feature[] }) {
       // the handover. Only for features something has actually been published
       // about: a pip on all 59 huts would be 57 pips meaning "no news".
       if (isHut && !isUnknown) {
-        const pip = pipElement(colourFor(feature), notable);
+        const pip = pipElement(
+          colourFor(feature),
+          notable,
+          feature.season.value === "unstaffed",
+        );
         holder.appendChild(pip);
       }
       marker.appendChild(holder);

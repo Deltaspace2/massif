@@ -29,9 +29,7 @@ def test_every_migration_registers_itself(path: Path):
         f"{path.name} never records itself, so migrate.py will re-run it "
         "forever and fail the moment its changes already exist"
     )
-    assert path.stem in sql, (
-        f"{path.name} registers a version string that is not its own filename"
-    )
+    assert path.stem in sql, f"{path.name} registers a version string that is not its own filename"
 
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: p.stem)

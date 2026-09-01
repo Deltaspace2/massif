@@ -149,7 +149,7 @@ def typed(name, kind, etat_id="ouverture", valeur="", ref=1):
     return entry_
 
 
-def test_an_unguarded_cabin_is_open_because_it_has_no_warden():
+def test_an_unguarded_cabin_is_unstaffed_rather_than_plainly_open():
     """Seventeen of our huts are classified "cabane non gardée" and every one
     read "unknown" — which said we had failed to find something out, when the
     truth is there is nothing to find out. Nobody will ever publish an opening
@@ -160,7 +160,7 @@ def test_an_unguarded_cabin_is_open_because_it_has_no_warden():
     """
     found = extract(payload(typed("Bivouac des Périades", "cabane non gardée")), FETCHED)
     assert len(found) == 1
-    assert found[0].status == StatusValue.OPEN
+    assert found[0].status == StatusValue.UNSTAFFED
     assert found[0].statement_type == StatementType.OPERATIONAL_STATUS
     assert found[0].severity == 0
     assert found[0].payload["unwardened"] is True

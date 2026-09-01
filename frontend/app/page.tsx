@@ -68,11 +68,21 @@ function isNotice(feature: Feature): boolean {
 }
 
 function rank(feature: Feature): number {
-  return { closed: 0, restricted: 1, open: 2, unknown: 3 }[feature.season.value] ?? 4;
+  // Unstaffed ranks with open, immediately after it: it is a variant of open,
+  // not a step towards closed, and sorting it between restricted and open
+  // would put "nobody home" above "held for wind" on a page about closures.
+  return (
+    { closed: 0, restricted: 1, open: 2, unstaffed: 3, unknown: 4 }[
+      feature.season.value
+    ] ?? 5
+  );
 }
 
 const GLYPH: Record<string, string> = {
   open: "●",
+  // Hollow, in the open colour: open, and nobody home. Never a triangle —
+  // that is the caution glyph and this is not a caution.
+  unstaffed: "◍",
   restricted: "▲",
   closed: "■",
   unknown: "○",

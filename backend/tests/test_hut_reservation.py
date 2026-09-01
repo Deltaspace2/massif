@@ -109,11 +109,17 @@ def test_an_unrecognised_status_is_skipped_not_guessed():
     assert extract(envelope(day("2026-09-01", "RENOVATION", 10)), ON) == []
 
 
-def test_unserviced_is_open_but_not_wardened():
+def test_unserviced_is_its_own_state_and_not_plain_open():
+    """A booking system reporting UNSERVICED means the door is open and nobody
+    is running it. That reads identically to a fully serviced refuge unless it
+    has a state of its own, and the difference is a whole trip's planning."""
     found = extract(envelope(day("2026-09-01", "UNSERVICED", 22)), ON)
-    assert found[0].status == StatusValue.OPEN
+    assert found[0].status == StatusValue.UNSTAFFED
     assert found[0].statement_type == StatementType.OPENING
     assert "unstaffed" in found[0].summary_en
+    # It is a variant of OPEN, so it must never be mistaken for a closure.
+    assert found[0].status is not StatusValue.CLOSED
+    assert found[0].severity == 0
 
 
 def test_re_extraction_reads_the_season_current_when_we_fetched_it():

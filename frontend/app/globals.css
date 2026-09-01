@@ -382,6 +382,7 @@ a:hover { text-decoration: underline; }
   box-shadow: var(--shadow-card);
 }
 .card.open { border-left-color: var(--open); }
+.card.unstaffed { border-left-color: var(--open); }
 .card.closed { border-left-color: var(--closed); }
 .card.restricted { border-left-color: var(--restricted); }
 .card.routine { border-left-color: var(--decor); }
@@ -398,6 +399,10 @@ a:hover { text-decoration: underline; }
 }
 .pill.closed { color: var(--closed); border-color: var(--closed); }
 .pill.open { color: var(--open); border-color: var(--open); }
+/* Open, and nobody home. Same green as open on purpose: it IS open, and a
+   second colour here would read as a caution. The dashed border is what says
+   "unstaffed" without saying "careful". */
+.pill.unstaffed { color: var(--open); border-color: var(--open); border-style: dashed; }
 .pill.restricted { color: var(--restricted-text); border-color: var(--restricted); }
 .grid { display: grid; gap: 10px; margin-top: 12px; }
 @media (min-width: 720px) { .grid { grid-template-columns: repeat(2, 1fr); } }
@@ -447,6 +452,7 @@ table.history th { color: var(--secondary); font-weight: 500; }
 .feed__status.closed { color: var(--closed); }
 .feed__status.restricted { color: var(--restricted-text); }
 .feed__status.open { color: var(--open); }
+.feed__status.unstaffed { color: var(--open); }
 .feed__what a { font-weight: 500; color: var(--ink); }
 .feed__what a:hover { text-decoration: underline; }
 .feed__summary { display: block; color: var(--secondary); font-size: 13px; margin-top: 2px; }

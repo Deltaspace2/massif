@@ -37,6 +37,12 @@ export default function MapKey({ className }: { className?: string }) {
         <i style={{ color: "var(--open)" }}>●</i>open
       </span>
       <span>
+        {/* Hollow, in the OPEN colour: the door is unlocked and nobody is
+            running the hut. A second hue here would read as a caution, and
+            this is not one. */}
+        <i style={{ color: "var(--open)" }}>◍</i>open · unstaffed
+      </span>
+      <span>
         <i style={{ color: "var(--restricted-glass)" }}>●</i>restricted
       </span>
       <span>

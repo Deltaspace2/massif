@@ -65,8 +65,8 @@ STATES: dict[str, tuple[StatementType, StatusValue, str, bool]] = {
     ),
     "UNSERVICED": (
         StatementType.OPENING,
-        StatusValue.OPEN,
-        "Open but unstaffed — no warden on site, self-catering only",
+        StatusValue.UNSTAFFED,
+        "Open and unstaffed — no warden on site, self-catering only",
         False,
     ),
     "CLOSED": (

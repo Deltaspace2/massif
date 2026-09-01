@@ -3,6 +3,11 @@
 
 export const COLOURS: Record<string, string> = {
   open: "#3d8f63",
+  // Deliberately the SAME green as open. An unstaffed hut is open, and a
+  // second colour would read as a caution on a map whose whole grammar is
+  // "green means you can go". What distinguishes it is a HOLLOW pip — see
+  // pipElement — which reads as "open, nobody home" rather than "careful".
+  unstaffed: "#3d8f63",
   closed: "#b23c31",
   restricted: "#b3831d",
   unknown: "#6e757e",
@@ -71,7 +76,11 @@ export const HUT_GLYPH =
  *  IGN's glyph cannot be recoloured, so a closed hut and an open one look
  *  identical on their cartography. This is the answer: an annotation on the
  *  corner, never over the symbol, so it stays subordinate to it. */
-export function pipElement(colour: string, notable: boolean): HTMLElement {
+export function pipElement(
+  colour: string,
+  notable: boolean,
+  hollow = false,
+): HTMLElement {
   const pip = document.createElement("div");
   Object.assign(pip.style, {
     position: "absolute",
@@ -80,9 +89,15 @@ export function pipElement(colour: string, notable: boolean): HTMLElement {
     width: notable ? "9px" : "8px",
     height: notable ? "9px" : "8px",
     borderRadius: "50%",
-    background: colour,
-    border: "1.5px solid #ffffff",
-    boxShadow: "0 1px 2px rgba(34,40,46,0.45)",
+    // Hollow is how "unstaffed" is said, and it is said in the OPEN colour
+    // rather than a new one. A second hue on a map whose grammar is "green
+    // means you can go" would read as a caution, and an unstaffed hut is not
+    // one — the door is unlocked, there is simply nobody in it.
+    background: hollow ? "#ffffff" : colour,
+    border: hollow ? `2px solid ${colour}` : "1.5px solid #ffffff",
+    boxShadow: hollow
+      ? "0 0 0 1px #ffffff, 0 1px 2px rgba(34,40,46,0.45)"
+      : "0 1px 2px rgba(34,40,46,0.45)",
   });
   return pip;
 }

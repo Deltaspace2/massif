@@ -21,7 +21,7 @@ def _page(block: dict) -> str:
     no spaces, and the first version of this fixture used json.dumps defaults,
     so the marker never matched and every extract test saw an empty page."""
     inner = json.dumps(json.dumps(block, separators=(",", ":")))
-    return f'<script>self.__next_f.push([1,{inner}])</script>'
+    return f"<script>self.__next_f.push([1,{inner}])</script>"
 
 
 SUMMER = {
@@ -107,9 +107,7 @@ def test_balme_sides_resolve_to_different_features():
     under one row title. Both landing on the sector would leave two schedules
     competing for one status slot all summer."""
     assert resolve_slug("Balme", "Le Tour - 2270 m") == "balme-le-tour"
-    assert (
-        resolve_slug("Balme", "Vallorcine - 2270 m") == "balme-le-tour-tc-vallorcine"
-    )
+    assert resolve_slug("Balme", "Vallorcine - 2270 m") == "balme-le-tour-tc-vallorcine"
     # Regression: substring matching filed the whole winter domain against
     # the Vallorcine gondola, because "vallorcine" appears inside this.
     assert resolve_slug("Balme", "Le Tour - Vallorcine - 2270 m") == "balme-le-tour"
@@ -181,12 +179,8 @@ def test_one_row_can_cover_two_sectors():
 def test_single_target_rows_are_unaffected():
     from massif.ingest.sources.mbnr_openings import resolve_slugs
 
-    assert resolve_slugs("Aiguille du Midi", "Chamonix - 3842 m") == [
-        "aiguille-du-midi"
-    ]
-    assert resolve_slugs("Balme", "Vallorcine - 2270 m") == [
-        "balme-le-tour-tc-vallorcine"
-    ]
+    assert resolve_slugs("Aiguille du Midi", "Chamonix - 3842 m") == ["aiguille-du-midi"]
+    assert resolve_slugs("Balme", "Vallorcine - 2270 m") == ["balme-le-tour-tc-vallorcine"]
 
 
 def test_unknown_row_yields_nothing_to_map():
