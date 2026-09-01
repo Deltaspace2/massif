@@ -17,31 +17,46 @@ function ageHours(iso: string | null): number | null {
 
 /** Rule 1: a stale "open" must never read as clearance.
  *
- *  This used to be a flat "older than 48 hours" test against observed_at, which
- *  was wrong twice over. observed_at is when the MAIRIE published, not when we
- *  looked — so a decree valid until 25 September, re-checked minutes earlier,
- *  was badged UNVERIFIED 6 D. And the backend already answers this properly,
- *  per statement type: an arrêté holds 90 days, a reopening 30, a live lift
- *  status one. The UI had quietly overridden all of it with one blunt number,
- *  which would have flagged every legally valid decree in the massif forever —
- *  and a badge that is always on stops being read.
+ *  Two questions, both the backend's to answer, and they are NOT the same
+ *  thing — which is why one badge for both was wrong. Steven asked what
+ *  UNVERIFIED meant, and the honest answer was "one of two opposite problems":
  *
- *  Two questions, both the backend's to answer: has the claim aged out
- *  (`stale`, per statement type), and have we failed to re-check it
- *  (`unchecked`, against the source's own cadence).
+ *    old        the CLAIM has aged past what its kind of notice holds for.
+ *               Rifugio Pavillon carried a refuges.info closure last edited 446
+ *               days ago. We had checked it minutes before — the information is
+ *               old, our reading of it is not.
+ *    unchecked  WE have not re-read the source within its own cadence. Grands
+ *               Montets was 17 hours behind a feed published every 30 minutes.
+ *               Nothing wrong with the claim; we simply had not looked.
  *
- *  The second used to be asked here, with a flat 24 hours — which is EXACTLY
- *  mbnr-openings' fetch interval, so a perfectly healthy daily source drifted
- *  into UNVERIFIED before every single run. Same mistake as the flat 48 hours
- *  above, one layer down: a number chosen in the UI standing in for a fact the
- *  backend holds. The sources run from every 30 minutes to weekly and no single
- *  threshold fits them.
+ *  Showing both as UNVERIFIED told the reader neither, and a badge that means
+ *  two opposite things is a badge nobody can act on. Stale wins when both are
+ *  true: old information you have just re-read is still old.
  *
- *  `unchecked` is optional because the API may predate it; absent means the
- *  question was not asked, which is not the same as answered "no". */
-function unverified(feature: Feature): boolean {
-  return Boolean(feature.status.stale || feature.status.unchecked);
+ *  Both come from the API. The flat "48 hours" this used to compute in the UI
+ *  would have flagged every valid decree in the massif forever, and the flat
+ *  "24 hours" that replaced half of it was exactly mbnr-openings' fetch
+ *  interval, so a healthy daily source drifted into the badge before every run.
+ *  Numbers chosen here to stand in for facts the backend holds have been wrong
+ *  twice; there are none left. */
+type Doubt = "old" | "unchecked";
+
+function doubt(feature: Feature): Doubt | null {
+  if (feature.status.stale) return "old";
+  if (feature.status.unchecked) return "unchecked";
+  return null;
 }
+
+const DOUBT_LABEL: Record<Doubt, string> = {
+  old: "OLD",
+  unchecked: "UNCHECKED",
+};
+
+/** Why it is flagged, in words, for the banner and for a title attribute. */
+const DOUBT_WHY: Record<Doubt, string> = {
+  old: "this has aged past the window its kind of notice holds for",
+  unchecked: "we have not re-read the source within its own cadence",
+};
 
 /** Worth interrupting a trip planner for. Season, never the clock: a lift
  *  asleep for the evening is still running this season, and colouring by the
@@ -85,7 +100,7 @@ function saidAbout(feature: Feature): { text: string; quoted: boolean } {
 function Row({ feature }: { feature: Feature }) {
   const said = saidAbout(feature);
   const isUnknown = feature.season.value === "unknown";
-  const stale = unverified(feature);
+  const flag = doubt(feature);
   const altitude =
     feature.alt_min && feature.alt_max && feature.alt_min !== feature.alt_max
       ? `${feature.alt_min}–${feature.alt_max} m`
@@ -106,7 +121,11 @@ function Row({ feature }: { feature: Feature }) {
         <a href={`/${feature.type}/${feature.slug}`}>{feature.name}</a>
         <Flag code={feature.country} />
         {altitude && <span className="alt"> {altitude}</span>}
-        {stale && <span className="pill-unverified">UNVERIFIED</span>}
+        {flag && (
+          <span className={`pill-unverified pill-unverified--${flag}`} title={DOUBT_WHY[flag]}>
+            {DOUBT_LABEL[flag]}
+          </span>
+        )}
       </span>
       <span className={`what${isUnknown ? " unknown" : said.quoted ? " quoted" : ""}`}>
         {isUnknown ? "unknown — no information, not “fine”" : said.text}
@@ -125,7 +144,7 @@ function Row({ feature }: { feature: Feature }) {
       {/* Two facts, not one. "published" is the mairie's date; "checked" is
           ours. Conflating them is what produced "last confirmed 6 days ago"
           for a decree we had re-read minutes earlier. */}
-      <span className={`age mono${stale ? " caution" : ""}`}>
+      <span className={`age mono${flag ? " caution" : ""}`}>
         <span className="age__published">{shortAge(feature.status.observed_at)}</span>
         <span className="age__checked">
           checked {shortAge(feature.status.last_seen_at)}
@@ -139,17 +158,21 @@ function Row({ feature }: { feature: Feature }) {
  *  on the mobile frame only because its desktop frame was a quiet day with
  *  none to show — they belong on both. */
 function NoticeCard({ feature }: { feature: Feature }) {
-  const stale = unverified(feature);
+  const flag = doubt(feature);
   const value = feature.season.value;
   const altitude = feature.status.altitude_m ? `${feature.status.altitude_m} m` : null;
   return (
-    <article className={`notice-card${stale ? " unverified-card" : ""}`}>
+    <article className={`notice-card${flag ? " unverified-card" : ""}`}>
       <div className="notice-card__head">
         <span className={`notice-card__status ${value}`}>
           {GLYPH[value]} {value.toUpperCase()}
         </span>
-        <span className={`notice-card__age mono${stale ? " caution" : ""}`}>
-          {stale && <span className="pill-unverified">UNVERIFIED</span>}{" "}
+        <span className={`notice-card__age mono${flag ? " caution" : ""}`}>
+          {flag && (
+            <span className={`pill-unverified pill-unverified--${flag}`} title={DOUBT_WHY[flag]}>
+              {DOUBT_LABEL[flag]}
+            </span>
+          )}{" "}
           {shortAge(feature.status.observed_at)}
         </span>
       </div>
@@ -246,7 +269,7 @@ export default async function Home() {
   const asleep = routine.filter(
     (f) => f.status.closure_kind === "outside_hours" && f.season.value === "open",
   ).length;
-  const unverifiedList = tracked.filter(unverified);
+  const doubted = tracked.filter((f) => doubt(f) !== null);
 
   const quiet = notices.length === 0;
 
@@ -309,21 +332,29 @@ export default async function Home() {
 
       <div className="layout">
         <div className="col">
-          {unverifiedList.length > 0 && (
+          {doubted.length > 0 && (
             <div className="unverified">
-              <span className="unverified__label">UNVERIFIED</span>
+              {/* Named separately, because they are separate problems: one is
+                  about the information, the other about us. */}
+              <span className="unverified__label">
+                {doubted.some((f) => doubt(f) === "old") ? "OLD" : "UNCHECKED"}
+              </span>
               <span className="unverified__text">
-                {unverifiedList
+                {doubted
                   .slice(0, 3)
-                  .map(
-                    (f) =>
-                      `${f.name} last confirmed ${
-                        f.status.observed_at ? sinceLabel(f.status.observed_at) : "never"
-                      }`,
+                  .map((f) =>
+                    doubt(f) === "old"
+                      ? `${f.name} was last published ${
+                          f.status.observed_at ? sinceLabel(f.status.observed_at) : "never"
+                        } and has aged out`
+                      : `${f.name} has not been re-checked${
+                          f.status.last_seen_at
+                            ? ` since ${sinceLabel(f.status.last_seen_at)}`
+                            : " at all"
+                        }`,
                   )
                   .join(" · ")}
-                {unverifiedList.length > 3 &&
-                  ` · and ${unverifiedList.length - 3} more`}
+                {doubted.length > 3 && ` · and ${doubted.length - 3} more`}
                 . A status is only as good as its date.
               </span>
             </div>

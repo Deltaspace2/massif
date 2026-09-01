@@ -31,6 +31,41 @@ STALE_DAYS: dict[str, int] = {
 }
 
 
+# Shelf life by SOURCE, where the type alone gets it wrong. STALE_DAYS was
+# tuned for notices that are published on a date and then stop being news; some
+# sources instead maintain a standing state that is meant to hold until someone
+# edits it, and judging those by an arrêté's 90 days mislabels them.
+#
+# refuges.info's `etat` is exactly that: a wiki field saying what a hut is like
+# now, carrying no date of its own, so the best date available is when a
+# volunteer last touched the page. A closure edited 14 months ago is genuinely
+# weaker evidence than one published last week — but it is a standing statement
+# rather than an expired one, and 90 days flagged three huts as old purely for
+# not having been edited recently.
+#
+# A year is the judgement: long enough that an unedited standing state is not
+# called old for the sake of it, short enough that a page nobody has touched in
+# over a year stops speaking for the present.
+SOURCE_STALE_DAYS: dict[str, int] = {
+    "refuges-info": 365,
+}
+
+
+def stale_days_for(statement: Statement, session: Session) -> int:
+    """How long this statement stays presentable.
+
+    Source first, then statement type, then the configured default. Source wins
+    because it is the more specific fact: what KIND of thing a source publishes
+    outranks what kind of notice it happens to be.
+    """
+    source_slug = session.scalar(
+        select(Source.slug).where(Source.id == statement.source_id)
+    )
+    if source_slug in SOURCE_STALE_DAYS:
+        return SOURCE_STALE_DAYS[source_slug]
+    return STALE_DAYS.get(str(statement.statement_type), settings.default_stale_days)
+
+
 def recompute_feature(session: Session, feature_id: uuid.UUID) -> FeatureStatus:
     now = datetime.now(UTC)
 
@@ -71,9 +106,7 @@ def recompute_feature(session: Session, feature_id: uuid.UUID) -> FeatureStatus:
 
     winner, _trust = max(rows, key=rank)
 
-    stale_days = STALE_DAYS.get(
-        str(winner.statement_type), settings.default_stale_days
-    )
+    stale_days = stale_days_for(winner, session)
 
     status.status = winner.status
     status.severity = winner.severity

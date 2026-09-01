@@ -226,6 +226,18 @@ a:hover { text-decoration: underline; }
   white-space: nowrap;
 }
 
+/* Two badges, two problems, and they should not look the same.
+   OLD is amber: the information itself may no longer hold, which is a caution
+   about the mountain. UNCHECKED is grey: nothing is wrong with the claim, we
+   have simply not re-read the source — a statement about us, not about
+   conditions, and it must not borrow the colour that means "be careful". */
+/* --restricted-text, not --restricted. The palette marks the lighter amber as
+   a glyph colour, and white on it measures 3.40:1 — under the 4.5 floor for
+   words. The badge carries a word. The old single UNVERIFIED badge had the
+   same fault and it went unmeasured because nobody had touched it since. */
+.pill-unverified--old { background: var(--restricted-text); }
+.pill-unverified--unchecked { background: var(--unknown); }
+
 .disclaimer { font-size: 12.5px; line-height: 1.65; color: var(--secondary); max-width: 640px; }
 
 /* --------------------------------------------------------------- map pane */
@@ -379,6 +391,10 @@ a:hover { text-decoration: underline; }
   display: inline-block; font-size: 11px; text-transform: uppercase;
   letter-spacing: 0.06em; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--rule); color: var(--secondary);
+  /* A status word must never wrap or spill: the pill is a shape drawn around
+     the word, and text escaping its own border reads as a rendering fault
+     rather than a status. RESTRICTED needs 94 px and was being handed 68. */
+  white-space: nowrap;
 }
 .pill.closed { color: var(--closed); border-color: var(--closed); }
 .pill.open { color: var(--open); border-color: var(--open); }
@@ -473,7 +489,11 @@ table.history th { color: var(--secondary); font-weight: 500; }
    collapsed to zero it dragged the two columns before it sideways. Fixed
    widths mean the row a hut lands on cannot change where its text sits. */
 .huts__row {
-  display: grid; grid-template-columns: 1fr 76px 224px 68px;
+  /* The last column fits the widest pill the row can carry: RESTRICTED
+     measures 94 px at this size, UNKNOWN 79, CLOSED 66. Sized to the longest
+     rather than the common case, because the columns are fixed so that every
+     row lines up — a cell that fits most words is a cell that clips one. */
+  display: grid; grid-template-columns: 1fr 76px 224px 96px;
   gap: 12px; align-items: baseline;
   padding: 9px 0; border-bottom: 1px solid var(--rule-faint);
   font-size: 14px;
@@ -487,6 +507,13 @@ table.history th { color: var(--secondary); font-weight: 500; }
 /* Not a status pill — these huts are not shut. It says "there is something
    published here you have not read", which is the one thing a capacity must
    never be allowed to bury. --restricted-text is 4.74:1, safe carrying words. */
+/* The pill is a grid item, and grid items stretch. Left alone it inflated to
+   the full 96 px column, so CLOSED sat in a capsule sized for RESTRICTED with
+   the difference as empty space. Sizing to its own text and sitting at the
+   column edge keeps the column wide enough for the longest word without
+   padding out the shortest. */
+.huts__row > .pill { justify-self: end; }
+
 .huts__notices {
   font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em;
   color: var(--restricted-text); white-space: nowrap; text-align: right;
@@ -497,7 +524,7 @@ table.history th { color: var(--secondary); font-weight: 500; }
 /* Two columns, so a row folds to name/altitude then detail/notices. The
    altitude stays right-aligned: it is the same column, one line down. */
 @media (max-width: 720px) {
-  .huts__row { grid-template-columns: 1fr 76px; row-gap: 2px; }
+  .huts__row { grid-template-columns: 1fr 96px; row-gap: 2px; }
 }
 
 .lifts { list-style: none; padding: 0; margin: 12px 0 0; }
