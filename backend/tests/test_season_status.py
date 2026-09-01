@@ -109,6 +109,8 @@ from massif.main import phrase_for_now  # noqa: E402
 @dataclass
 class FakeOpening:
     statement_type: str = "opening"
+    # Saint-Gervais states a reopening; it is an opening by claim, not a plan.
+    status: str = "open"
     summary_en: str | None = "Reopening 26 Aug 2026"
     valid_from: datetime | None = datetime(2026, 8, 26, tzinfo=UTC)
     valid_to: datetime | None = datetime(2026, 9, 25, tzinfo=UTC)
@@ -122,6 +124,32 @@ def test_a_reopening_whose_day_has_passed_reads_as_open_since():
     assert said == "Open since 26 Aug 2026"
 
 
+@dataclass
+class FakeSchedule:
+    """A timetable: OPENING by type, UNKNOWN by claim."""
+
+    statement_type: str = "opening"
+    status: str = "unknown"
+    summary_en: str | None = (
+        "Scheduled to run 31 Aug – 27 Sep 2026"
+        " (operator timetable, not a report that it is running)"
+    )
+    valid_from: datetime | None = datetime(2026, 8, 31, tzinfo=UTC)
+    valid_to: datetime | None = datetime(2026, 9, 27, tzinfo=UTC)
+
+
+def test_a_schedule_is_not_re_tensed_into_a_claim_that_it_is_open():
+    """The Tramway is the first feature whose winning statement is a schedule,
+    and it read "Open since 31 Aug 2026" beside an "unknown" badge — the page
+    contradicting itself, and a timetable laundered into an observation.
+
+    mbnr-openings and tmb-tramway both emit OPENING at UNKNOWN on purpose. An
+    opening by type is not an opening by claim."""
+    said = phrase_for_now(FakeSchedule(), datetime(2026, 9, 1, tzinfo=UTC))
+    assert said == FakeSchedule.summary_en
+    assert "Open since" not in said
+
+
 def test_a_reopening_still_ahead_stays_in_the_future():
     said = phrase_for_now(FakeOpening(), datetime(2026, 8, 20, tzinfo=UTC))
     assert said == "Reopening 26 Aug 2026"
@@ -132,6 +160,7 @@ class FakeWardenSeason:
     """FFCAM publishes both ends of a warden season, in its own words."""
 
     statement_type: str = "opening"
+    status: str = "open"
     summary_en: str | None = "Wardened and open to the public 23 May – 13 Sep 2026"
     valid_from: datetime | None = datetime(2026, 5, 23, tzinfo=UTC)
     valid_to: datetime | None = datetime(2026, 9, 13, tzinfo=UTC)

@@ -208,6 +208,43 @@
     it. So is "TETE ROUSSE- CAMP DE BASE", the annexe listed 2 m from the
     refuge itself, which no altitude check could ever tell apart from it.
 
+# The Tramway is Compagnie du Mont-Blanc's, but neither mbnr page publishes it
+# — the `tramway-montblanc` slug on those pages is a display label whose link
+# leaves the site for tramwaydumontblanc.fr, which is where the running periods
+# actually are. Carried as its own source because the Tramway is the access for
+# the Goûter route: its closure closes the normal approach.
+#
+# Weekly. A timetable is published once a season and then stands.
+- slug: tmb-tramway
+  name: Tramway du Mont-Blanc — running periods
+  url: https://www.tramwaydumontblanc.fr/
+  source_type: operator
+  language: fr
+  country: FR
+  trust_weight: 0.90
+  fetch_interval_minutes: 10080
+  active: true
+  notes: >
+    WordPress; robots.txt disallows only /wp/wp-admin/. Use the www host — the
+    apex has no reachable robots.txt, which we treat as a refusal.
+
+    Reads `select.tmb-periode-select`, the operator's own element, rather than
+    the Elementor tab headings that render the same strings. Both work today;
+    one of them is about this railway and the other is about whoever laid the
+    page out.
+
+    Emits OPENING at status UNKNOWN, following mbnr-openings rather than
+    ffcam-refuges. A timetable says when trains are scheduled, not that one is
+    running, and this railway stops for weather. The statement still carries
+    its dates, which is what feeds `season` — the availability question a trip
+    planner asks.
+
+    The operator does say they close for "contrainte technique ou
+    météorologique", but only in the ticket-refund FAQ. That sentence is
+    deliberately NOT reproduced as a caveat on the schedule: it is a refund
+    condition, and presenting it as a service warning would put words in their
+    mouth.
+
 - slug: pghm-chamonix
   name: PGHM Chamonix / préfecture Haute-Savoie
   url: https://www.haute-savoie.gouv.fr/

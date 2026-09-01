@@ -10,6 +10,7 @@ from massif.ingest.sources.mbnr_live import MbnrLiveScraper
 from massif.ingest.sources.mbnr_openings import MbnrOpeningsScraper
 from massif.ingest.sources.refuges_info import RefugesInfoScraper
 from massif.ingest.sources.saint_gervais import SaintGervaisScraper
+from massif.ingest.sources.tramway_mont_blanc import TramwayMontBlancScraper
 
 SCRAPERS: dict[str, type[Scraper]] = {
     FfcamScraper.slug: FfcamScraper,
@@ -17,4 +18,5 @@ SCRAPERS: dict[str, type[Scraper]] = {
     MbnrOpeningsScraper.slug: MbnrOpeningsScraper,
     RefugesInfoScraper.slug: RefugesInfoScraper,
     SaintGervaisScraper.slug: SaintGervaisScraper,
+    TramwayMontBlancScraper.slug: TramwayMontBlancScraper,
 }

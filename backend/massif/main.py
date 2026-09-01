@@ -214,6 +214,15 @@ def phrase_for_now(statement, now: datetime) -> str | None:
         return None
     if str(statement.statement_type) != "opening":
         return statement.summary_en
+    # A schedule is an opening by type and not by claim. mbnr-openings and
+    # tmb-tramway both emit OPENING at status UNKNOWN precisely because a
+    # timetable says what is planned, never what is running — so re-tensing one
+    # into "Open since 31 Aug 2026" would undo the care that went into it, and
+    # print it beside an "unknown" badge that says the opposite. Their stored
+    # wording already names both ends and is true whenever it is read, which is
+    # what rule 9 actually asks for.
+    if str(getattr(statement, "status", "")) == "unknown":
+        return statement.summary_en
     start = statement.valid_from
     if start is None:
         return statement.summary_en
