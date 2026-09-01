@@ -17,6 +17,14 @@ not exist, because an improved parser can emit fewer statements than it did
 before, or none at all. Retiring by `document_id` makes the shrink-to-zero
 case fall out correctly instead of leaving orphans that keep voting.
 
+Grain is the document, but the document is not the whole story. Documents are
+never deleted, so a weekly URL accumulates one per fetch — and retiring only
+by `document_id` left one LIVE statement per historical fetch of the same
+page. The Abri Simond's "cabane non gardée" stood three times over and the
+feature page printed it five times. So every new statement also goes through
+`retire_replaced`, exactly as an ingest run does: same feature, same source,
+same type, overlapping validity, and the older reading stands down.
+
 Nothing is deleted. Superseded statements stay readable as a record of what
 the parser used to think.
 """
@@ -32,7 +40,7 @@ from sqlalchemy import select
 
 from massif.db import session_scope
 from massif.enums import StatementType
-from massif.ingest.base import lift_undated_closures
+from massif.ingest.base import lift_undated_closures, retire_replaced
 from massif.ingest.registry import SCRAPERS
 from massif.ingest.resolve import FeatureResolver
 from massif.models import Document, Source, Statement
@@ -125,6 +133,23 @@ def main(argv: list[str]) -> int:
                 if statement is None:
                     unresolved += 1
                     continue
+                # The same thing an ingest run does, and for the same reason:
+                # a source reporting on a feature again has not added a second
+                # opinion, it has updated its own.
+                #
+                # The loop above retires by DOCUMENT, which is right — an
+                # improved parser can emit fewer statements than before, and
+                # those orphans have no successor. But documents are immutable
+                # and never deleted, so one weekly URL has one document per
+                # fetch, and re-reading its history wrote one LIVE statement
+                # per historical fetch. The Abri Simond's "cabane non gardée"
+                # stood three times over, and /hut/abri-simond printed it five
+                # times on the page Google indexes.
+                #
+                # Before session.add, exactly as run() does it: the incoming
+                # statement must not be in the table when the query looks for
+                # what it replaces, or it supersedes itself.
+                retired += retire_replaced(session, statement)
                 session.add(statement)
                 touched.add(_feature_key(statement.feature_id))
                 created += 1
