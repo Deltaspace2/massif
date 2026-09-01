@@ -316,6 +316,40 @@
     of the winter and that is the ordinary state of the world, not an incident
     — it renders grey rather than red.
 
+# The huts' own websites, read by the model. The only LLM-backed source here,
+# and the only one where rules were never an option: 37 wardened huts on 25
+# unrelated websites with no ids, no shared platform and no structure.
+#
+# Measured before it was built. robots.txt: 23 of 25 hosts allow;
+# refuge-lac-blanc.fr and rifugiogonella.com REFUSE and are not carried. Eight
+# sites are JS-rendered and yield under 400 characters — Montenvers gives 115.
+# Eleven of the fifteen readable ones are French; the four Italian ones arrive
+# undated, because fr_dates cannot read Italian.
+#
+# Which huts are read at all is seeds/hut_sites.yaml, with a reason written
+# beside every omission.
+- slug: hut-sites
+  name: Hut operators' own websites
+  url: https://www.camptocamp.org/
+  source_type: operator
+  language: fr
+  trust_weight: 0.60
+  fetch_interval_minutes: 10080
+  active: true
+  notes: >
+    Which hut a statement is about is RESOLVED, not assumed: the Cabane
+    d'Orny's page carries a sentence about the Cabane de l'A Neuve, and pinning
+    everything to the site's owner would file that closure on Orny. Only an
+    unresolved mention — "la cabane", "le refuge" — falls back to the site's
+    own hut.
+
+    These pages state a recurring season without a year ("du 15 mars au 15
+    octobre"), so read_document is given the document's year to bind them to
+    and the statements carry `approximate`. The year is ours, not theirs.
+
+    Everything is written needs_review: nothing here can take a status slot
+    until a person clears it.
+
 - slug: pghm-chamonix
   name: PGHM Chamonix / préfecture Haute-Savoie
   url: https://www.haute-savoie.gouv.fr/

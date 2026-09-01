@@ -212,9 +212,14 @@ def with_assumed_year(dates_text: str, year: int) -> DateRange | None:
     something the source published.
     """
     bound = parse_range(f"{dates_text} {year}")
-    if bound is None or bound.start is None or bound.end is None:
+    if bound is None or (bound.start is None and bound.end is None):
         return None
-    if bound.start > bound.end:
+    # An open-ended range is a real claim, not a failed one. "jusqu'au 26
+    # septembre" is the commonest shape on a hut's own page and it states an
+    # end and no start; requiring both threw away most of what these sites
+    # actually publish. recompute_feature reads a null start as "already in
+    # force", which is what the words mean.
+    if bound.start is not None and bound.end is not None and bound.start > bound.end:
         rolled = parse_range(f"{dates_text} {year + 1}")
         if rolled is None or rolled.end is None:
             return None

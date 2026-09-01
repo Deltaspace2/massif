@@ -1,0 +1,34 @@
+# Which hut's website is whose, for the `hut-sites` source.
+#
+# A separate file rather than external_ids in features_curated.yaml, because
+# half of these huts came from the OSM import and have no curated entry to
+# hang an id on. This is the whole configuration of the source: a hut not
+# listed here is never fetched.
+#
+# The URLs came from camptocamp's `url` field and were then CHECKED, because at
+# least two of them were wrong — Saleinaz 404'd on the camptocamp URL and Plan
+# de l'Aiguille pointed at a regional gîte directory rather than the hut. Every
+# entry below was fetched and confirmed to return the hut's own page with
+# readable prose in it.
+#
+# NOT LISTED, and why:
+#   refuge-du-lac-blanc, rifugio-gonella   robots.txt REFUSES. Not carried.
+#   montenvers, nid-daigle, grands-mulets, charpoua, miage, bertone,
+#   dalmazzi, rifugio-elena                JS-rendered; under 400 characters
+#                                          of prose, nothing to read.
+#   refuge-du-plan-de-l-aiguille           camptocamp's URL is a directory of
+#                                          many gîtes, not this hut's page.
+#   the FFCAM huts                         already covered by ffcam-refuges,
+#                                          which reads their season as data.
+#   trient, orny                           already covered by hut-reservation,
+#                                          which is the operator's own booking
+#                                          system and outranks a web page.
+
+refuge-des-cosmiques:   https://www.refuge-des-cosmiques.com
+refuge-de-plan-glacier: https://www.planglacier.fr
+refuge-de-tre-la-tete:  http://trelatete.com
+refuge-du-requin:       https://refugedurequin.fr/
+refuge-du-fioux:        http://www.montourdumontblanc.com/fr/il4-refuge_i32356-refuge-du-fioux.aspx
+auberge-du-truc:        http://www.montourdumontblanc.com/fr/il4-refuge_i32365-auberge-du-truc.aspx
+cabane-de-la-neuve:     https://www.aneuve.ch/
+cabane-de-saleinaz:     http://www.cas-neuchatel.ch/cabanes/cabane-de-saleinaz-2691m/

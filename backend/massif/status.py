@@ -22,12 +22,12 @@ from massif.models import FeatureStatus, Source, Statement
 
 # How long a statement of each type stays presentable before it is greyed out.
 STALE_DAYS: dict[str, int] = {
-    "operational_status": 1,   # lift status is worthless the next morning
-    "closure": 90,             # an arrêté holds until revoked
+    "operational_status": 1,  # lift status is worthless the next morning
+    "closure": 90,  # an arrêté holds until revoked
     "restriction": 90,
     "opening": 30,
-    "condition": 14,           # v2
-    "hazard_observation": 7,   # v2
+    "condition": 14,  # v2
+    "hazard_observation": 7,  # v2
 }
 
 
@@ -73,9 +73,7 @@ def stale_days_for(statement: Statement, session: Session) -> int:
     outranks what kind of notice it happens to be. A source entry may itself be
     keyed by statement type, for a source that publishes more than one kind.
     """
-    source_slug = session.scalar(
-        select(Source.slug).where(Source.id == statement.source_id)
-    )
+    source_slug = session.scalar(select(Source.slug).where(Source.id == statement.source_id))
     configured = SOURCE_STALE_DAYS.get(source_slug)
     if isinstance(configured, int):
         return configured
@@ -86,10 +84,14 @@ def stale_days_for(statement: Statement, session: Session) -> int:
     return STALE_DAYS.get(str(statement.statement_type), settings.default_stale_days)
 
 
-def recompute_feature(session: Session, feature_id: uuid.UUID) -> FeatureStatus:
-    now = datetime.now(UTC)
+def current_statements(feature_id: uuid.UUID, now: datetime):
+    """Everything eligible to WIN a feature's status slot.
 
-    rows = session.execute(
+    Split out of recompute_feature so the review gate below can be asserted
+    without a database — the suite has none, and a filter nobody can test is
+    how this one came to be missing in the first place.
+    """
+    return (
         select(Statement, Source.trust_weight)
         .join(Source, Source.id == Statement.source_id)
         .where(
@@ -100,8 +102,28 @@ def recompute_feature(session: Session, feature_id: uuid.UUID) -> FeatureStatus:
             Statement.superseded_at.is_(None),
             (Statement.valid_from.is_(None)) | (Statement.valid_from <= now),
             (Statement.valid_to.is_(None)) | (Statement.valid_to >= now),
+            # THE GATE, and until now it did not exist.
+            #
+            # llm.py writes `needs_review` into every statement a model
+            # produced, and its docstring says the API keeps those out of the
+            # status slot "until a human clears them". Nothing checked it —
+            # not here, not in main.py — so the fourth of the four guards, the
+            # one described as the answer to MISREADING rather than
+            # fabrication, was a comment. A model reading would have taken a
+            # status slot on the same terms as an arrêté.
+            #
+            # Excluded from the WINNER only. These statements still appear in
+            # a feature's notices and history: the site gains the information
+            # immediately and the verdict later.
+            Statement.payload["needs_review"].as_boolean().is_not(True),
         )
-    ).all()
+    )
+
+
+def recompute_feature(session: Session, feature_id: uuid.UUID) -> FeatureStatus:
+    now = datetime.now(UTC)
+
+    rows = session.execute(current_statements(feature_id, now)).all()
 
     status = session.get(FeatureStatus, feature_id)
     if status is None:

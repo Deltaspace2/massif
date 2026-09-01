@@ -367,3 +367,22 @@ def test_without_an_assumed_year_the_same_reading_is_demoted():
     )
     assert reading.statements[0].status is StatusValue.UNKNOWN
     assert reading.statements[0].payload["undated_status"] == "open"
+
+
+def test_an_open_ended_season_is_a_real_claim_not_a_failed_one():
+    """ "jusqu'au 26 septembre" is the commonest shape on a hut's own page: an
+    end, no start. Requiring both ends threw away most of what these sites
+    publish, and demoted every one of those readings to unknown.
+
+    recompute_feature reads a null start as already in force, which is exactly
+    what the words mean."""
+    found = with_assumed_year("jusqu'au 26 septembre", 2026)
+    assert found is not None
+    assert found.start is None
+    assert found.end.date() == date(2026, 9, 26)
+
+
+def test_a_phrase_with_neither_end_is_still_nothing():
+    """The relaxation must not turn "until further notice" into a window."""
+    assert with_assumed_year("jusqu'à nouvel avis", 2026) is None
+    assert with_assumed_year("à partir de fin septembre", 2026) is None
