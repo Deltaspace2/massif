@@ -107,6 +107,10 @@ export interface FactBlock {
   values: {
     capacity?: number;
     guarded?: boolean;
+    /** camptocamp: access relative to the warden, already in English. */
+    custodianship?: string;
+    capacity_staffed?: number;
+    capacity_unstaffed?: number;
     water?: boolean;
     latrines?: boolean;
     altitude_m?: number;

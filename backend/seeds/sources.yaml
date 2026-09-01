@@ -178,3 +178,23 @@
   # at all — showing nothing beats showing someone's work unattributed.
   licence: CC BY-SA 2.0
   licence_url: https://creativecommons.org/licenses/by-sa/2.0/
+
+# The other hut guidebook for this range, and the only one that covers France,
+# Italy and Switzerland with the same fields. Where refuges.info answers "is
+# there water", camptocamp answers "is this hut open only when the warden is
+# there" — the custodianship enum, which is the closest thing anyone publishes
+# to a standing status for a hut.
+#
+# Collaborative documents (their term for huts, routes and summits) are
+# CC-BY-SA, coordinates additionally ODbL. Same discipline as refuges.info:
+# structured fields only, never their prose, and every hut links back.
+- slug: camptocamp
+  name: camptocamp.org
+  url: https://www.camptocamp.org/
+  source_type: community
+  language: fr
+  trust_weight: 0.65
+  fetch_interval_minutes: 10080
+  active: true
+  licence: CC BY-SA
+  licence_url: https://creativecommons.org/licenses/by-sa/3.0/

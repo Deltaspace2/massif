@@ -295,6 +295,17 @@ export default async function FeaturePage({ params }: { params: Params }) {
         const rows: { label: string; value: ReactNode }[] = [];
         if (v.capacity !== undefined)
           rows.push({ label: "Sleeps", value: `${v.capacity} places` });
+        // camptocamp splits the beds by whether the warden is there, which is
+        // a different and more useful number than a single total.
+        if (v.capacity_staffed !== undefined)
+          rows.push({ label: "Sleeps, wardened", value: `${v.capacity_staffed} places` });
+        if (v.capacity_unstaffed !== undefined)
+          rows.push({
+            label: "Sleeps, unwardened",
+            value: `${v.capacity_unstaffed} places`,
+          });
+        if (v.custodianship !== undefined)
+          rows.push({ label: "Access", value: v.custodianship });
         if (v.guarded !== undefined)
           rows.push({
             label: "Warden",

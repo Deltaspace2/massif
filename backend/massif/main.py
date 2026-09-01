@@ -304,7 +304,21 @@ def _feature_dict(
 # `coord_precision` (their French prose about how they mapped the point — this
 # client keeps structured fields, never the writing) and NOT `kind`, which is
 # a French type label whose one useful bit is already read out as `guarded`.
-FACT_FIELDS = ("capacity", "guarded", "water", "latrines", "altitude_m", "phone")
+FACT_FIELDS = (
+    "capacity",
+    "guarded",
+    # camptocamp: access relative to the warden, and beds split by whether the
+    # warden is there. The closest thing anyone publishes to a standing state
+    # for a hut — and still a fact about the arrangement, not a claim about
+    # today, so it stays out of the status pipeline like everything else here.
+    "custodianship",
+    "capacity_staffed",
+    "capacity_unstaffed",
+    "water",
+    "latrines",
+    "altitude_m",
+    "phone",
+)
 
 
 def _fact_block(fact, source) -> dict | None:
