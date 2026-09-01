@@ -52,6 +52,24 @@ export default async function FeaturePage({ params }: { params: Params }) {
 
   const routine = feature.status.closure_kind === "outside_hours";
 
+  // What "unknown" actually means for THIS feature. It was one sentence for
+  // every case — "No source this site watches has published anything about X"
+  // — printed on 58 of the 63 huts that read unknown, directly above a table
+  // of what a source had published about them. It was simply false there, and
+  // it made a thin patch of coverage look like total ignorance.
+  //
+  // Three different situations, and the directory already tells them apart:
+  //   * an unstaffed bivouac has no warden season to open or close, so there
+  //     is nothing to report and never will be;
+  //   * a wardened hut has a season that nobody we watch publishes;
+  //   * and for a handful we really do hold nothing.
+  // None of this promotes a fact to a status — the badge is untouched. It
+  // just stops the page claiming an ignorance it does not have.
+  const factValues = (feature.facts ?? []).map((fact) => fact.values);
+  const saysWardened = factValues.some((v) => v.guarded === true);
+  const saysUnwardened = !saysWardened && factValues.some((v) => v.guarded === false);
+  const haveDirectoryEntry = factValues.length > 0;
+
   // Absent means "the source does not say"; false means "no, there isn't".
   // Collapsing those two into one blank would invent an answer — the site's
   // signature failure. Only an explicit boolean produces a row.
@@ -138,6 +156,24 @@ export default async function FeaturePage({ params }: { params: Params }) {
             )}
             {feature.status.stale &&
               " — this has aged past the window its kind of notice holds for"}
+          </div>
+        ) : saysUnwardened ? (
+          <div className="meta">
+            {feature.name} is an unstaffed shelter, so there is no warden
+            season for anyone to open or close — nothing is scheduled to be
+            published about it, and the status above says unknown for want of
+            a better word rather than because something is missing. Whether it
+            is standing, reachable and fit to use on any given day is not
+            something this site can tell you.
+          </div>
+        ) : haveDirectoryEntry ? (
+          <div className="meta">
+            Nobody this site watches publishes an opening status for{" "}
+            {feature.name}
+            {saysWardened ? ", though it is a wardened hut and so has a season" : ""}.
+            The directory entry below describes the building; it says nothing
+            about whether it is open today. That is a gap in our coverage, not
+            a report that all is well.
           </div>
         ) : (
           <div className="meta">
