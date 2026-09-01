@@ -277,3 +277,40 @@ def test_matching_goes_through_the_hut_scoped_index_not_the_shared_one():
     _scraper(huts).resolve_and_build(session, _Source(), _Document(), _item(3815), shared)
     assert huts.resolve_calls == 1
     assert shared.resolve_calls == 0
+
+
+def test_a_name_no_hut_matches_is_queued_and_never_tried_on_the_shared_index():
+    """The failure path is the one that needed the scope.
+
+    Applying the hut scope only when a hut already matched leaves the case it
+    was written for wide open: with no hut match this used to fall through to
+    the base resolver, which resolves against the SHARED index — the one that
+    handed "REFUGE DU GOÛTER" to a 4808 m route at a score of 100. The first
+    time FFCAM renames a hut or lists one we do not carry, its season would go
+    looking for a home among the routes and lifts.
+    """
+    huts = _Resolver(None)
+    shared = _Resolver(_Match(100.0))
+    built = _scraper(huts).resolve_and_build(
+        _Session(None), _Source(), _Document(), _item(3815), shared
+    )
+    assert built is None
+    assert shared.resolve_calls == 0
+    assert shared.queued
+
+
+def test_a_season_with_no_altitude_to_check_is_queued_not_guessed():
+    """One screen is not two. If FFCAM prints no altitude beside a season, the
+    name is standing on its own — which is exactly how a hut season reached a
+    mountaineering route."""
+    huts = _Resolver(_Match(96.0))
+    shared = _Resolver()
+    built = _scraper(huts).resolve_and_build(
+        _Session(_Feature("refuge-du-gouter", 3835)),
+        _Source(),
+        _Document(),
+        _item(None),
+        shared,
+    )
+    assert built is None
+    assert "no altitude" in shared.queued[0][1]

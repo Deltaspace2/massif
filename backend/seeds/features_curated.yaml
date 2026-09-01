@@ -253,6 +253,50 @@
   country: FR
   notes: Access for the Goûter route. Its closure closes the normal approach.
 
+# The valley's access railway, and the only way to reach Vallorcine and the
+# Bérard/Buet approaches without a car. Carried because a closure on it closes
+# an approach, which is this site's whole subject — not because anyone
+# publishes its status yet. Neither operator feed covers it: see the
+# ffcam/mbnr-openings recon note about `tramway-montblanc` for how easily that
+# looks like a row we are dropping when it is not.
+- slug: mont-blanc-express
+  feature_type: lift
+  name_default: Mont-Blanc Express
+  names:
+    fr: Mont-Blanc Express
+    en: Mont Blanc Express
+  aliases:
+    - Ligne de Saint-Gervais-les-Bains-Le Fayet à Vallorcine (frontière)
+    - Saint-Gervais — Vallorcine
+    - Ligne 896000
+    - Mont Blanc Express
+    - TER Mont-Blanc Express
+  country: FR
+  notes: >
+    SNCF Réseau line 896000, Saint-Gervais-les-Bains-Le Fayet to Vallorcine and
+    the Swiss border, where it continues as the Martigny–Châtelard. Metre gauge
+    and partly rack. No status source watches it.
+
+# The whole Swiss presence inside the massif boundary. Champex-Lac, operated by
+# Téléchampex — the Trient and Le Châble lifts are outside the ring. Two
+# sections, modelled as one feature the way our other sectors are.
+- slug: la-breya
+  feature_type: lift
+  name_default: Télésiège de La Breya
+  names:
+    fr: Télésiège de La Breya
+    en: La Breya chairlift
+  aliases:
+    - La Breya
+    - La Breya 1
+    - La Breya 2
+    - Breya
+    - Champex-Lac
+  country: CH
+  notes: >
+    Champex-Lac, the approach to the Cabane d'Orny and the Trient plateau. No
+    status source watches it; the Swiss side has no publisher we have found.
+
 - slug: grands-montets
   feature_type: lift
   name_default: Téléphérique des Grands Montets

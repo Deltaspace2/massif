@@ -364,29 +364,56 @@ class FfcamScraper(Scraper):
         first live run. The altitude is what stops a name from picking the
         wrong building — "Refuge Vallot" at 4322 m and "Refuge du Goûter" at
         3815 m sit on the same route with similar names.
+
+        Every exit that is not a confirmed hut queues and returns None. It must
+        never fall through to the base implementation without a slug, because
+        that branch resolves against the SHARED index — the one that made the
+        Goûter mistake. Falling through on failure would have applied the scope
+        only when a hut had already matched, which is the case that does not
+        need it: the moment FFCAM renamed a hut or listed one we do not carry,
+        its season would have gone looking for a home among the routes.
         """
+
+        def refuse(why: str) -> None:
+            resolver.queue_unresolved(
+                item.feature_mention,
+                candidates,
+                source_id=source.id,
+                document_id=document.id,
+                context=why,
+            )
+            return None
+
         altitude = (item.payload or {}).get("altitude_m")
         if self._huts is None:
             self._huts = HutResolver(session)
         match, candidates = self._huts.resolve(item.feature_mention)
 
-        if match is not None and match.score >= NAME_FLOOR and altitude is not None:
-            feature = session.get(Feature, match.feature_id)
-            ours = feature.alt_max or feature.alt_min if feature else None
-            if ours is not None and abs(int(ours) - int(altitude)) > ALTITUDE_TOLERANCE_M:
-                resolver.queue_unresolved(
-                    item.feature_mention,
-                    candidates,
-                    source_id=source.id,
-                    document_id=document.id,
-                    context=(
-                        f"name matched {feature.slug} at {match.score:.0f} but FFCAM "
-                        f"publishes {altitude} m against our {int(ours)} m"
-                    ),
-                )
-                return None
-            item.feature_slug = feature.slug if feature else None
+        if match is None or match.score < NAME_FLOOR:
+            return refuse(
+                f"no hut reached {NAME_FLOOR:.0f} for this name; FFCAM publishes it at {altitude} m"
+            )
+        feature = session.get(Feature, match.feature_id)
+        if feature is None:
+            return refuse("matched a feature that is no longer in the table")
 
+        ours = feature.alt_max or feature.alt_min
+        if altitude is None or ours is None:
+            # One screen is not two. Rather than let a name stand on its own —
+            # which is how a season reached a 4808 m route — say so and let a
+            # person look.
+            missing = "FFCAM" if altitude is None else f"our {feature.slug}"
+            return refuse(
+                f"name matched {feature.slug} at {match.score:.0f} but "
+                f"{missing} carries no altitude to check it against"
+            )
+        if abs(int(ours) - int(altitude)) > ALTITUDE_TOLERANCE_M:
+            return refuse(
+                f"name matched {feature.slug} at {match.score:.0f} but FFCAM "
+                f"publishes {altitude} m against our {int(ours)} m"
+            )
+
+        item.feature_slug = feature.slug
         return super().resolve_and_build(session, source, document, item, resolver)
 
 
