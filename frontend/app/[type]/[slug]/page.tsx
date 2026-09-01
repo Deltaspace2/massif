@@ -350,104 +350,149 @@ export default async function FeaturePage({ params }: { params: Params }) {
           is a different and much less urgent question than "is it shut". It
           carries no colour, no pill and no staleness styling, because a bunk
           count does not expire and must never read as a warning. */}
-      {/* ONE heading, one caveat, then a table per source.
-          Each source used to render its own <section> with its own "About this
-          hut" heading and its own identical caveat paragraph, so a hut carried
-          by both refuges.info and camptocamp showed the whole preamble twice.
-          The tables stay separate because the CREDIT has to: CC BY-SA attaches
-          per entry, and merging two directories' rows into one list would put
-          somebody's work under somebody else's name. */}
-      {(feature.facts ?? []).length > 0 && (
-        <section className="facts">
-          <h3 style={{ fontSize: 15, marginTop: 30 }}>
-            About this {feature.type}
-          </h3>
-          {/* Ours, above theirs, because a directory fact can mislead on its
-              own: refuges.info lists 12 places at Abri Vallot, which is true
-              and reads as a bunkroom, and it is a shelter of last resort at
-              4362 m. */}
-          {feature.notes && <p className="facts__note">{feature.notes}</p>}
-          <p className="meta">
-            How the directories below describe the building. These are
-            properties of the {feature.type}, not a status — they do not
-            expire, and we have not verified them. Any altitude below is that
-            source&rsquo;s survey, not ours — where it differs from the figure
-            at the top of this page, the one at the top is ours.
-          </p>
+      {/* ONE table, built from every directory that describes this hut.
+          Two sources rendered two tables, and the tables agreed with each
+          other: the Grands Mulets showed "Sleeps 68" and "Sleeps, wardened 68"
+          and the identical altitude twice. Same fact, two credits, twice the
+          reading.
 
-      {(feature.facts ?? []).map((fact) => {
-        const v = fact.values;
-        const rows: { label: string; value: ReactNode }[] = [];
-        if (v.capacity !== undefined)
-          rows.push({ label: "Sleeps", value: `${v.capacity} places` });
-        // camptocamp splits the beds by whether the warden is there, which is
-        // a different and more useful number than a single total.
-        if (v.capacity_staffed !== undefined)
-          rows.push({ label: "Sleeps, wardened", value: `${v.capacity_staffed} places` });
-        if (v.capacity_unstaffed !== undefined)
-          rows.push({
-            label: "Sleeps, unwardened",
-            value: `${v.capacity_unstaffed} places`,
-          });
-        if (v.custodianship !== undefined)
-          rows.push({ label: "Access", value: v.custodianship });
-        if (v.guarded !== undefined)
-          rows.push({
-            label: "Warden",
-            value: v.guarded ? "Staffed refuge" : "Unstaffed",
-          });
-        if (v.water !== undefined)
-          rows.push({ label: "Water", value: yesNo(v.water) });
-        if (v.latrines !== undefined)
-          rows.push({ label: "Latrines", value: yesNo(v.latrines) });
-        if (v.altitude_m !== undefined)
-          rows.push({ label: "Altitude", value: `${v.altitude_m} m` });
-        if (v.phone !== undefined)
-          rows.push({
-            label: "Phone",
-            value: (
-              <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`}>{v.phone}</a>
-            ),
-          });
-        const edited = monthYear(fact.source_modified_at);
+          Merged with rules that are deliberately dull:
+            * the first source to state a (label, value) wins, and a later
+              source repeating it adds nothing;
+            * a plain "Sleeps" is dropped when a "Sleeps, wardened" already
+              carries the same number — the more specific label is the better
+              one, and they are the same bed count;
+            * where two sources DISAGREE on a label, both rows are kept and
+              each says whose figure it is. Two phone numbers for one hut is
+              information, not noise, and picking one silently would be us
+              deciding which contributor was right.
 
-        return (
-          <div key={fact.permalink}>
-            <dl className="facts__list">
-              {rows.map((row) => (
-                <div className="facts__row" key={row.label}>
-                  <dt>{row.label}</dt>
-                  <dd>{row.value}</dd>
-                </div>
-              ))}
-            </dl>
-            {/* Attribution is a licence condition, not a courtesy: the credit,
-                a link to the licence, and a link to the specific entry their
-                community wrote — per hut, not one shared footer. */}
-            <p className="meta facts__credit">
-              From{" "}
-              <a href={fact.permalink} rel="nofollow noopener">
-                the {fact.source.name} entry
-              </a>
-              , written by their contributors and used under{" "}
-              {fact.licence_url ? (
-                <a href={fact.licence_url} rel="license noopener">
-                  {fact.licence}
-                </a>
-              ) : (
-                fact.licence
-              )}
-              .{/* Their clock and ours, kept apart — see the status card. */}
-              {edited && ` Last edited there ${edited}`}
-              {fact.fetched_at &&
-                `${edited ? "; " : " "}we pulled it ${sinceLabel(fact.fetched_at)}`}
-              .
-            </p>
-          </div>
-        );
-      })}
-        </section>
-      )}
+          Every source still gets its own credit line: CC BY-SA attaches per
+          entry, and one merged table under one name would put somebody's work
+          under somebody else's. */}
+      {(feature.facts ?? []).length > 0 &&
+        (() => {
+          type Row = { label: string; value: ReactNode; source: string };
+          const rows: Row[] = [];
+          const push = (label: string, value: ReactNode, source: string) =>
+            rows.push({ label, value, source });
+
+          for (const fact of feature.facts ?? []) {
+            const v = fact.values;
+            const from = fact.source.name;
+            if (v.capacity !== undefined)
+              push("Sleeps", `${v.capacity} places`, from);
+            // camptocamp splits the beds by whether the warden is there, which
+            // is a different and more useful number than a single total.
+            if (v.capacity_staffed !== undefined)
+              push("Sleeps, wardened", `${v.capacity_staffed} places`, from);
+            if (v.capacity_unstaffed !== undefined)
+              push("Sleeps, unwardened", `${v.capacity_unstaffed} places`, from);
+            if (v.custodianship !== undefined) push("Access", v.custodianship, from);
+            if (v.guarded !== undefined)
+              push("Warden", v.guarded ? "Staffed refuge" : "Unstaffed", from);
+            if (v.water !== undefined) push("Water", yesNo(v.water), from);
+            if (v.latrines !== undefined) push("Latrines", yesNo(v.latrines), from);
+            if (v.altitude_m !== undefined) push("Altitude", `${v.altitude_m} m`, from);
+            if (v.phone !== undefined)
+              push(
+                "Phone",
+                <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`}>{v.phone}</a>,
+                from,
+              );
+          }
+
+          // A stable string for comparing two values, including the phone
+          // number inside its link.
+          const asText = (row: Row): string =>
+            typeof row.value === "string"
+              ? row.value
+              : ((row.value as { props?: { children?: unknown } })?.props
+                  ?.children as string) ?? "";
+
+          const wardenedBeds = rows.find((r) => r.label === "Sleeps, wardened");
+          const merged: Row[] = [];
+          for (const row of rows) {
+            // The same fact said twice.
+            if (merged.some((m) => m.label === row.label && asText(m) === asText(row)))
+              continue;
+            // "Sleeps 68" beside "Sleeps, wardened 68" is one bed count under
+            // two names; keep the one that says which beds.
+            if (
+              row.label === "Sleeps" &&
+              wardenedBeds &&
+              asText(wardenedBeds) === asText(row)
+            )
+              continue;
+            merged.push(row);
+          }
+          const contested = new Set(
+            merged
+              .filter((r, i) => merged.findIndex((o) => o.label === r.label) !== i)
+              .map((r) => r.label),
+          );
+
+          return (
+            <section className="facts">
+              <h3 style={{ fontSize: 15, marginTop: 30 }}>
+                About this {feature.type}
+              </h3>
+              {/* Ours, above theirs, because a directory fact can mislead on
+                  its own: refuges.info lists 12 places at Abri Vallot, which is
+                  true and reads as a bunkroom, and it is a shelter of last
+                  resort at 4362 m. */}
+              {feature.notes && <p className="facts__note">{feature.notes}</p>}
+              <p className="meta">
+                How the directories below describe the building. These are
+                properties of the {feature.type}, not a status — they do not
+                expire, and we have not verified them. Any altitude below is a
+                source&rsquo;s own survey, not ours — where it differs from the
+                figure at the top of this page, the one at the top is ours.
+              </p>
+              <dl className="facts__list">
+                {merged.map((row) => (
+                  <div className="facts__row" key={`${row.label}-${row.source}`}>
+                    <dt>
+                      {row.label}
+                      {contested.has(row.label) && (
+                        <span className="facts__whose"> {row.source}</span>
+                      )}
+                    </dt>
+                    <dd>{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {/* Attribution is a licence condition, not a courtesy: the
+                  credit, a link to the licence, and a link to the specific
+                  entry their community wrote — per hut, not one shared
+                  footer. */}
+              {(feature.facts ?? []).map((fact) => {
+                const edited = monthYear(fact.source_modified_at);
+                return (
+                  <p className="meta facts__credit" key={fact.permalink}>
+                    From{" "}
+                    <a href={fact.permalink} rel="nofollow noopener">
+                      the {fact.source.name} entry
+                    </a>
+                    , written by their contributors and used under{" "}
+                    {fact.licence_url ? (
+                      <a href={fact.licence_url} rel="license noopener">
+                        {fact.licence}
+                      </a>
+                    ) : (
+                      fact.licence
+                    )}
+                    .{/* Their clock and ours, kept apart — see the status card. */}
+                    {edited && ` Last edited there ${edited}`}
+                    {fact.fetched_at &&
+                      `${edited ? "; " : " "}we pulled it ${sinceLabel(fact.fetched_at)}`}
+                    .
+                  </p>
+                );
+              })}
+            </section>
+          );
+        })()}
 
       {/* The report link belongs on THIS page above all others: someone who
           knows a status is wrong knows it while looking at the thing, and this

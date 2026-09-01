@@ -706,3 +706,8 @@ table.history th { color: var(--secondary); font-weight: 500; }
 }
 .report-list li { margin-bottom: 8px; }
 .report-list b { color: var(--ink); font-weight: 600; }
+
+/* Whose figure this is, shown only where two directories disagree — two phone
+   numbers for one hut is information, and picking one silently would be us
+   deciding which contributor was right. */
+.facts__whose { color: var(--tertiary); font-weight: 400; font-size: 11.5px; }
