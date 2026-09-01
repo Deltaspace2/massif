@@ -54,6 +54,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Protocol
 
+from selectolax.parser import HTMLParser
+
 from massif.enums import ExtractionMethod, StatementType, StatusValue
 from massif.ingest.base import ExtractedStatement
 from massif.ingest.fr_dates import DateRange, parse_range
@@ -61,7 +63,7 @@ from massif.ingest.fr_dates import DateRange, parse_range
 # Bump when the prompt or the schema changes. It is part of the cache key, so
 # an edit here re-extracts rather than silently mixing two vintages of output
 # in one table.
-PROMPT_VERSION = "1"
+PROMPT_VERSION = "2"
 
 
 @dataclass
@@ -101,8 +103,50 @@ class Extractor(Protocol):
 
     model: str
 
-    def extract(self, text: str) -> list[dict]:
-        ...
+    def extract(self, text: str) -> list[dict]: ...
+
+
+# ------------------------------------------------------------------ the text
+
+
+# Furniture: present on every page, never the notice, and expensive.
+_FURNITURE = "script, style, noscript, nav, header, footer, aside, form, svg"
+
+# Where the prose lives, best first. The same ladder saint_gervais.py already
+# climbs for its own body extraction.
+_CONTENT = ("article", "main", "[class*='content']")
+
+
+def readable_text(html: str) -> str:
+    """The prose of a page, without the furniture.
+
+    THIS IS A COST AND A CORRECTNESS FIX, in that order of how it was found.
+    `documents.raw_text` is the raw HTML we fetched — importmaps, menus, cookie
+    banners and all. Sending that verbatim cost 77,898 input tokens for ONE
+    Saint-Gervais notice, and one pass over that source would have been about
+    1.5 million tokens. The article bodies are 82,000 characters in total: a
+    99% reduction, and 74x the price for the privilege of hiding the notice in
+    markup.
+
+    The correctness half matters more. `read_document` verifies every evidence
+    span against the text it was given, so the model must be asked about
+    EXACTLY the string we later check against — otherwise a perfectly good span
+    copied out of the HTML fails a check made against the prose, and the
+    failure looks like a document with nothing in it. One function, both jobs.
+    """
+    tree = HTMLParser(html or "")
+    for node in tree.css(_FURNITURE):
+        node.decompose()
+    container = None
+    for selector in _CONTENT:
+        container = tree.css_first(selector)
+        if container is not None:
+            break
+    if container is None:
+        container = tree.body
+    if container is None:
+        return ""
+    return normalise_space(container.text(separator=" ", strip=True))
 
 
 # --------------------------------------------------------------- normalising
@@ -182,8 +226,7 @@ def cross_check_dates(
             return None, f"claimed a {label} the phrase does not contain"
         if parsed.date() != mine.date():
             return None, (
-                f"claimed {label} {parsed.date()} but {dates_text!r} "
-                f"parses to {mine.date()}"
+                f"claimed {label} {parsed.date()} but {dates_text!r} parses to {mine.date()}"
             )
     return ours, None
 

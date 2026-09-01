@@ -26,7 +26,7 @@ import argparse
 from sqlalchemy import select
 
 from massif.db import session_scope
-from massif.ingest.llm import read_document
+from massif.ingest.llm import read_document, readable_text
 from massif.ingest.llm_client import build_extractor
 from massif.models import Document, Source, Statement
 
@@ -39,6 +39,11 @@ def main() -> int:
         "--all",
         action="store_true",
         help="include documents that already produce statements",
+    )
+    parser.add_argument(
+        "--contains",
+        help="only documents whose prose contains this string — for aiming at "
+        "a notice you already know is there",
     )
     args = parser.parse_args()
 
@@ -77,12 +82,25 @@ def main() -> int:
             documents = [d for d in documents if d.id not in speaks]
             print(f"{len(documents)} stored documents currently produce nothing")
 
+        if args.contains:
+            needle = args.contains.casefold()
+            documents = [
+                d for d in documents if needle in readable_text(d.raw_text or "").casefold()
+            ]
+            print(f"{len(documents)} of them mention {args.contains!r}")
+
         for document in documents[: args.limit]:
-            text = document.raw_text or ""
+            stored = document.raw_text or ""
+            # The prose, not the page. Sending raw HTML cost 77,898 tokens for
+            # one notice; and the model must be asked about exactly the string
+            # read_document verifies spans against, or good evidence fails a
+            # check made against different text.
+            text = readable_text(stored)
             if not text.strip():
-                print(f"  {document.url}: no stored text, skipped")
+                print(f"  {document.url}: no readable text, skipped")
                 continue
-            print(f"\n=== {document.url}\n    {len(text):,} characters")
+            print(f"\n=== {document.url}")
+            print(f"    {len(stored):,} chars of HTML -> {len(text):,} of prose")
             raw = extractor.extract(text)
             reading = read_document(
                 raw,
@@ -95,6 +113,17 @@ def main() -> int:
             for statement in reading.statements:
                 print(f"      + {statement.status.value:10} {statement.feature_mention[:44]}")
                 print(f"        {statement.summary_en}")
+                window = (
+                    f"{statement.valid_from:%d %b %Y} – {statement.valid_to:%d %b %Y}"
+                    if statement.valid_from and statement.valid_to
+                    else "no dates stated"
+                )
+                # The dates our own parser read back out of the model's French
+                # phrase — guard 2. A disagreement drops the dates and keeps
+                # the statement, and says so here rather than silently.
+                print(f"        dates: {window}")
+                if statement.payload.get("dates_rejected"):
+                    print(f"        DATES DROPPED: {statement.payload['dates_rejected']}")
                 print(f"        evidence: {(statement.original_text or '')[:90]!r}")
             for rejection in reading.rejected:
                 print(f"      - REJECTED [{rejection.reason}] {rejection.detail[:80]}")

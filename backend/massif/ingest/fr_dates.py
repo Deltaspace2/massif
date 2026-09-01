@@ -22,9 +22,18 @@ from datetime import UTC, datetime
 from datetime import time as dtime
 
 MONTHS: dict[str, int] = {
-    "janvier": 1, "fevrier": 2, "mars": 3, "avril": 4,
-    "mai": 5, "juin": 6, "juillet": 7, "aout": 8,
-    "septembre": 9, "octobre": 10, "novembre": 11, "decembre": 12,
+    "janvier": 1,
+    "fevrier": 2,
+    "mars": 3,
+    "avril": 4,
+    "mai": 5,
+    "juin": 6,
+    "juillet": 7,
+    "aout": 8,
+    "septembre": 9,
+    "octobre": 10,
+    "novembre": 11,
+    "decembre": 12,
 }
 
 _MONTH_ALT = "|".join(MONTHS)
@@ -36,8 +45,41 @@ def strip_accents(text: str) -> str:
     return "".join(c for c in text if not unicodedata.combining(c))
 
 
+# Typographic punctuation, folded to the ASCII the patterns are written in.
+#
+# Accents were normalised from the first day here — rule 1 — and curly quotes
+# never were. Saint-Gervais' CMS writes "jusqu’au" with U+2019, so the `until`
+# pattern (which allows a straight apostrophe) missed, the search fell through
+# to `single_named`, matched the "du 26 mai 2026" at the front of the phrase,
+# and read a four-day closure of the voie normale as a ONE-day one. Silent,
+# plausible, and narrower than the decree.
+#
+# Dashes for the same reason: "du 26–29 mai" is a range written with an en
+# dash on any CMS that prettifies text.
+_TYPOGRAPHIC = str.maketrans(
+    {
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u02bc": "'",
+        "\u201b": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2010": "-",
+        "\u2011": "-",
+        "\u2012": "-",
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2212": "-",
+        "\u00a0": " ",
+        "\u202f": " ",
+        "\u2009": " ",
+    }
+)
+
+
 def _norm(text: str) -> str:
-    return re.sub(r"\s+", " ", strip_accents(text).lower()).strip()
+    folded = strip_accents(text).translate(_TYPOGRAPHIC).lower()
+    return re.sub(r"\s+", " ", folded).strip()
 
 
 def _year(value: str) -> int:
@@ -68,22 +110,35 @@ class DateRange:
 # Ordered most specific first: "du 28 décembre 2026 au 3 janvier 2027" also
 # contains a substring matching the same-month pattern.
 _PATTERNS: list[tuple[str, re.Pattern]] = [
-    ("full_range", re.compile(
-        rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    ("split_month", re.compile(
-        rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    ("same_month", re.compile(
-        rf"du\s+{_DAY}\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    ("numeric_range", re.compile(
-        r"du\s+(\d{1,2})/(\d{1,2})/(\d{2,4})\s+au\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
-    ("until", re.compile(
-        rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    ("from", re.compile(
-        rf"a\s+partir\s+du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    ("single_named", re.compile(
-        rf"(?:le|du)\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    ("single_numeric", re.compile(
-        r"le\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
+    (
+        "full_range",
+        re.compile(
+            rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"
+        ),
+    ),
+    (
+        "split_month",
+        re.compile(rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"),
+    ),
+    ("same_month", re.compile(rf"du\s+{_DAY}\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
+    (
+        "numeric_range",
+        re.compile(r"du\s+(\d{1,2})/(\d{1,2})/(\d{2,4})\s+au\s+(\d{1,2})/(\d{1,2})/(\d{2,4})"),
+    ),
+    # "du 26 mai 2026 et jusqu'au 29 mai 2026" — both ends stated, but not in
+    # the "du X au Y" shape full_range wants. Real, and from an arrêté: before
+    # this it fell through to `until` and lost its start date.
+    (
+        "from_until",
+        re.compile(
+            rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})\s+(?:et\s+)?"
+            rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"
+        ),
+    ),
+    ("until", re.compile(rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
+    ("from", re.compile(rf"a\s+partir\s+du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
+    ("single_named", re.compile(rf"(?:le|du)\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
+    ("single_numeric", re.compile(r"le\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
 ]
 
 
@@ -129,6 +184,13 @@ def parse_range(text: str) -> DateRange | None:
                     _at(_year(y2), int(m2), int(d2), end=True),
                     rule,
                 )
+            if rule == "from_until":
+                d1, m1, y1, d2, m2, y2 = groups
+                return DateRange(
+                    _at(_year(y1), MONTHS[m1], int(d1)),
+                    _at(_year(y2), MONTHS[m2], int(d2), end=True),
+                    rule,
+                )
             if rule == "until":
                 day, month, year = groups
                 return DateRange(None, _at(_year(year), MONTHS[month], int(day), end=True), rule)
@@ -152,8 +214,18 @@ def parse_range(text: str) -> DateRange | None:
 
 
 MONTH_EN = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 ]
 
 
@@ -176,9 +248,7 @@ def describe(dates: DateRange | None) -> str | None:
         if start.date() == end.date():
             return day(start)
         if (start.year, start.month) == (end.year, end.month):
-            return (
-                f"{start.day}–{end.day} {MONTH_EN[start.month - 1]} {start.year}"
-            )
+            return f"{start.day}–{end.day} {MONTH_EN[start.month - 1]} {start.year}"
         if start.year == end.year:
             return (
                 f"{start.day} {MONTH_EN[start.month - 1]} – "

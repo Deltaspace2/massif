@@ -1,7 +1,7 @@
 """French date parsing. Every fixture below is either a real Saint-Gervais
 notice title or a shape municipal notices actually use."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -10,6 +10,7 @@ from massif.ingest.fr_dates import DateRange, parse_range
 
 def d(y, m, day, end=False):
     from datetime import time as t
+
     return datetime.combine(
         datetime(y, m, day).date(), t(23, 59, 59) if end else t(0, 0), tzinfo=UTC
     )
@@ -25,9 +26,7 @@ def test_real_notice_same_month_range():
 
 def test_real_notice_two_digit_numeric():
     """Live title: the refuge reopening, written 26/08/26."""
-    result = parse_range(
-        "Réouverture des refuges de Tête Rousse et du Goûter le 26/08/26"
-    )
+    result = parse_range("Réouverture des refuges de Tête Rousse et du Goûter le 26/08/26")
     assert result is not None
     assert result.start == d(2026, 8, 26)
     assert result.end == d(2026, 8, 26, end=True)
@@ -98,6 +97,7 @@ def test_two_digit_years_are_this_century(year_text, expected):
 
 # ------------------------------------------------------------- describe -----
 
+
 def test_describe_same_month_range():
     from massif.ingest.fr_dates import describe
 
@@ -115,8 +115,7 @@ def test_describe_across_months_and_years():
 
     assert describe(parse_range("du 30 mai au 2 juin 2026")) == "30 May – 2 Jun 2026"
     assert (
-        describe(parse_range("du 28 décembre 2026 au 3 janvier 2027"))
-        == "28 Dec 2026 – 3 Jan 2027"
+        describe(parse_range("du 28 décembre 2026 au 3 janvier 2027")) == "28 Dec 2026 – 3 Jan 2027"
     )
 
 
@@ -131,3 +130,50 @@ def test_describe_none():
     from massif.ingest.fr_dates import describe
 
     assert describe(None) is None
+
+
+# ---------------------------------------------------- typography, and a gap
+
+
+def test_a_curly_apostrophe_does_not_shorten_a_closure():
+    """Found by pointing the model at a real arrêté.
+
+    Saint-Gervais' CMS writes "jusqu’au" with U+2019. The `until` pattern
+    allows a straight apostrophe only, so it missed, the search fell through to
+    `single_named`, matched the "du 26 mai 2026" at the front of the phrase,
+    and read a FOUR-day closure of the voie normale as a one-day one. Narrower
+    than the decree, entirely plausible, and silent — accents were normalised
+    from the first day here and curly quotes never were.
+    """
+    curly = parse_range("du 26 mai 2026 et jusqu’au 29 mai 2026")
+    straight = parse_range("du 26 mai 2026 et jusqu'au 29 mai 2026")
+    assert curly is not None
+    assert curly.start.date() == date(2026, 5, 26)
+    assert curly.end.date() == date(2026, 5, 29)
+    assert (curly.start, curly.end) == (straight.start, straight.end)
+
+
+def test_an_en_dash_range_reads_like_a_hyphenated_one():
+    """Any CMS that prettifies text writes ranges with an en dash."""
+    assert parse_range("du 26–29 mai 2026") == parse_range("du 26-29 mai 2026")
+
+
+def test_a_non_breaking_space_is_still_a_space():
+    assert parse_range("du 26 mai 2026 au 29 mai 2026") is not None
+
+
+def test_du_x_jusqu_au_y_keeps_its_start_date():
+    """The shape an arrêté actually uses. Before this rule it matched `until`
+    and lost the start date, leaving a closure with no beginning."""
+    found = parse_range("du 26 mai 2026 jusqu'au 29 mai 2026")
+    assert found.rule == "from_until"
+    assert found.start.date() == date(2026, 5, 26)
+    assert found.end.date() == date(2026, 5, 29)
+
+
+def test_a_bare_jusqu_au_still_has_no_start():
+    """The new rule must not invent a start for a phrase that states none."""
+    found = parse_range("jusqu'au 29 mai 2026")
+    assert found.rule == "until"
+    assert found.start is None
+    assert found.end.date() == date(2026, 5, 29)

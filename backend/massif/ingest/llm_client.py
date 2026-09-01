@@ -83,10 +83,10 @@ write rather than copy.
 
 Rules that override anything the document seems to imply:
 
-  A document ABOUT closures is not itself a closure. A news article \
-discussing a past closure, a regulation, or overcrowding produces nothing.
-  If a closure states no end date, use status "unknown", not "closed". An \
-undated notice must never claim a present-tense status.
+  FIRST decide what KIND of document this is. Only a document that IS a notice produces anything: an arrêté or decree, an official announcement of a decision, or an operator stating the status of its own site. If it is reporting, commentary, an interview, a press review, a retrospective or an account of what happened, return an EMPTY ARRAY however much it discusses closures. A newspaper piece about a closure is not a closure.
+  feature_mention must name a PLACE — a hut, lift, railway, route, couloir or glacier. A hazard ("chutes de pierres"), an activity ("l'ascension"), a condition or a person is not a feature, and a notice you cannot attach to a named place produces nothing.
+  Extract only a state the document DECLARES as being in force. A state described in the past, attributed to someone else's recommendation, or narrated as part of events is not a notice.
+  If a closure states no end date, use status "unknown", not "closed". An undated notice must never claim a present-tense status.
   Never combine two notices into one element, and never split one across two.
 """
 
