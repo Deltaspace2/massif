@@ -288,6 +288,34 @@
     CC BY-SA: the link back is a licence condition, per report, never one
     shared footer.
 
+# The Swiss Alpine Club's booking platform. One endpoint on it needs no login
+# and answers with 731 days of per-day hut status — SERVICED, UNSERVICED or
+# CLOSED — which is a dated, structured season from the operator's own system.
+#
+# Three of our huts are on it: Trient, Orny, Saleinaz. Their ids come from the
+# booking link on each hut's own website and were checked against the platform's
+# public hutInfo before being written into features_curated.yaml. The other 35
+# wardened huts in the massif use other booking systems or take bookings by
+# telephone; adding one is a line in the seed, not a code change.
+- slug: hut-reservation
+  name: hut-reservation.org — CAS hut availability
+  url: https://www.hut-reservation.org/
+  source_type: operator
+  language: en
+  country: CH
+  trust_weight: 0.95
+  fetch_interval_minutes: 10080
+  active: true
+  notes: >
+    Neither this host nor alpsonline.org serves a real robots.txt — both return
+    the SPA's HTML for it, so no rules are declared and none are broken. Only
+    the public availability and hutInfo endpoints are read; everything past hut
+    metadata requires authentication and is left alone.
+
+    CLOSED carries closure_kind "outside_hours". A Swiss hut is shut for most
+    of the winter and that is the ordinary state of the world, not an incident
+    — it renders grey rather than red.
+
 - slug: pghm-chamonix
   name: PGHM Chamonix / préfecture Haute-Savoie
   url: https://www.haute-savoie.gouv.fr/

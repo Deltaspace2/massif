@@ -634,6 +634,9 @@
   name_default: Cabane du Trient
   aliases: [Trient, Trient hut, Cabane du Trient CAS, Trienthütte]
   country: CH
+  # hut-reservation.org 281 — taken from the booking link on the hut's
+  # own site, then checked against hutInfo: 3170 m against their 3170.
+  external_ids: {hut_reservation: 281}
 
 - slug: bivouac-envers-des-dorees
   feature_type: hut
@@ -650,6 +653,9 @@
   name_default: Cabane d'Orny
   aliases: [Orny, Orny hut, Cabane d'Orny CAS, Cabane dOrny]
   country: CH
+  # hut-reservation.org 279 — taken from the booking link on the hut's
+  # own site, then checked against hutInfo: 2826 m against their 2831.
+  external_ids: {hut_reservation: 279}
 
 - slug: cabane-de-la-neuve
   feature_type: hut
@@ -662,3 +668,6 @@
   name_default: Cabane de Saleinaz
   aliases: [Saleinaz, Saleina, Cabane de Saleinaz CAS, Cabane de Saleina]
   country: CH
+  # hut-reservation.org 382 — taken from the booking link on the hut's
+  # own site, then checked against hutInfo: 2691 m against their 2691.
+  external_ids: {hut_reservation: 382}
