@@ -148,6 +148,19 @@ function altitudeLabel(feature: Feature): string | null {
  *  valid till September as unverified. */
 function Age({ feature }: { feature: Feature }) {
   const flag = doubt(feature);
+  // A row can be SHOWN because of its season while its status slot is empty —
+  // an out-of-season lift has no currently-valid statement by definition. The
+  // age used to come from `status` regardless, so La Vormaine printed
+  // "never / checked never" beside a closure we had confirmed 27 minutes
+  // earlier. On a site whose premise is that a status is only as good as its
+  // date, an age that says "never" about fresh data poisons every other age
+  // on the page.
+  //
+  // `?? null` and not `||`: the API may predate these fields for the length of
+  // a deploy, and a genuine null must still fall through to the status clocks
+  // rather than being treated as a value.
+  const published = feature.status.observed_at ?? feature.season.observed_at ?? null;
+  const checked = feature.status.last_seen_at ?? feature.season.last_seen_at ?? null;
   return (
     <span className={`lrow__age mono${flag ? " lrow__age--caution" : ""}`}>
       {flag && (
@@ -155,10 +168,8 @@ function Age({ feature }: { feature: Feature }) {
           {DOUBT_LABEL[flag]}
         </span>
       )}
-      <span className="lrow__age-pub">{shortAge(feature.status.observed_at)}</span>
-      <span className="lrow__age-chk">
-        checked {shortAge(feature.status.last_seen_at)}
-      </span>
+      <span className="lrow__age-pub">{shortAge(published)}</span>
+      <span className="lrow__age-chk">checked {shortAge(checked)}</span>
     </span>
   );
 }

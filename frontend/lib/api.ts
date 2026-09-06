@@ -61,6 +61,16 @@ export interface Season {
   reason: string | null;
   /** "in_season" | "out_of_season" | "notice" | null */
   kind: string | null;
+  /** The clocks of whatever this season was derived from — rule 10 again.
+   *
+   *  A row can be SHOWN because of the season and then print its age from
+   *  `status`, and an out-of-season feature has no currently-valid statement
+   *  at all, so that age read "checked never" about a closure confirmed
+   *  twenty-seven minutes earlier. Optional for the usual deploy-skew reason:
+   *  the frontend and the API ship separately, so for the length of every
+   *  deploy this renders against an API that predates the field. */
+  observed_at?: string | null;
+  last_seen_at?: string | null;
 }
 
 export interface Feature {

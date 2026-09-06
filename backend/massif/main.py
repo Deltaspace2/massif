@@ -92,7 +92,21 @@ def _other_notice_counts(session: Session, now: datetime) -> dict:
     return counts
 
 
-def _season_status(statements: list, has_schedule: bool) -> dict:
+def _clocks(statement) -> dict:
+    """The two clocks of whatever a season was derived from.
+
+    `observed_at` is when the source published it; `last_seen_at` is when we
+    last fetched and found it still standing. Rule 10 — one column cannot
+    carry both, and a season that carries neither made the front page say
+    "checked never" about a closure confirmed minutes earlier.
+    """
+    return {
+        "observed_at": getattr(statement, "observed_at", None),
+        "last_seen_at": getattr(statement, "last_seen_at", None),
+    }
+
+
+def _season_status(statements: list, has_schedule) -> dict:
     """Is this thing available THIS SEASON, ignoring the hour of the day?
 
     The site was colouring by operational status — "is it turning right now" —
@@ -107,6 +121,14 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
     A feature that publishes seasons and has none covering today is out of
     season — that is a real answer, not missing data, and it is the one
     Grands Montets needs.
+
+    EVERY BRANCH CARRIES ITS OWN CLOCKS. The front page decides to SHOW a row
+    from the season and then prints its age, so a season without dates makes
+    the page borrow `status`'s — and for an out-of-season feature there is no
+    currently-valid statement at all, so it printed "never". `has_schedule` is
+    therefore not a bool but the schedule statement's (observed_at,
+    last_seen_at), or None: out of season is derived from the schedule, so the
+    schedule is what dates it.
     """
     # statement_type says what KIND of notice it is; status says whether it
     # asserts anything. An undated closure carries type=closure and
@@ -130,6 +152,7 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
             ),
             "reason": worst.summary_en,
             "kind": "notice",
+            **_clocks(worst),
         }
 
     live_schedule = [st for st in statements if (st.payload or {}).get("schedule")]
@@ -138,6 +161,7 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
             "value": StatusValue.OPEN,
             "reason": live_schedule[0].summary_en,
             "kind": "in_season",
+            **_clocks(live_schedule[0]),
         }
 
     # An opening is a fact that survives the night as much as a closure does,
@@ -165,6 +189,7 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
             "value": StatusValue.UNSTAFFED,
             "reason": newest.summary_en,
             "kind": "notice",
+            **_clocks(newest),
         }
     if openings:
         newest = max(openings, key=lambda st: st.observed_at)
@@ -172,16 +197,31 @@ def _season_status(statements: list, has_schedule: bool) -> dict:
             "value": StatusValue.OPEN,
             "reason": phrase_for_now(newest, datetime.now(UTC)),
             "kind": "notice",
+            **_clocks(newest),
         }
 
     if has_schedule:
+        # The one branch with no statement to date it: "this thing publishes
+        # seasons and none covers today" is derived from the schedule itself,
+        # so the schedule's clocks are the honest answer. A bare True still
+        # works and dates nothing, which is what every caller that has not
+        # been updated will pass.
+        published, seen = has_schedule if isinstance(has_schedule, tuple) else (None, None)
         return {
             "value": StatusValue.CLOSED,
             "reason": "not running this season",
             "kind": "out_of_season",
+            "observed_at": published,
+            "last_seen_at": seen,
         }
 
-    return {"value": StatusValue.UNKNOWN, "reason": None, "kind": None}
+    return {
+        "value": StatusValue.UNKNOWN,
+        "reason": None,
+        "kind": None,
+        "observed_at": None,
+        "last_seen_at": None,
+    }
 
 
 def _published_day(moment: datetime) -> DateRange:
@@ -376,7 +416,14 @@ def _feature_dict(
         },
         # What a trip planner actually asks. status is "right now"; this is
         # "this season", and it is what the UI colours by.
-        "season": season or {"value": StatusValue.UNKNOWN, "reason": None, "kind": None},
+        "season": season
+        or {
+            "value": StatusValue.UNKNOWN,
+            "reason": None,
+            "kind": None,
+            "observed_at": None,
+            "last_seen_at": None,
+        },
     }
 
 
@@ -528,15 +575,18 @@ def list_features(
         live_by_feature.setdefault(statement.feature_id, []).append(statement)
 
     # Which features publish seasons at all — an empty result then means
-    # "out of season" rather than "we have no idea".
-    schedule_features = {
-        fid
-        for (fid,) in session.execute(
-            select(Statement.feature_id)
-            .where(Statement.payload["schedule"].astext == "true")
-            .distinct()
-        )
-    }
+    # "out of season" rather than "we have no idea" — AND when we last read
+    # that schedule. The clocks are the point: out of season is derived from
+    # the schedule rather than from any live statement, so without them the
+    # front page printed "checked never" beside a closure confirmed minutes
+    # before. Newest first, so max() picks the freshest reading.
+    schedule_clocks: dict = {}
+    for fid, observed, seen in session.execute(
+        select(Statement.feature_id, Statement.observed_at, Statement.last_seen_at)
+        .where(Statement.payload["schedule"].astext == "true")
+        .order_by(Statement.feature_id, desc(Statement.last_seen_at))
+    ):
+        schedule_clocks.setdefault(fid, (observed, seen))
     # Grouped once, not per feature. Carried on the list as well as the detail
     # because a hut with no notice never appears in a status listing at all —
     # seventeen of nineteen — and its capacity and warden are the only reason
@@ -553,7 +603,7 @@ def list_features(
             stmt,
             parent,
             others.get(f.id, 0),
-            _season_status(live_by_feature.get(f.id, []), f.id in schedule_features),
+            _season_status(live_by_feature.get(f.id, []), schedule_clocks.get(f.id)),
             intervals.get(stmt.source_id) if stmt else None,
         )
         payload["facts"] = facts_by_feature.get(f.id, [])
@@ -610,14 +660,15 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
     live_here = list(
         session.scalars(select(Statement).where(Statement.feature_id == feature.id, *_live(now)))
     )
-    publishes_seasons = bool(
-        session.scalar(
-            select(Statement.id).where(
-                Statement.feature_id == feature.id,
-                Statement.payload["schedule"].astext == "true",
-            )
+    publishes_seasons = session.execute(
+        select(Statement.observed_at, Statement.last_seen_at)
+        .where(
+            Statement.feature_id == feature.id,
+            Statement.payload["schedule"].astext == "true",
         )
-    )
+        .order_by(desc(Statement.last_seen_at))
+        .limit(1)
+    ).first()
 
     parent = session.get(Feature, feature.parent_id) if feature.parent_id else None
     payload = _feature_dict(

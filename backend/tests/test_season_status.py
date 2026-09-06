@@ -22,6 +22,7 @@ class Fake:
     severity: int = 0
     summary_en: str | None = None
     observed_at: datetime = datetime(2026, 8, 25, tzinfo=UTC)
+    last_seen_at: datetime | None = None
     valid_from: datetime | None = None
     valid_to: datetime | None = None
     payload: dict = field(default_factory=dict)
@@ -318,3 +319,57 @@ def test_a_closure_still_outranks_unstaffed():
 
     said = _season_status([FakeUnstaffed(), Shut()], has_schedule=False)
     assert said["value"] is StatusValue.CLOSED
+
+
+# ------------------------------------------------- the season has its own clock
+#
+# Steven, looking at the live site: "how come they still say checked 5 days
+# ago". The five days were right — refuges-info runs weekly. But the same
+# screenshot had La Vormaine reading "never / checked never" beside a closure
+# we had confirmed twenty-seven minutes earlier, and that one was a lie.
+#
+# The cause is that the front page decides to SHOW a row from `season` and
+# then prints the age from `status`. For a feature that is out of season there
+# is no currently-valid statement at all, so `status` is empty, so the age
+# rendered "never" — on a site whose whole premise is that a status is only as
+# good as its date. It errs in the direction that makes fresh data look
+# ancient, which corrodes trust in every other age on the page.
+#
+# So a season now carries the clocks of whatever it was derived from.
+
+
+def test_a_seasonal_closure_reports_when_we_last_confirmed_it():
+    """Out of season is derived from the SCHEDULE, not from a live statement —
+    there is none, by definition. Its clock is the schedule's."""
+    seen = datetime(2026, 9, 6, 16, 10, tzinfo=UTC)
+    published = datetime(2026, 9, 1, tzinfo=UTC)
+    season = _season_status([], has_schedule=(published, seen))
+    assert season["kind"] == "out_of_season"
+    assert season["observed_at"] == published
+    assert season["last_seen_at"] == seen
+
+
+def test_a_notice_reports_the_clock_of_the_statement_it_came_from():
+    seen = datetime(2026, 9, 6, 16, 0, tzinfo=UTC)
+    shut = Fake(
+        statement_type="closure",
+        status="closed",
+        severity=2,
+        summary_en="Closed",
+        observed_at=datetime(2026, 8, 20, tzinfo=UTC),
+        last_seen_at=seen,
+    )
+    season = _season_status([shut], has_schedule=None)
+    assert season["value"] is StatusValue.CLOSED
+    assert season["observed_at"] == datetime(2026, 8, 20, tzinfo=UTC)
+    assert season["last_seen_at"] == seen
+
+
+def test_knowing_nothing_still_carries_no_clock():
+    """"never" is the right answer when we genuinely have nothing — 52 of the
+    features on the front page are exactly that, and they must keep saying so.
+    The bug was only ever about claiming it when we DO know something."""
+    season = _season_status([], has_schedule=None)
+    assert season["value"] is StatusValue.UNKNOWN
+    assert season["observed_at"] is None
+    assert season["last_seen_at"] is None
