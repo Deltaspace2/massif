@@ -5,7 +5,7 @@ Three hosts, one repo, €0/month:
 ```
 Vercel project "massif"     ← frontend/   Next.js, server-rendered
 Vercel project "massif-api" ← backend/    FastAPI as a serverless function
-Supabase                                  Postgres 15 + PostGIS
+Supabase                                  Postgres 17 + PostGIS
 GitHub Actions                            ingest, hourly cron
 ```
 
@@ -25,9 +25,14 @@ error messages.
 
 | Use | Host | Port | Mode | Why |
 |---|---|---|---|---|
-| Vercel function | `aws-0-<region>.pooler.supabase.com` | **6543** | transaction | Serverless. Many short-lived, frequently frozen clients. |
-| Actions: `migrate`, `run_ingest` | `aws-0-<region>.pooler.supabase.com` | **5432** | session | Wants one stable session; multi-statement migrations in a transaction. |
+| Vercel function | `aws-N-<region>.pooler.supabase.com` | **6543** | transaction | Serverless. Many short-lived, frequently frozen clients. |
+| Actions: `migrate`, `run_ingest` | `aws-N-<region>.pooler.supabase.com` | **5432** | session | Wants one stable session; multi-statement migrations in a transaction. |
 | Anything on Actions | `db.<ref>.supabase.co` | — | direct | **Never.** Actions runners are IPv4-only; this host is IPv6-only. It will hang, not refuse. |
+
+**The pooler hostname is not stable.** It was `aws-0-eu-west-3` when this was
+written and a project created 6 Sep 2026 got `aws-1-eu-west-3`. Read it off the
+Connect dialog rather than typing it from here; the shard number is not
+something to guess at.
 
 Append `?sslmode=require` to both. psycopg defaults to `prefer`, which will
 silently fall back to plaintext across the public internet rather than fail.
@@ -123,16 +128,19 @@ exist`. §1 is what prevents this.
 psql "postgresql://postgres.<ref>:<password>@aws-0-eu-west-3.pooler.supabase.com:5432/postgres?sslmode=require" -c "select (select count(*) from features) features, (select count(*) from features where geom is not null) with_geom, (select count(*) from documents) documents, (select count(*) from statements) statements, (select count(*) from schema_migrations) migrations;"
 ```
 
-The laptop, at the time of writing, says `75 | 40 | 26 | 301 | 9`. The last
-column is the one people forget.
+Both sides must agree. Measured 6 Sep 2026: `133 | 99 | 133 | 860 | 12`.
+The last column is the one people forget, and it is the one that matters —
+see below. The figures move every session; compare the two databases rather
+than trusting a number written here.
 
 ### schema_migrations must arrive with everything else
 
 Every ingest run starts with `python -m massif.scripts.migrate`. If the
 schema restored but the nine `schema_migrations` rows did not, the next ingest
-re-applies `0001`–`0009` against a database that already has them — which is
+re-applies every migration against a database that already has them — which is
 hard-won rule 11, the bug that has already shipped twice here. It will not
-warn you. If `migrations` is not 9 above, fix it before going further:
+warn you. If the two databases disagree on that count, fix it before going
+further:
 
 ```bash
 psql "$SUPABASE_SESSION_URL" -c "select version from schema_migrations order by 1;"
