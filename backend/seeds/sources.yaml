@@ -416,3 +416,28 @@
   active: true
   licence: CC BY-SA
   licence_url: https://creativecommons.org/licenses/by-sa/3.0/
+- slug: tmb-refuges
+  name: Tour du Mont-Blanc — disponibilités des refuges
+  url: https://www.montourdumontblanc.com/fr/refuges
+  source_type: operator
+  language: fr
+  country: FR
+  trust_weight: 0.6
+  fetch_interval_minutes: 1440
+  active: true
+  notes: |
+    The huts' own booking calendar for the Tour du Mont-Blanc, and the only
+    source in reach carrying French, Italian and Swiss refuges in one
+    structure. The Italian side is otherwise blocked: comune.courmayeur.ao.it
+    does not resolve and the tourist office is the wrong kind of publisher for
+    a notice. This is not a notice source — availability is a different claim
+    from a decree, and it is emitted as OPENING/open, never as a closure.
+    "Complet ou fermé" is the portal's own legend for a taken day: full OR
+    shut, and it will not say which, so those days say nothing at all. Only
+    "Disponible" and "Dernières places" are believed. A hut with nothing
+    bookable inside four weeks stays unknown.
+    Trust 0.6, below every operator and mairie: a booking engine reports what
+    it can sell, which is a weaker claim about a building than its own
+    operator publishing a season.
+    Index-driven, so a hut the portal adds is picked up with no config change.
+    robots.txt is "User-agent: *" with no Disallow, checked 2 Sep 2026.
