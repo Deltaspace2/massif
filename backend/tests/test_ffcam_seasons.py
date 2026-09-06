@@ -412,3 +412,47 @@ def test_a_season_with_only_one_end_is_not_a_ffcam_season():
     """
     assert _windows("Gardiennage : jusqu'à la fin septembre 2026", 2026) == []
     assert _windows("Gardiennage : à partir de début juin", 2026) == []
+
+
+# ------------------------------------------------------- asking for French
+#
+# On 1 Sep 2026 http://montblanc.ffcam.fr served "Ouverture du refuge au public
+# le 30 mai 2026". On 6 Sep, the same URL served "Opening of the refuge to the
+# public on May 30, 2026" — same stored source, two languages, five days apart.
+#
+# Nothing failed. `fr_dates` cannot read an English date, so the portal's three
+# huts simply emitted nothing, their previous statements stayed live, and the
+# Goûter and Tête Rousse seasons quietly froze at what we last parsed. The site
+# would have gone on looking correct while ageing into OLD with no visible
+# cause — a plausible, silent, wrong answer, which is the shape of every bug
+# this project has shipped.
+#
+# We never told them which language we wanted. `Accept-Language` does not move
+# this site; its CMS takes `_lang` on the query string, and that was measured
+# against every FFCAM URL we fetch before it was relied on.
+
+
+def test_every_ffcam_url_asks_for_french():
+    from massif.ingest.sources.ffcam import in_french
+
+    assert in_french("http://montblanc.ffcam.fr") == "http://montblanc.ffcam.fr?_lang=FR"
+    assert (
+        in_french("https://www.ffcam.fr/rechercher_refuge_chalet.html")
+        == "https://www.ffcam.fr/rechercher_refuge_chalet.html?_lang=FR"
+    )
+
+
+def test_an_existing_query_string_is_kept():
+    """A url that already carries parameters must gain ours, not lose its own."""
+    from massif.ingest.sources.ffcam import in_french
+
+    assert in_french("http://x.ffcam.fr/p.html?a=1") == "http://x.ffcam.fr/p.html?a=1&_lang=FR"
+
+
+def test_asking_twice_does_not_stack():
+    """re-extraction and retries both re-derive URLs; the parameter must be
+    idempotent or a stored document's url drifts away from the live one."""
+    from massif.ingest.sources.ffcam import in_french
+
+    once = in_french("http://montblanc.ffcam.fr")
+    assert in_french(once) == once

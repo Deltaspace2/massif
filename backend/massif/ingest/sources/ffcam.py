@@ -130,6 +130,32 @@ def _altitude_near(node) -> int | None:
 # statement is therefore always a subset of what the source said: we may say
 # nothing on a day the hut is in fact wardened, and can never say it is
 # wardened on a day the words do not cover.
+def in_french(url: str) -> str:
+    """The same page, in the language this parser can read.
+
+    MEASURED, not assumed. On 1 Sep 2026 `http://montblanc.ffcam.fr` served
+    "Ouverture du refuge au public le 30 mai 2026"; on 6 Sep the same URL
+    served "Opening of the refuge to the public on May 30, 2026". Both are in
+    `documents`, five days apart, and nothing in between changed here.
+
+    Nothing failed when it flipped. `fr_dates` cannot read an English date, so
+    the portal's huts emitted nothing, their previous statements stayed live,
+    and the Goûter and Tête Rousse seasons froze at whatever we last parsed in
+    French — still correct, ageing quietly into OLD with no visible cause.
+
+    `Accept-Language` does not move this site: fr, fr-FR and no header at all
+    were tried and all returned English. Its CMS takes `_lang` on the query
+    string, and the parameter was checked against every FFCAM URL we fetch —
+    the directory and the working subdomains return identical content with it.
+
+    Idempotent: re-extraction and retries both re-derive URLs, and a stored
+    document's url has to keep matching the live one.
+    """
+    if "_lang=" in url:
+        return url
+    return url + ("&" if "?" in url else "?") + "_lang=FR"
+
+
 def _coarse_windows(line: str, year: int) -> DateRange | None:
     """FFCAM's worded seasons, read by the shared parser.
 
@@ -366,7 +392,7 @@ class FfcamScraper(Scraper):
         from massif.scripts.import_osm_huts import load_boundary
 
         boundary = load_boundary()
-        directory = fetch(DIRECTORY)
+        directory = fetch(in_french(DIRECTORY))
         document, _ = store_document(session, source, DIRECTORY, directory)
         out: list[tuple[Document, list[ExtractedStatement]]] = []
         # Stored for provenance: it is the page that decides which huts are in
@@ -394,7 +420,7 @@ class FfcamScraper(Scraper):
         print(f"{len(seen)} refuge sites in the massif ({skipped_outside} rows outside)")
         for url in sorted(seen):
             try:
-                response = fetch(url)
+                response = fetch(in_french(url))
             except Exception as error:  # noqa: BLE001 — one dead site is not a failed run
                 print(f"  ! {url}: {type(error).__name__}: {error}")
                 continue
@@ -477,7 +503,7 @@ def _dump() -> int:
     from massif.scripts.import_osm_huts import load_boundary
 
     boundary = load_boundary()
-    directory = fetch(DIRECTORY)
+    directory = fetch(in_french(DIRECTORY))
     urls: set[str] = set()
     for row in HTMLParser(directory.text).css(".seolanMap-item"):
         try:
@@ -494,7 +520,7 @@ def _dump() -> int:
     total = 0
     for url in sorted(urls):
         try:
-            page = fetch(url)
+            page = fetch(in_french(url))
         except Exception as error:  # noqa: BLE001
             print(f"  ! {url}: {type(error).__name__}: {error}")
             continue
