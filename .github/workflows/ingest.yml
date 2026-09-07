@@ -158,8 +158,24 @@ jobs:
             exit 0
           fi
 
-          if [ -n "$existing" ]; then
-            gh issue edit "$existing" --title "$title" --body "$body" || true
-          else
+          count=$(printf '%s' "$title" | grep -o '^[0-9]*')
+
+          if [ -z "$existing" ]; then
             gh issue create --title "$title" --body "$body" || true
+            exit 0
+          fi
+
+          # GitHub does NOT notify on an issue EDIT — only on creation,
+          # comments and mentions. Editing alone would have meant exactly one
+          # email, ever, and silence afterwards, which is the opposite of the
+          # point. So the body is always brought up to date, and a comment is
+          # added only when the queue has GROWN since the last run. That is
+          # the news; a queue shrinking because someone is working through it
+          # is not, and commenting on every run would rebuild the 48-emails-a-
+          # day problem this file already warns about.
+          was=$(gh issue view "$existing" --json title --jq '.title' 2>/dev/null | grep -o '^[0-9]*' || echo 0)
+          gh issue edit "$existing" --title "$title" --body "$body" || true
+          if [ -n "$count" ] && [ -n "$was" ] && [ "$count" -gt "$was" ]; then
+            gh issue comment "$existing" \
+              --body "Queue grew from **$was** to **$count**. See the body above for what is waiting." || true
           fi
