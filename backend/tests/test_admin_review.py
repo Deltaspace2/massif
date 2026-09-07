@@ -119,8 +119,12 @@ def _restore(monkeypatch):
     otherwise translate every card in every test — slow, non-deterministic and
     billed. Stubbed rather than disabled, so the English block still renders
     and can be asserted on.
+
+    `_translated`, not `translate`: the real one is imported inside that
+    function rather than at module scope, because `llm_client` reaches httpx
+    and the read API is deployed without it. The wrapper is the seam now.
     """
-    monkeypatch.setattr(admin, "translate", lambda text, session, **kw: "ENGLISH")
+    monkeypatch.setattr(admin, "_translated", lambda prose, session: "ENGLISH")
     original = settings.admin_token
     yield
     settings.admin_token = original

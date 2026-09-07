@@ -185,14 +185,30 @@ Deploy the API first; the frontend build wants it.
 ### The dependency list is maintained by hand
 
 `backend/requirements.txt` is the read API's subset — `pyproject.toml` remains
-the source of truth for local dev, CI and ingest. It deliberately omits
-`httpx`, `selectolax`, `rapidfuzz`, `pyyaml` and `anthropic`, which makes it
-structurally impossible to fetch someone's website from a page request.
+the source of truth for local dev, CI and ingest. It omits `httpx`,
+`rapidfuzz`, `pyyaml` and `anthropic`.
+
+**`httpx` is the one that carries the promise.** Without an HTTP client it is
+structurally impossible to fetch someone's website from a page request. The
+others are left out for bundle size, which is a judgement rather than a
+guarantee, and lumping all of them into one sentence — as this section used to
+— made adding a parser look like the same retreat as adding a fetcher.
+`selectolax` IS included: the review panel parses the stored page it shows a
+reviewer, and it reaches it through `massif/ingest/prose.py`, which imports
+selectolax and the standard library and nothing else.
 
 The cost is that **an import added to `massif.main` that is not listed there
-dies at cold start with `ModuleNotFoundError`**. `massif/ingest/__init__.py` is
-empty, which is the only reason `main.py`'s `massif.ingest.fr_dates` import
-does not drag the scrapers in. Keep it empty.
+dies at cold start with `ModuleNotFoundError`** — a green deploy that 500s on
+every request. This had already happened by 7 Sep 2026 and nobody noticed:
+`admin.py` grew an import of `massif.ingest.llm`, which reaches
+`massif.ingest.base`, which imports httpx. Vercel installs more than this file
+asks for, so the function booted anyway and the guarantee was fiction rather
+than a build error.
+
+`tests/test_cold_start.py` enforces it in the suite now, by blocking the
+package with an import hook and starting the app. The manual check below still
+works and is a better mirror of Vercel, but it went three weeks without being
+run, which is the argument for having both.
 
 To re-check the subset after touching imports:
 

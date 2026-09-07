@@ -49,8 +49,7 @@ from massif.config import settings
 from massif.db import get_session
 from massif.enums import TRANSIENT_STATUSES, StatusValue
 from massif.ingest.fr_dates import published_date
-from massif.ingest.llm import normalise_space, readable_text
-from massif.ingest.llm_client import translate
+from massif.ingest.prose import normalise_space, readable_text
 from massif.models import Document, Feature, Source, Statement
 from massif.status import recompute_feature
 
@@ -337,6 +336,30 @@ def _siblings(others: list) -> str:
     return f"<p class=w>Also taken from this page:</p><ul class=sib>{items}</ul>"
 
 
+def _translated(prose: str, session) -> str | None:
+    """The page in English, or None when we cannot ask.
+
+    Imported HERE rather than at module scope, and that is not a style choice.
+    `llm_client` reaches `massif.ingest.base`, which imports httpx — so a
+    module-level import would mean the read API could not start without an HTTP
+    client, retracting the guarantee at the top of `backend/requirements.txt`
+    that it cannot fetch anyone's website from a page request. The API is
+    deployed without httpx; only the admin project needs it, and only when a
+    reviewer opens a card.
+
+    ImportError therefore joins "no API key" as a normal outcome rather than an
+    error: both mean no translation, the original is always on the page
+    already, and `_card` already renders that case.
+    """
+    if not prose or session is None:
+        return None
+    try:
+        from massif.ingest.llm_client import translate
+    except ImportError:
+        return None
+    return translate(prose, session)
+
+
 def _card(
     statement: Statement,
     feature: Feature,
@@ -394,7 +417,7 @@ def _card(
     # Asked for once per page and then cached on content, so opening the queue
     # again costs nothing. None when there is no key, which is not an error:
     # the original is always there and the translation is the extra.
-    english = translate(plain, session) if plain and session is not None else None
+    english = _translated(plain, session)
     context = ""
     if marked:
         english_block = (

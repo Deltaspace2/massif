@@ -2,13 +2,27 @@
 # pyproject.toml stays the source of truth for local dev, CI and the ingest
 # job; this is the READ API's subset and nothing else.
 #
-# Deliberately excludes httpx, selectolax, rapidfuzz, pyyaml and anthropic.
-# The API never fetches, parses or resolves anything — it reads rows that
-# ingest already wrote. Keeping them out keeps the bundle small and makes it
-# structurally impossible to scrape someone's website from a page request.
+# Deliberately excludes httpx, rapidfuzz, pyyaml and anthropic.
+#
+# HTTPX IS THE ONE THAT CARRIES THE PROMISE. Without an HTTP client it is
+# structurally impossible to fetch someone's website from a page request; the
+# others are left out for bundle size, which is a judgement rather than a
+# guarantee. That distinction used to be blurred here — all five were listed as
+# if they were one rule — and it mattered, because it made adding selectolax
+# look like the same kind of retreat as adding httpx. It is not: selectolax
+# parses, it cannot fetch.
+#
+# selectolax IS included: the review panel shows a reviewer the page a
+# statement came from, which means parsing stored HTML. It is reached through
+# massif/ingest/prose.py, which imports selectolax and the standard library and
+# nothing else, precisely so that this list does not have to grow httpx to get
+# it.
 #
 # If massif.main grows an import that is not listed here, the function will
-# fail at cold start with ModuleNotFoundError. Keep the two in step.
+# fail at cold start with ModuleNotFoundError — a green deploy that 500s on
+# every request. tests/test_cold_start.py enforces this now; the manual venv
+# check in DEPLOY.md went three weeks without being run and the guarantee had
+# been broken for most of them.
 
 fastapi>=0.115
 sqlalchemy>=2.0.36
@@ -16,4 +30,5 @@ geoalchemy2>=0.15
 psycopg[binary]>=3.2
 pydantic>=2.9
 pydantic-settings>=2.6
+selectolax>=0.3.21
 shapely>=2.0
