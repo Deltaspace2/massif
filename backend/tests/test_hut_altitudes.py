@@ -206,14 +206,24 @@ def test_the_provenance_sentence_names_the_hosts_not_us():
 
 
 def test_the_provenance_sentence_credits_only_who_published_that_figure():
-    """Live bug: the Flégère row records refuges.info's 1807 m so the matcher's
-    disagreement is visible, and the first draft of this sentence then told the
-    reader refuges.info had published 1877."""
-    sentence = provenance(BY_SLUG["la-flegere"])
-    assert "refuges.info" not in sentence
+    """Live bug: a row may record a source that disagrees — Bertone does — and
+    the first draft of this sentence then told the reader every host in the row
+    had published the chosen figure."""
+    sentence = provenance(BY_SLUG["rifugio-bertone"])
+    assert "refuges.info" not in sentence  # it says 1970
+    assert "wikipedia.org" not in sentence  # it says 1979
     assert sentence == (
-        "Altitude 1877 m as published by chamonix.com and refuge-de-la-flegere.com."
+        "Altitude 1989 m as published by courmayeurmontblanc.it and rifugiobertone.it."
     )
+
+
+def test_a_near_miss_corroborates_the_figure_without_being_credited_with_it():
+    """Le Peuty passes the gate on 1326 and 1328 — two surveys of one building
+    — and the page must still not say tmb-guide.com published 1326."""
+    row_ = BY_SLUG["refuge-le-peuty"]
+    assert hold_reason(row_) is None
+    assert {r.host for r in row_.readings} == {"refuges.info", "tmb-guide.com"}
+    assert provenance(row_) == "Altitude 1326 m as published by refuges.info."
 
 
 def test_the_host_of_a_url_ignores_www_and_language_prefixes():
@@ -310,14 +320,15 @@ def test_applying_sets_the_altitude_and_says_where_it_came_from():
     )
 
 
-def test_a_second_run_does_not_repeat_the_sentence():
-    feature = FakeFeature(notes=OSM_NOTE)
-    rows = [BY_SLUG["refuge-du-montenvers"]]
-    apply_rows(FakeSession(feature), rows, apply=True)
-    once = feature.notes
-    feature.alt_max = None  # the only way back here; the guard below is the real one
-    apply_rows(FakeSession(feature), rows, apply=True)
-    assert feature.notes == once
+def test_the_sentence_is_not_appended_twice():
+    """Reachable state: somebody clears an altitude to have it re-sourced, and
+    the note explaining the old one is still sitting there."""
+    row_ = BY_SLUG["refuge-du-montenvers"]
+    feature = FakeFeature(notes=f"{OSM_NOTE} {provenance(row_)}")
+    before = feature.notes
+    apply_rows(FakeSession(feature), [row_], apply=True)
+    assert feature.alt_max == 1913
+    assert feature.notes == before
 
 
 def test_an_altitude_already_held_is_never_overwritten():

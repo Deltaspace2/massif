@@ -49,23 +49,22 @@
   alt_max: 1877
   note: >-
     The refuge's own site says 1877 m twice — the building and its terrace —
-    and the lift page for the station it stands beside says the same. The
-    refuges.info entry's 1807 m looks like 1877 with two digits swapped; it is
-    kept below because it is what that source will hand `hut_facts`, and at
-    70 m it still clears the 120 m screen rather than blocking the match. The
-    gondola article's 1899 m is the arrival station, not the refuge.
+    and the lift page for the station it stands beside says the same. Two other
+    figures exist and are deliberately NOT sources below, because `sources` is
+    published figures for this building and nothing else: refuges.info's entry
+    says 1807 m, which looks like 1877 with two digits swapped and is what that
+    source will hand `hut_facts` (70 m out, so the match still clears the 120 m
+    screen — worth re-reading if that entry is ever corrected), and the
+    Wikipedia article's 1899 m is the gondola's arrival station rather than the
+    refuge. A lift station, a refuge and a restaurant sit within a hundred
+    metres of each other up there, so a figure for the wrong one of the three
+    is not corroboration.
   sources:
     - url: https://www.refuge-de-la-flegere.com/en/the-refuge/
       value: 1877
       retrieved: 2026-09-07
     - url: https://en.chamonix.com/activities/practical-information-about-the-lifts/flegere-gondola-and-index-lift
       value: 1877
-      retrieved: 2026-09-07
-    - url: https://fr.wikipedia.org/wiki/T%C3%A9l%C3%A9cabine_de_la_Fl%C3%A9g%C3%A8re
-      value: 1899
-      retrieved: 2026-09-07
-    - url: http://www.refuges.info/point/360/refuge-garde/aiguilles-rouges/refuge-de-la-flegere/
-      value: 1807
       retrieved: 2026-09-07
 
 - slug: refuge-de-tre-la-tete
@@ -110,14 +109,18 @@
     refuges.info and an independent TMB walkers' guide both carry 1505 m in the
     entry title. tmb-guide.com is NOT the portal tmb-refuges reads — that is
     montourdumontblanc.com, refused here — but it is a guide to the same trail
-    and may well have copied the portal, so this pair is the weakest of the
-    seven. seechamonix.com rounds it to 1500 m.
+    and could have copied the portal, which would leave this row resting on one
+    figure. seechamonix.com is the third leg: an English-language Chamonix
+    directory, unrelated to either, rounding to 1500 m.
   sources:
     - url: https://www.refuges.info/point/351/gite-d-etape/refuge-du-Fioux/
       value: 1505
       retrieved: 2026-09-07
     - url: https://www.tmb-guide.com/en/refuges/refuge-du-fioux-1505m-saint-gervais-france/
       value: 1505
+      retrieved: 2026-09-07
+    - url: https://www.seechamonix.com/accommodation/huts/le-fioux-refuge-1500m-chamonix
+      value: 1500
       retrieved: 2026-09-07
 
 - slug: refuge-le-peuty

@@ -160,13 +160,14 @@ def provenance(row: Row) -> str:
     writer appends this rather than leaving the old sentence to speak for a
     number it did not supply.
 
-    Only the hosts that published THIS figure are named. The first draft named
-    every host in the row, which put "1877 m as published by ... refuges.info"
-    on the Flégère page when refuges.info is the one source saying 1807 —
-    crediting a number to somebody who did not print it, on the page, in the
-    sentence written to be honest about where the number came from.
+    Only the hosts that printed THIS EXACT figure are named, which is a
+    narrower rule than the one that lets the row through. Two drafts got this
+    wrong in the same direction: the first named every host in the row, and the
+    second named everyone within AGREEMENT_M — which credited Wikipedia's
+    1979 m with publishing Bertone's 1989. Agreement is how confident we are;
+    attribution is who said the words. A near miss corroborates the number and
+    still did not print it, and it is recorded in the seed file's note where
+    whoever maintains this can see it.
     """
-    hosts = sorted(
-        {r.host for r in row.readings if abs(r.value - (row.alt_max or 0)) <= AGREEMENT_M}
-    )
+    hosts = sorted({r.host for r in row.readings if r.value == row.alt_max})
     return f"Altitude {row.alt_max} m as published by {' and '.join(hosts)}."

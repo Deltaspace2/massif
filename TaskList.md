@@ -84,6 +84,11 @@ nowhere else. Filled: Montenvers 1913, Flégère 1877, Tré-la-Tête 1970, Berto
 1989, Fioux 1505, Le Peuty 1326, Bionnassay 1320. Three of those unblock the
 TMB matches above.
 
+Montenvers is the odd one: refuges.info has no entry for it at all, for the
+same reason our own OSM query missed it for so long — it is `tourism=hotel`,
+and a hut directory is not looking for hotels. Its altitude comes from the
+operator and the valley's tourist office instead.
+
 **Held, and worth someone's ten minutes:**
 
 - `cabane-du-lac-des-vesses` — 2315 m appears on four sites that all republish
