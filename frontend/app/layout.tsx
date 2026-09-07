@@ -25,9 +25,12 @@ const plexMono = localFont({
 
 export const metadata: Metadata = {
   title: {
-    // Short enough to survive a browser tab, which shows roughly 20-30
-    // characters, and well inside the ~60 Google renders before truncating.
-    default: "Mont Blanc massif — open or shut",
+    // 25 characters. A tab with a dozen siblings shows about 18, so this
+    // still truncates to "Mont Blanc — open…" — below that there is nothing
+    // useful left to say, and the FAVICON is what identifies a narrow tab.
+    // "massif" is dropped rather than "Mont Blanc": the search term is the
+    // half worth keeping, and the domain already says massif.
+    default: "Mont Blanc — open or shut",
     template: "%s — massif",
   },
   description:
