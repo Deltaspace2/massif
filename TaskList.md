@@ -597,9 +597,30 @@ Protection cannot go on the existing API project, because the frontend
 server-renders every page by calling it and SSO would block those calls too.
 That is the same trap as the 302 we hit on the first deployment URL.
 
-**Verified by:** `/admin/review` still 404 on the public API; the admin project
-returning a Vercel SSO redirect to an unauthenticated client and the real page
-to a signed-in one.
+**MEASURED 7 Sep 2026 — the second gate is not available on Hobby.**
+`massif-admin` exists, at `massif-admin-iota.vercel.app`, with ADMIN_TOKEN set.
+Deployment Protection was switched on at **Standard Protection**, which the
+dropdown describes as "protect all except production Custom Domains". It also
+exempts the Vercel-ASSIGNED production domain: an unauthenticated request gets
+a plain 401 from our own Basic auth, not an SSO redirect, and `/health` returns
+200 to anyone. "All Deployments" is Pro-only.
+
+So what is actually in place is ONE gate, not two:
+
+- `ADMIN_TOKEN` over TLS, 32 bytes of entropy — 401 without it and with a
+  wrong one, checked
+- write routes additionally POST-only with an Origin check
+- the public API still registers no admin routes at all — 404, checked
+- `/health`, `/features` and `/docs` on the admin host are public, which leaks
+  nothing the public API does not already serve
+
+That is the design the code was written for and it is a real lock. It is
+weaker than what this section originally claimed, which was two independent
+gates. Options if it ever matters: Vercel Pro, or put the admin behind
+something else entirely — the token is doing all the work today.
+
+**Verified by:** `/admin/review` 404 on the public API and 401 on the admin
+host, both unauthenticated and with a wrong token.
 
 ## Let a human force one source from the Actions tab
 
