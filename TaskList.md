@@ -647,3 +647,35 @@ fifty.
 **Verified by:** the recon script's output committed as the seed file's header,
 and a test that every entry in `hut_sites.yaml` names a hut that exists.
 
+## Move the domain to a cost-price registrar — window opens 6 Nov 2026
+
+`montblancmassif.org` was registered at Namecheap on 7 Sep 2026 for **$7.98**,
+promotional. It renews at **$14.48/yr**, which is above the $10 budget that
+picked this name in the first place.
+
+Cloudflare Registrar sells at cost — roughly $10–11 for `.org`, with no promo
+and no hike, because they make their money elsewhere. A transfer **adds a
+year** rather than resetting it, so nothing already paid for is wasted.
+
+**Dates.** ICANN locks a new registration against transfer for 60 days, so:
+
+- **not before 6 Nov 2026** — it will simply be refused
+- **do it around early Dec 2026** — comfortably past the lock, far from renewal
+- **not later than ~Aug 2027** — leave room before the 7 Sep 2027 renewal, or
+  auto-renew charges $14.48 first and the saving is gone for a year
+
+**Leave auto-renew ON throughout.** It is insurance, not the plan: losing the
+domain to a lapsed renewal once the feature pages are indexed costs far more
+than $6, and SEO is this project's only distribution channel.
+
+**The one trade-off, decided in advance so it is not a surprise:** Cloudflare
+Registrar requires the domain to use Cloudflare's nameservers, so DNS moves
+there from wherever it is. Vercel gives you the records to paste in. Set every
+record pointing at Vercel to **grey cloud ("DNS only")** — orange proxies the
+traffic through Cloudflare's CDN on top of Vercel's, which causes caching
+oddities and can interfere with certificate issuance.
+
+**Worth roughly $4/yr.** Small. If it is more fiddle than it is worth when the
+reminder comes round, staying put is a perfectly reasonable answer — this note
+exists so that is a decision rather than a default.
+
