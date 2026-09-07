@@ -19,11 +19,26 @@ name: ingest
 on:
   workflow_dispatch:
   schedule:
-    # Hourly, not half-hourly. Scheduled runs on Actions are queued rather than
-    # guaranteed and get dropped under load, so a tight cron buys unreliability
-    # rather than freshness — and seeds/sources.yaml sets a real per-source
-    # fetch_interval_minutes anyway, which this only puts a ceiling on.
-    - cron: "0 * * * *"
+    # Every 30 minutes, revised 7 Sep 2026 against measurement.
+    #
+    # This said "hourly, not half-hourly" on the reasoning that scheduled runs
+    # are queued rather than guaranteed, so a tight cron buys unreliability
+    # rather than freshness. The queuing is real; the conclusion was not. On an
+    # hourly schedule GitHub actually delivered runs at 17:27, 19:54, 21:54,
+    # 23:25, 02:33, 07:49 and 13:54 — gaps of 1.5 to 6 hours. The ceiling this
+    # sets was the binding constraint, not the per-source cadence underneath
+    # it, and mbnr-live's 30-minute feed sat 224 minutes stale with eight lifts
+    # badged UNCHECKED.
+    #
+    # More scheduled firings mean more delivered runs; GitHub drops some, not
+    # all. It costs nothing to ask: this repository is public, so Actions
+    # minutes are unlimited, and a run takes two to three of them.
+    #
+    # tests/test_ingest_schedule.py holds the invariant this got wrong — no
+    # active source may declare a cadence shorter than the cron can attempt,
+    # because `_unchecked` fires at two missed intervals and a badge that can
+    # never clear is one nobody reads.
+    - cron: "*/30 * * * *"
 
 jobs:
   ingest:
