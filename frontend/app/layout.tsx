@@ -71,6 +71,12 @@ export default function RootLayout({
             <a href="/">STATUS</a>
             <a href="/map">MAP</a>
             <a href="/feed">FEED</a>
+            {/* ABOUT sits before REPORT because it answers the question that
+                comes first — what is this, and can I trust it — and because
+                the User-Agent we send to every server we fetch points at it.
+                A sysadmin following that link should land on a page that is
+                reachable from the site's own navigation, not an orphan. */}
+            <a href="/about">ABOUT</a>
             <a href="/feedback">REPORT</a>
           </nav>
         </header>
