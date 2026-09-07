@@ -679,3 +679,50 @@ oddities and can interfere with certificate issuance.
 reminder comes round, staying put is a perfectly reasonable answer — this note
 exists so that is a decision rather than a default.
 
+## What happens when a source stops mentioning a feature
+
+Found 7 Sep 2026 by five lifts sitting permanently UNCHECKED after the cron
+was fixed. All six Megève features — `megeve`, `megeve-mont-arbois`,
+`megeve-rochebrune` and three child lifts — come from `mbnr-live` and were last
+seen **1109 minutes ago**, while every other feature from that same source
+refreshed minutes earlier in the same run.
+
+The scraper is not broken. Megève is a ski area, it is September, and the
+operator simply dropped them from the live feed. Their statements are frozen
+mid-sentence — *"close — départ toutes les 30 mn à partir de 9h"* — and will
+stay that way until someone notices.
+
+**This is the general bug, and Megève is only where it surfaced.**
+`retire_replaced` retires an old statement when a NEW one arrives for the same
+feature, source and type. A source that stops mentioning a feature never sends
+that successor, so nothing retires, and the last thing it ever said stands for
+ever. The same shape has now been seen three times in a week: FFCAM switching
+to English (seasons froze), re-extraction over stored history (duplicates
+stayed live), and this.
+
+The badges are doing their job — OLD and UNCHECKED are exactly what a reader
+needs here — but they are the only thing standing between a reader and a
+sentence the source withdrew months ago.
+
+**Two things to decide, and they are separate:**
+
+1. **The mechanism.** Should a statement expire when its source has run
+   successfully N times without mentioning its feature? That is real evidence:
+   the source was asked and did not say it. Care needed — a feed that omits a
+   feature for one run because of a partial outage must not retire it, so this
+   wants consecutive successful runs, not elapsed time. Consider also whether
+   the feature should fall back to `unknown` rather than keeping a stale
+   status, since "the operator no longer lists this lift" is closer to "we do
+   not know" than to "it is closed".
+
+2. **The scope.** Megève is 19–22 km from Chamonix and outside the massif; the
+   OSM hut import already filters on a boundary polygon and these lifts did
+   not go through it. Either they belong and should be refreshed, or they do
+   not and should never have been auto-discovered. Note the same question
+   probably covers other operator-feed children — check what else came in that
+   way before deciding.
+
+**Verified by:** a test that a statement whose source has completed N runs
+without re-emitting it stops being current; and, if the scope answer is "out",
+a boundary check on lift import mirroring `import_osm_huts.load_boundary`.
+
