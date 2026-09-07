@@ -132,6 +132,24 @@ function saidAbout(feature: Feature): { text: string; quoted: boolean } {
   return { text: "no notices in force", quoted: false };
 }
 
+/** The countries the tracked features are actually in, commonest first.
+ *
+ *  Derived rather than written down. The kicker said "FR / IT" while the data
+ *  held ten Swiss features — nine huts around Trient and Orny, and the La Breya
+ *  lift — and the same page said "the massif spans FR · IT · CH" a few hundred
+ *  pixels further down. A sentence composed once does not stay true; this one
+ *  was wrong the moment the first Swiss hut was imported, and nothing could
+ *  have noticed because nothing was watching it.
+ */
+function countriesPresent(features: Feature[]): string[] {
+  const counts = new Map<string, number>();
+  for (const f of features) {
+    if (f.country) counts.set(f.country, (counts.get(f.country) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([code]) => code);
+}
+
+
 function altitudeLabel(feature: Feature): string | null {
   if (feature.alt_min && feature.alt_max && feature.alt_min !== feature.alt_max) {
     return `${feature.alt_min}–${feature.alt_max} m`;
@@ -468,7 +486,9 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
         />
         <div className="hero__scrim" />
         <div className="hero__copy">
-          <div className="hero__kicker">MONT BLANC MASSIF · FR / IT</div>
+          <div className="hero__kicker">
+            MONT BLANC MASSIF · {countriesPresent(features).join(" / ")}
+          </div>
           <h1 className="hero__headline">
             What&rsquo;s open,
             <br />
