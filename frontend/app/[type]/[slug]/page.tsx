@@ -25,10 +25,16 @@ export async function generateMetadata({
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { type, slug } = await params;
   try {
     const feature = await getFeature(slug);
     return {
+      // Safe here and NOT on the root layout: this page knows its own path.
+      // Layout metadata is inherited verbatim rather than recomputed, so a
+      // canonical set there would name the front page as the original for
+      // all 132 of these — which is a request to drop the SEO surface from
+      // the index as duplicates.
+      alternates: { canonical: `/${type}/${slug}` },
       // The STATUS WORD, not the summary sentence. Interpolating the summary
       // produced "Abri Simond — Open all year and unstaffed — no warden, so
       // there is no season to open or close. Carry everything you need —

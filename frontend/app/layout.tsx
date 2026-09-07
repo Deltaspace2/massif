@@ -2,6 +2,7 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { SITE_URL } from "@/lib/site";
 
 // The woff2 files live in the repo rather than being fetched from Google at
 // build time. next/font/google would self-host them in the output either way,
@@ -25,6 +26,19 @@ const plexMono = localFont({
 });
 
 export const metadata: Metadata = {
+  // Without this, Next.js cannot turn a relative path into an absolute URL,
+  // so `alternates.canonical` and every Open Graph URL are simply dropped.
+  // The pages looked correct in a browser the whole time it was missing —
+  // the tags that were absent are the ones only a crawler reads.
+  //
+  // No `alternates.canonical` here. Metadata set on the root layout is
+  // INHERITED by every page rather than recomputed per path, so a canonical
+  // of "/" would have every feature page declare the front page as its
+  // original — asking Google to drop the entire SEO surface as duplicates of
+  // the homepage. A canonical belongs on a page that knows its own URL, or
+  // nowhere. Nowhere is safe here: these URLs have no query-string or
+  // trailing-slash variants to consolidate.
+  metadataBase: new URL(SITE_URL),
   title: {
     // "What's open, what's shut" is the hero's voice — it works set at 62px
     // over a photograph and reads as marketing in a tab and a search result.
