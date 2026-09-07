@@ -29,7 +29,16 @@ export async function generateMetadata({
   try {
     const feature = await getFeature(slug);
     return {
-      title: `${feature.name} — ${feature.status.summary ?? feature.status.value}`,
+      // The STATUS WORD, not the summary sentence. Interpolating the summary
+      // produced "Abri Simond — Open all year and unstaffed — no warden, so
+      // there is no season to open or close. Carry everything you need —
+      // massif": 129 characters, unreadable in a tab and truncated by Google
+      // long before the useful part. The word plus the altitude is what
+      // someone scanning tabs or search results actually needs, and "closed"
+      // in the title is the term they searched for.
+      title: `${feature.name} — ${feature.season.value}${
+        feature.alt_max ? ` · ${feature.alt_max} m` : ""
+      }`,
       description:
         `Current status for ${feature.name} in the Mont Blanc massif. ` +
         `${feature.status.summary ?? ""} Last confirmed ` +

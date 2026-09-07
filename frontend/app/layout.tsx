@@ -25,7 +25,9 @@ const plexMono = localFont({
 
 export const metadata: Metadata = {
   title: {
-    default: "Mont Blanc massif — what's open, what's shut",
+    // Short enough to survive a browser tab, which shows roughly 20-30
+    // characters, and well inside the ~60 Google renders before truncating.
+    default: "Mont Blanc massif — open or shut",
     template: "%s — massif",
   },
   description:
