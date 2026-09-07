@@ -30,6 +30,8 @@ python -m massif.scripts.review             # statements a model read, awaiting 
 python -m massif.scripts.llm_probe          # what the model makes of one stored document
 python -m massif.scripts.recompute          # rebuild feature_status from scratch
 python -m massif.scripts.import_hut_facts [--apply]  # refuges.info directory facts
+python -m massif.scripts.import_hut_altitudes [--apply]  # hand-read altitudes,
+                                            # for huts no source of ours carries
 uvicorn massif.main:app --reload            # API on :8000
 
 # any scraper, dry run, no DB writes:

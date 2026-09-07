@@ -69,6 +69,44 @@ it is not the answer — hand-written entries are, which is what the curated fil
 is for. `python -m massif.scripts.import_osm_huts --radius 17` would show what
 a wider net catches if you want to compare.
 
+## The nine huts with no altitude — SEVEN FILLED, two held
+
+`reports/2026-09-02.md` measured nine active huts with no altitude in
+`features`, none in `feature_facts`, and no `ele` in OSM — the last checked by
+asking Overpass directly, so the gap is upstream rather than in our importer.
+Without one, a hut is matched on its name alone, and `refuge-du-fioux`,
+`refuge-le-peuty` and `rifugio-bertone` each sat refused by `tmb-refuges` with
+"our record carries no altitude to check it against".
+
+`seeds/hut_altitudes.yaml` now carries the numbers, read by hand, one URL per
+figure, and `import_hut_altitudes` writes them where `alt_max` is NULL and
+nowhere else. Filled: Montenvers 1913, Flégère 1877, Tré-la-Tête 1970, Bertone
+1989, Fioux 1505, Le Peuty 1326, Bionnassay 1320. Three of those unblock the
+TMB matches above.
+
+**Held, and worth someone's ten minutes:**
+
+- `cabane-du-lac-des-vesses` — 2315 m appears on four sites that all republish
+  refuges.info, which is one source in four coats. camptocamp or the Valle
+  d'Aosta cadastre next.
+- `cabane-de-la-tour-rouge` — only refuges.info publishes a figure (2822 m) and
+  that entry's own URL calls it the *ancien* bivouac, while the shelter there
+  was rebuilt on the same ledge in 2021. camptocamp waypoint 1310495 carries an
+  elevation; fetch it.
+
+**Caveat that belongs on the record.** The session that wrote the file could
+not open any of the pages it cites — outbound egress was blocked to every host
+— so the figures come from search-index titles and snippets. Two independent
+hosts had to agree before anything was written, and the file refuses the TMB
+portal as evidence for the huts whose TMB match the altitude then clears, but
+the primary check is still owed. Anyone who can reach these pages: open them,
+and correct `retrieved`.
+
+Not attempted, deliberately: IGN's elevation API. It answers with the ground
+under the building rather than the altitude the operator publishes, and whether
+those are close enough to screen a name match is a question to measure, not
+assume. Still the right next move for a hut nobody publishes a figure for.
+
 ## Refuge de la Leisse
 **ADDED ON REQUEST, BUT IT IS NOT IN THIS MASSIF — needs a decision first.**
 

@@ -1,0 +1,183 @@
+# Altitudes for the huts no source of ours could supply, read by hand.
+#
+# THE NINE. reports/2026-09-02.md measured that nine active huts carry no
+# altitude in `features`, none in `feature_facts`, and — asked directly, one
+# Overpass call, all nine objects returned — no `ele` in OpenStreetMap either.
+# They are the huts `import_osm_huts` created, so the gap is upstream in OSM
+# rather than in our importer, and no amount of re-running anything fills it.
+# Without an altitude a hut is matched on its name alone, which is how
+# `refuge-du-fioux`, `refuge-le-peuty` and `rifugio-bertone` sat refused by
+# tmb-refuges with "our record carries no altitude to check it against".
+#
+# HOW THESE WERE READ. Every figure below was found through a web search on
+# 7 Sep 2026 and every URL is recorded. The session that wrote this file could
+# not open any of them: outbound egress was blocked to every host, so the
+# numbers come from search-index titles and snippets rather than from the
+# fetched page. That is weaker evidence than this project usually accepts, and
+# it is the reason for the two-host rule in `massif/ingest/hut_altitudes.py`
+# and for `--apply` not being the default. Anyone who CAN reach these pages
+# should open them and confirm; `retrieved` says when each was last read.
+#
+# THE RULES, enforced in `massif/ingest/hut_altitudes.py`, not here:
+#   * two independent hosts publishing the same figure, or the row is held
+#   * the written value is one somebody published — never an average
+#   * the TMB portal cannot supply an altitude, because tmb-refuges is the
+#     thing that altitude then has to clear
+#   * a disagreement wider than the matching tolerance holds the row instead
+#     of picking a winner
+#
+# HELD ROWS STAY. A hut we could not source keeps its one reading and prints on
+# every run, because "we found one source" is information and an absent line is
+# not.
+
+- slug: refuge-du-montenvers
+  alt_max: 1913
+  note: >-
+    No refuges.info entry — it is tagged tourism=hotel in OSM and reads as one,
+    which is also why our own OSM query missed it for so long. The operator and
+    the valley's tourist office agree, and the site altitude (the railway
+    terminus, a few steps away) is published as the same figure everywhere.
+  sources:
+    - url: https://en.refugedumontenvers.com/
+      value: 1913
+      retrieved: 2026-09-07
+    - url: https://www.chamonix.com/hotels-de-charme/refuge-du-montenvers
+      value: 1913
+      retrieved: 2026-09-07
+
+- slug: la-flegere
+  alt_max: 1877
+  note: >-
+    The refuge's own site says 1877 m twice — the building and its terrace —
+    and the lift page for the station it stands beside says the same. The
+    refuges.info entry's 1807 m looks like 1877 with two digits swapped; it is
+    kept below because it is what that source will hand `hut_facts`, and at
+    70 m it still clears the 120 m screen rather than blocking the match. The
+    gondola article's 1899 m is the arrival station, not the refuge.
+  sources:
+    - url: https://www.refuge-de-la-flegere.com/en/the-refuge/
+      value: 1877
+      retrieved: 2026-09-07
+    - url: https://en.chamonix.com/activities/practical-information-about-the-lifts/flegere-gondola-and-index-lift
+      value: 1877
+      retrieved: 2026-09-07
+    - url: https://fr.wikipedia.org/wiki/T%C3%A9l%C3%A9cabine_de_la_Fl%C3%A9g%C3%A8re
+      value: 1899
+      retrieved: 2026-09-07
+    - url: http://www.refuges.info/point/360/refuge-garde/aiguilles-rouges/refuge-de-la-flegere/
+      value: 1807
+      retrieved: 2026-09-07
+
+- slug: refuge-de-tre-la-tete
+  alt_max: 1970
+  note: >-
+    The operator publishes the figure in its own description of the refuge, and
+    refuges.info carries it in the entry title. Independent of tmb-refuges,
+    which is what will use it.
+  sources:
+    - url: https://www.trelatete.com/le-refuge-2/
+      value: 1970
+      retrieved: 2026-09-07
+    - url: http://www.refuges.info/point/350/gite-d-etape/refuge-de-Tre-la-Tete/
+      value: 1970
+      retrieved: 2026-09-07
+
+- slug: rifugio-bertone
+  alt_max: 1989
+  note: >-
+    The refuge's own site and Courmayeur's tourist office both publish 1989 m.
+    Italian Wikipedia says 1979 and refuges.info 1970 — a 19 m spread, well
+    inside the screen, and recorded rather than tidied away. The TMB portal's
+    2000 m is deliberately absent: that portal is the source this altitude
+    unblocks, so it cannot also be the evidence.
+  sources:
+    - url: http://www.rifugiobertone.it/wp/it/il-rifugio/
+      value: 1989
+      retrieved: 2026-09-07
+    - url: https://www.courmayeurmontblanc.it/en/strutture/rifugio-giorgio-bertone/
+      value: 1989
+      retrieved: 2026-09-07
+    - url: https://it.wikipedia.org/wiki/Rifugio_Giorgio_Bertone
+      value: 1979
+      retrieved: 2026-09-07
+    - url: https://www.refuges.info/point/8845/gite-d-etape/refuge-Giorgio-Bertone/
+      value: 1970
+      retrieved: 2026-09-07
+
+- slug: refuge-du-fioux
+  alt_max: 1505
+  note: >-
+    refuges.info and an independent TMB walkers' guide both carry 1505 m in the
+    entry title. tmb-guide.com is NOT the portal tmb-refuges reads — that is
+    montourdumontblanc.com, refused here — but it is a guide to the same trail
+    and may well have copied the portal, so this pair is the weakest of the
+    seven. seechamonix.com rounds it to 1500 m.
+  sources:
+    - url: https://www.refuges.info/point/351/gite-d-etape/refuge-du-Fioux/
+      value: 1505
+      retrieved: 2026-09-07
+    - url: https://www.tmb-guide.com/en/refuges/refuge-du-fioux-1505m-saint-gervais-france/
+      value: 1505
+      retrieved: 2026-09-07
+
+- slug: refuge-le-peuty
+  alt_max: 1326
+  note: >-
+    Swiss, in Trient, and the commune's own pages give an address rather than
+    an altitude. refuges.info titles it 1326 m and the TMB guide 1328 m — two
+    metres apart, which is two surveys of one building.
+  sources:
+    - url: https://www.refuges.info/point/7103/gite-d-etape/Mont-Blanc/Refuge-le-Peuty/
+      value: 1326
+      retrieved: 2026-09-07
+    - url: https://www.tmb-guide.com/en/refuges/refuge-le-peuty-1328m-trient-suisse/
+      value: 1328
+      retrieved: 2026-09-07
+
+- slug: auberge-de-bionnassay
+  alt_max: 1320
+  note: >-
+    Saint-Gervais publishes the hamlet the auberge stands in at 1320 m, which
+    refuges.info gives for the building itself.
+  sources:
+    - url: https://www.refuges.info/point/10690/gite-d-etape/auberge-de-Bionnassay/
+      value: 1320
+      retrieved: 2026-09-07
+    - url: https://www.saintgervais.com/hebergement-collectif/auberge-de-bionnassay-saint-gervais-les-bains
+      value: 1320
+      retrieved: 2026-09-07
+
+# ---------------------------------------------------------------------------
+# HELD. Read, not found twice. Left here with what was found so the next person
+# starts from the evidence rather than from the search box.
+
+- slug: cabane-du-lac-des-vesses
+  alt_max: null
+  held: >-
+    One source in four coats. refuge.camp, outtrip.fr, dorsdehors.com and
+    altituderando all carry 2315 m and all republish refuges.info, so counting
+    them is counting one figure four times. The only genuinely separate number
+    found is 2327 m for the LAKE (OSM, via mapcarta), which is a lake and not a
+    hut. An Italian shelter with no operator and no institutional page; the
+    Valle d'Aosta cadastre or a fetched camptocamp waypoint is the next place
+    to look.
+  sources:
+    - url: https://www.refuges.info/point/8467/cabane-non-gardee/cabane-du-lac-des-Vesses/
+      value: 2315
+      retrieved: 2026-09-07
+
+- slug: cabane-de-la-tour-rouge
+  alt_max: null
+  held: >-
+    Two problems, either of which is enough. Only refuges.info publishes a
+    figure this search could attribute to a page — 2822 m — and that entry's
+    own URL calls it the ANCIEN bivouac, while the shelter standing there was
+    rebuilt on the same ledge in July 2021. A rebuilt hut and its predecessor
+    at one altitude is the friendliest version of the Ancien-refuge-du-Goûter
+    problem, and it is still the shape of it. Secondary write-ups say "about
+    2820 m" without a page to pin it to. camptocamp waypoint 1310495 is
+    "Cabane de la Tour Rouge" and carries an elevation field; fetch it.
+  sources:
+    - url: http://www.refuges.info/point/378/cabane-non-gardee/Ancien-Bivouac-de-la-Tour-Rouge/
+      value: 2822
+      retrieved: 2026-09-07
