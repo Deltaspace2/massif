@@ -11,6 +11,19 @@ export const metadata: Metadata = {
 const REPO = "https://github.com/Deltaspace2/massif";
 const CONTACT = "steven@innes.io";
 
+/** The exact string sent with every outbound request.
+ *
+ *  Written out in full and not assembled from the constants above, because
+ *  the one thing it must do is match a log line character for character —
+ *  somebody grepping for it has to find it. It is set as a repository
+ *  variable in GitHub Actions (`USER_AGENT`); if that changes, change this,
+ *  and the two are worth checking together because nothing enforces it.
+ *
+ *  It pointed at the repository until /about existed, which was better than a
+ *  404 and still not an answer.
+ */
+const USER_AGENT = "massif/0.1 (+https://montblancmassif.org/about; steven@innes.io)";
+
 /** The sources, as `seeds/sources.yaml` has them.
  *
  *  Written out rather than fetched. The API returns statements, not a source
@@ -108,7 +121,7 @@ export default function About() {
 
       <p className="disclaimer">
         You have seen a request from{" "}
-        <code>massif/0.1 (+{REPO}; {CONTACT})</code> and want to know what it
+        <code>{USER_AGENT}</code> and want to know what it
         is. It is this site, collecting whatever you publish about lifts, huts
         and mountain routes so that people can find it in one place, with a
         link back to you.
