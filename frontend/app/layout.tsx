@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -81,6 +82,14 @@ export default function RootLayout({
           </nav>
         </header>
         {children}
+        {/* Vercel's own analytics: cookieless and aggregate, so there is no
+            consent banner to put in front of a page whose whole job is to
+            answer a question quickly — and nothing to disclose about tracking
+            individuals, because it does not. It is here because "does anyone
+            googling 'aiguille du midi closed' actually land here" is the one
+            assumption this project has never tested, and CLAUDE.md calls SEO
+            the distribution channel. */}
+        <Analytics />
       </body>
     </html>
   );
