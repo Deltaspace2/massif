@@ -40,6 +40,13 @@ on:
     # never clear is one nobody reads.
     - cron: "*/30 * * * *"
 
+permissions:
+  # Only what the digest step needs. The default token is read-only on newer
+  # repository settings, so without this `gh issue create` fails with a 403
+  # that reads like an authentication problem rather than a permission one.
+  contents: read
+  issues: write
+
 jobs:
   ingest:
     runs-on: ubuntu-latest
@@ -117,3 +124,42 @@ jobs:
         # Names that did not resolve are the highest-leverage maintenance task
         # on this project, and the run log is free observability for them.
         run: python -m massif.scripts.review_queue || true
+
+      # ONE issue, edited in place — never one per run. The comment at the top
+      # of this file records what the alternative does: it failed 48 times a
+      # day and emailed every time, "which is not monitoring, it is training
+      # yourself to ignore the emails that will matter". GitHub emails on issue
+      # activity, so this needs no mail service and no secret beyond the token
+      # Actions already has.
+      - name: Tell someone the review queue is not empty
+        if: always()
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m massif.scripts.review_digest > /tmp/digest.txt || true
+          title=$(head -1 /tmp/digest.txt)
+          body=$(tail -n +2 /tmp/digest.txt)
+
+          # The marker is an HTML comment, invisible in the rendered issue and
+          # not something anyone would type into a real report — so this can
+          # never hijack somebody else's issue.
+          existing=$(gh issue list --state open --search '"massif:review-digest" in:body' \
+                       --json number --jq '.[0].number' 2>/dev/null || true)
+
+          if [ -z "$title" ]; then
+            # Nothing waiting. Close the issue rather than leaving a stale
+            # count sitting open — an alert that does not clear is one nobody
+            # trusts the next time it fires.
+            if [ -n "$existing" ]; then
+              gh issue close "$existing" --comment "Queue is empty." || true
+            fi
+            exit 0
+          fi
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --title "$title" --body "$body" || true
+          else
+            gh issue create --title "$title" --body "$body" || true
+          fi
