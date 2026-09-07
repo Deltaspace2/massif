@@ -42,12 +42,12 @@ from urllib.parse import parse_qs, urlparse
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from massif.config import settings
 from massif.db import get_session
-from massif.enums import TRANSIENT_STATUSES, StatusValue
+from massif.enums import TRANSIENT_STATUSES, ExtractionMethod, StatementType, StatusValue
 from massif.ingest.fr_dates import published_date
 from massif.ingest.prose import normalise_space, readable_text
 from massif.models import Document, Feature, Source, Statement
@@ -153,6 +153,95 @@ def _would_say(statement: Statement) -> str:
     from massif.main import phrase_for_now
 
     return phrase_for_now(statement, datetime.now(UTC)) or statement.summary_en or ""
+
+
+def _parsed_day(value: str, *, end: bool) -> datetime | None:
+    """A YYYY-MM-DD from a form field, as this codebase encodes a day.
+
+    Midnight to 23:59:59 UTC, matching `fr_dates._at`, so a hand-written date
+    and a parsed one mean the same thing and `published_date` reads both back
+    the same way. Getting this wrong is how "until 26 septembre" printed as the
+    27th, twice.
+    """
+    if not value:
+        return None
+    try:
+        day = date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="dates must be YYYY-MM-DD") from None
+    if end:
+        return datetime(day.year, day.month, day.day, 23, 59, 59, tzinfo=UTC)
+    return datetime(day.year, day.month, day.day, tzinfo=UTC)
+
+
+def new_statement(feature, source, fields: dict[str, str], *, now: datetime) -> Statement:
+    """A notice a person wrote, against the `manual` source.
+
+    THE SOURCE ALREADY EXISTED. `seeds/sources.yaml` has carried an active
+    `manual` entry with no scraper from the beginning — "admin-entered
+    statements: hut closures phoned in, things seen in person" — so this was
+    always meant to be a real source with a trust weight (0.7, below every
+    operator) and the same audit trail as a scraper, rather than an
+    untraceable edit to somebody else's row.
+
+    IT IS ALREADY REVIEWED. The review gate exists because a model read a page
+    and nobody checked it. A person typing the sentence IS the check, and
+    routing it through the queue would ask them to approve their own words —
+    and leave it invisible until they did, because the gate keeps unreviewed
+    statements out of the status slot.
+
+    RULE 3 IS NOT RELAXED FOR HUMANS. An undated `closed` sits on the map for
+    ever whoever typed it, so the same `TRANSIENT_STATUSES` check the review
+    card uses applies here, from the same frozenset so the two cannot drift.
+    """
+    raw_status = (fields.get("status") or "").strip()
+    raw_type = (fields.get("statement_type") or "").strip()
+    summary = (fields.get("summary") or "").strip()
+
+    if raw_status not in {v.value for v in StatusValue}:
+        raise HTTPException(status_code=400, detail=f"unknown status {raw_status!r}")
+    if raw_type not in {v.value for v in StatementType}:
+        raise HTTPException(status_code=400, detail=f"unknown statement type {raw_type!r}")
+    if not summary:
+        # The summary is what the site prints. Without it this publishes a
+        # coloured status with nothing underneath explaining it.
+        raise HTTPException(status_code=400, detail="say what the site should tell a reader")
+
+    valid_from = _parsed_day(fields.get("valid_from") or "", end=False)
+    valid_to = _parsed_day(fields.get("valid_to") or "", end=True)
+    status = StatusValue(raw_status)
+    if status in TRANSIENT_STATUSES and not (valid_from or valid_to):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"{raw_status!r} says something about right now, so it needs a "
+                "window it is the now of — set at least one date. 'unstaffed' "
+                "and 'unknown' are standing states and need none."
+            ),
+        )
+
+    return Statement(
+        feature_id=feature.id,
+        source_id=source.id,
+        statement_type=StatementType(raw_type),
+        status=status,
+        severity=int(fields.get("severity") or 0),
+        # Rule 10. A person saying it now is both the publication and the
+        # confirmation, so the two clocks genuinely coincide here — which is
+        # not true of any other source and is worth stating rather than
+        # leaving as an accident.
+        observed_at=now,
+        last_seen_at=now,
+        valid_from=valid_from,
+        valid_to=valid_to,
+        summary_en=summary,
+        original_text=summary,
+        original_language="en",
+        extraction_method=ExtractionMethod.MANUAL,
+        reviewed_at=now,
+        review_note=(fields.get("note") or "").strip() or None,
+        payload={"hand_written": True},
+    )
 
 
 def apply_override(statement: Statement, fields: dict[str, str]) -> str | None:
@@ -568,6 +657,7 @@ addEventListener("keydown", function (event) {{
   box.form.requestSubmit();
 }});
 </script>
+<p class=meta><a href="/admin/edit">write or correct a statement &rarr;</a></p>
 <p class=meta>{count} waiting. A machine read these out of prose; none can take a
 status slot until you accept it. Read the quoted evidence, not the summary —
 the summary is the only field the model wrote rather than copied.</p>
@@ -682,6 +772,227 @@ async def accept(statement_id: str, request: Request, session: Session = Depends
 async def reject(statement_id: str, request: Request, session: Session = Depends(get_session)):
     fields = await _fields(request)
     return _decide(session, statement_id, accept=False, note=fields.get("note") or None)
+
+
+# ---------------------------------------------------------------- writing
+
+
+EDIT_PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
+<meta name=robots content="noindex, nofollow">
+<title>massif · write</title>
+<style>
+ body{{font:15px/1.5 system-ui,sans-serif;max-width:52rem;margin:2rem auto;
+   padding:0 1rem;color:#22282e}}
+ h1{{font-size:19px;margin:0 0 .2rem}}
+ h2{{font-size:13px;letter-spacing:.14em;text-transform:uppercase;
+   color:#6d7681;margin:2rem 0 .6rem}}
+ article{{border:1px solid #e3e7ea;border-radius:10px;padding:1rem 1.2rem;
+   margin:.7rem 0}}
+ .meta{{color:#6d7681;font-size:13px;margin:.2rem 0}}
+ .warn{{background:#f4f0e4;border-radius:8px;padding:.7rem .9rem;
+   font-size:13px;color:#4d545c;margin:.6rem 0}}
+ label{{display:inline-block;margin:.3rem .8rem .3rem 0;font-size:12.5px;
+   color:#6d7681}}
+ label.wide{{display:block}}
+ input,select,textarea{{display:block;padding:.3rem .5rem;border:1px solid #c6ccd2;
+   border-radius:6px;font:inherit;width:16rem}}
+ label.wide textarea,label.wide input{{width:100%}}
+ textarea{{resize:vertical;min-height:3.2rem}}
+ fieldset{{border:1px dashed #c6ccd2;border-radius:8px;padding:.5rem .9rem}}
+ button{{padding:.35rem .9rem;border-radius:999px;border:1px solid #3d8f63;
+   background:#fff;color:#3d8f63;cursor:pointer;margin-top:.6rem}}
+ .said{{font-size:14px;margin:.3rem 0}}
+ .src{{font-size:11.5px;color:#9aa2ab;letter-spacing:.04em}}
+ a{{color:#22282e}}
+</style>
+<h1>Write or correct a statement</h1>
+<p class=meta><a href="/admin/review">&larr; back to the review queue</a></p>
+{write}
+<h2>Currently in force &mdash; {live} statements</h2>
+<p class=meta>Editing one of these changes what the site says now. Rule 3 still
+applies: open, closed and restricted need a window; unstaffed and unknown do
+not.</p>
+{cards}"""
+
+
+def _feature_choices(session: Session) -> str:
+    rows = session.scalars(
+        select(Feature).where(Feature.active.is_(True)).order_by(Feature.slug)
+    ).all()
+    return "".join(
+        f'<option value="{html.escape(f.slug)}">{html.escape(f.name_default)}</option>'
+        for f in rows
+    )
+
+
+def _options(values, selected: str = "") -> str:
+    return "".join(
+        f'<option value="{v}"{" selected" if v == selected else ""}>{v}</option>'
+        for v in values
+    )
+
+
+def _write_form(session: Session) -> str:
+    """The form for a notice no source publishes.
+
+    Against the `manual` source, which has existed in seeds/sources.yaml from
+    the beginning and never had a way to write to it: "admin-entered
+    statements: hut closures phoned in, things seen in person". Trust 0.7, so
+    it sits below every operator and mairie — a phoned-in note should lose to
+    the commune's own decree, not overwrite it.
+    """
+    return f"""<article>
+  <h2 style="margin-top:0">New statement</h2>
+  <p class=meta>Goes in as <b>manual</b> &mdash; trust 0.7, below every operator
+     and mairie, so it never overwrites what a commune published. It is live
+     immediately: you writing it is the review.</p>
+  <form method="post" action="/admin/write">
+    <fieldset>
+      <label class=wide>feature
+        <select name="feature" required>{_feature_choices(session)}</select></label>
+      <label>kind
+        <select name="statement_type">{_options(v.value for v in StatementType)}</select></label>
+      <label>status
+        <select name="status">{_options(v.value for v in StatusValue)}</select></label>
+      <label>from <input type="date" name="valid_from"></label>
+      <label>to <input type="date" name="valid_to"></label>
+      <label class=wide>what the site should say
+        <textarea name="summary" rows="2"
+          placeholder="Enter saves &middot; Shift+Enter starts a new line"></textarea></label>
+      <label class=wide>why you know this (optional, kept with the statement)
+        <input name="note"></label>
+    </fieldset>
+    <button>Publish it</button>
+  </form>
+</article>"""
+
+
+def _live_statements(session: Session):
+    """Everything currently in force, newest first.
+
+    Not the review queue: these are already published, and correcting one
+    changes what the site says right now.
+    """
+    now = datetime.now(UTC)
+    return session.execute(
+        select(Statement, Feature, Source)
+        .join(Feature, Feature.id == Statement.feature_id)
+        .join(Source, Source.id == Statement.source_id)
+        .where(
+            Statement.superseded_at.is_(None),
+            Feature.active.is_(True),
+            (Statement.valid_from.is_(None)) | (Statement.valid_from <= now),
+            (Statement.valid_to.is_(None)) | (Statement.valid_to >= now),
+        )
+        .order_by(desc(Statement.observed_at))
+        .limit(200)
+    ).all()
+
+
+def _edit_card(statement: Statement, feature: Feature, source: Source) -> str:
+    e = html.escape
+    hand = (statement.payload or {}).get("hand_written")
+    start = f"{published_date(statement.valid_from):%Y-%m-%d}" if statement.valid_from else ""
+    end = f"{published_date(statement.valid_to):%Y-%m-%d}" if statement.valid_to else ""
+    # A correction to a scraped statement is not permanent: reextract retires
+    # every statement of a document and writes the parser's version again.
+    # Saying so beats letting someone discover it when their wording vanishes.
+    fragile = (
+        ""
+        if hand
+        else (
+            "<p class=warn>This came from a scraper. Re-extracting "
+            f"<b>{e(source.slug)}</b> retires every statement of its document and "
+            "writes the parser's version again, so a correction here can be "
+            "overwritten. For something that must stick, publish a "
+            "<b>manual</b> statement above instead.</p>"
+        )
+    )
+    return f"""<article>
+  <div class=src>{e(source.slug)}{" &middot; hand-written" if hand else ""}</div>
+  <b>{e(feature.name_default)}</b>
+  <p class=meta>says <b>{e(statement.status.value)}</b> &middot;
+     {e(str(statement.statement_type))} &middot; {e(_window(statement))}</p>
+  <p class=said>{e(statement.summary_en or "")}</p>
+  {fragile}
+  <form method="post" action="/admin/edit/{statement.id}">
+    <fieldset>
+      <legend style="font-size:11.5px;color:#6d7681">correct it</legend>
+      <label>status
+        <select name="status"><option value="">keep</option>
+          {_options(v.value for v in StatusValue)}</select></label>
+      <label>from <input type="date" name="valid_from" value="{start}"></label>
+      <label>to <input type="date" name="valid_to" value="{end}"></label>
+      <label class=wide>what the site should say
+        <textarea name="summary" rows="2"
+          placeholder="leave blank to keep the wording above"></textarea></label>
+    </fieldset>
+    <input name="note" placeholder="why (optional)" style="width:100%;margin-top:.4rem">
+    <button>Save</button>
+  </form>
+</article>"""
+
+
+@router.get("/edit", response_class=HTMLResponse, dependencies=[Depends(require_token)])
+def edit_page(session: Session = Depends(get_session)) -> HTMLResponse:
+    rows = _live_statements(session)
+    cards = "".join(_edit_card(st, f, src) for st, f, src in rows) or (
+        "<p class=meta>Nothing in force.</p>"
+    )
+    return HTMLResponse(
+        EDIT_PAGE.format(write=_write_form(session), live=len(rows), cards=cards),
+        headers=NO_INDEX,
+    )
+
+
+@router.post("/write", dependencies=[Depends(require_token), Depends(same_origin)])
+async def write(request: Request, session: Session = Depends(get_session)):
+    fields = await _fields(request)
+    feature = session.scalar(select(Feature).where(Feature.slug == fields.get("feature", "")))
+    if feature is None:
+        return _error("no such feature")
+    source = session.scalar(select(Source).where(Source.slug == "manual"))
+    if source is None:
+        # Seeded from sources.yaml. If it is missing the seed has not been run
+        # against this database, and inventing the row here would create a
+        # source with no trust weight and no notes.
+        return _error("the 'manual' source is not seeded in this database")
+    try:
+        statement = new_statement(feature, source, fields, now=datetime.now(UTC))
+    except HTTPException as refusal:
+        return _error(str(refusal.detail))
+    # Imported here, not at module scope. `massif.ingest.base` imports httpx,
+    # and the read API is deployed without it — a module-level import would
+    # retract the guarantee in requirements.txt that it cannot fetch from a
+    # page request. tests/test_cold_start.py caught this one commit after it
+    # was written to catch exactly this.
+    from massif.ingest.base import retire_replaced
+
+    # The same rule every ingest run applies: one source does not accumulate
+    # opinions about a feature, it updates its own.
+    retire_replaced(session, statement)
+    session.add(statement)
+    session.flush()
+    recompute_feature(session, feature.id)
+    return RedirectResponse("/admin/edit", status_code=303, headers=NO_INDEX)
+
+
+@router.post("/edit/{statement_id}", dependencies=[Depends(require_token), Depends(same_origin)])
+async def edit(statement_id: str, request: Request, session: Session = Depends(get_session)):
+    fields = await _fields(request)
+    statement = session.get(Statement, statement_id)
+    if statement is None:
+        raise HTTPException(status_code=404, detail="no such statement")
+    try:
+        changed = apply_override(statement, fields)
+    except HTTPException as refusal:
+        return _error(str(refusal.detail))
+    if changed:
+        note = (fields.get("note") or "").strip()
+        statement.review_note = f"[edited {changed}] {note}".strip()
+    session.flush()
+    recompute_feature(session, statement.feature_id)
+    return RedirectResponse("/admin/edit", status_code=303, headers=NO_INDEX)
 
 
 def include_admin(app) -> bool:
