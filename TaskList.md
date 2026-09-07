@@ -32,7 +32,9 @@ Contact address is steven@innes.io.
 
 Still open: the scraping User-Agent in `.env` and `DEPLOY.md` carries the old
 gmail. That string is what we present to every server we fetch from, so it is
-an outward-facing identity and Steven's to change.
+an outward-facing identity and Steven's to change. Now folded into "Make a new
+email, put it on the website, and take my personal one off" at the end of this
+file, which covers every address the site publishes rather than just that one.
 
 ## List cabanes and other similar things on the webpage.
 **DONE for now, 24 -> 59 huts.** Front page lists every hut, highest first,
@@ -726,3 +728,69 @@ sentence the source withdrew months ago.
 without re-emitting it stops being current; and, if the scope answer is "out",
 a boundary check on lift import mirroring `import_osm_huts.load_boundary`.
 
+
+## Make a new email, put it on the website, and take my personal one off
+
+NOT STARTED — and the mailbox has to exist before any of the code changes.
+Both addresses below have already been broadcast to every server we fetch, so
+this is not a find-and-replace: the strings come out of the repo, the mailboxes
+stay reachable.
+
+**Where an address is published today.** Two different ones, both personal:
+
+| Where | Address | What it is |
+| --- | --- | --- |
+| `frontend/app/about/page.tsx:12` (`CONTACT`) | `steven@innes.io` | the "please stop fetching" contact on /about |
+| `frontend/app/about/page.tsx:25` (`USER_AGENT`) | `steven@innes.io` | the string /about quotes verbatim |
+| `frontend/app/feedback/page.tsx:11` (`CONTACT`) | `steven@innes.io` | every `mailto:` on /feedback |
+| `DEPLOY.md:243` | `steven.innes8@gmail.com` | the `gh variable set USER_AGENT` line |
+
+`.env.example` and `backend/massif/config.py:27` carry
+`contact@example.org` — placeholders, nothing to remove.
+
+**The live values are not in the repo.** The User-Agent actually sent is the
+GitHub Actions repository variable `USER_AGENT` (Settings → Secrets and
+variables → Actions → Variables) and the same variable on the Vercel API
+project. Editing `DEPLOY.md` changes the instructions, not what goes out on
+the wire. Both have to be set by hand, and `about/page.tsx:25` is a hand-copy
+of that same string with nothing enforcing the match — its own comment says
+so. All three move together or the page quotes an address we do not send.
+
+**Suggested address: `contact@montblancmassif.org`.** Same domain as the site,
+so it needs no explaining in a log line, and it survives the person behind it
+changing. Cheapest way to have it is forwarding rather than a mailbox —
+Cloudflare Email Routing is free and lands it in whatever inbox you already
+read, which pairs with the registrar move above (that item puts the domain on
+Cloudflare's nameservers anyway, which is what Routing requires). If the
+domain is staying put, most registrars sell forwarding for a few pounds a year.
+
+**Forward BOTH old addresses, do not just drop them.** Neither is only a
+string in a file. The gmail was the deployed `USER_AGENT` and went out on
+every request up to 8 Sep 2026 — `4f07d57` records the page printing
+`steven@innes.io` while the variable actually sent
+`steven.innes8@gmail.com` — and the innes.io one has gone out since. Both are
+sitting in other people's access logs, and that address is what a sysadmin
+uses when they want us to stop. A bounce there is the one failure this project
+promised not to have, and it arrives months later with no way to know it
+happened. Keep both forwarding for a season at least; delete the strings from
+the repo, not the mailboxes.
+
+**Check what the variable actually says before changing anything.** `4f07d57`
+changed the page, not the deployment, and nothing enforces the match — the
+value in Actions may still be the gmail. `gh variable list` (or the Actions
+Variables tab) settles it, and whatever it says is what the logs of every
+server we fetch currently carry.
+
+**Order:**
+
+1. Create the address and confirm mail actually arrives at it.
+2. Set the Actions variable and the Vercel env var to the new string.
+3. Change `CONTACT` on both pages, `USER_AGENT` in `about/page.tsx`, and the
+   example line in `DEPLOY.md`; `grep -rn 'innes\.io\|innes8' frontend backend
+   DEPLOY.md` should then come back empty.
+4. Leave both old addresses forwarding, and note where that forwarding lives
+   so the next person does not switch it off as tidying.
+
+**Verified by:** sending a message to the new address from outside and getting
+it; and `curl -s https://montblancmassif.org/about | grep massif/0.1` matching
+the deployed variable character for character.
