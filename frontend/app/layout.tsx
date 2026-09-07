@@ -25,12 +25,15 @@ const plexMono = localFont({
 
 export const metadata: Metadata = {
   title: {
-    // 25 characters. A tab with a dozen siblings shows about 18, so this
-    // still truncates to "Mont Blanc — open…" — below that there is nothing
-    // useful left to say, and the FAVICON is what identifies a narrow tab.
-    // "massif" is dropped rather than "Mont Blanc": the search term is the
-    // half worth keeping, and the domain already says massif.
-    default: "Mont Blanc — open or shut",
+    // "What's open, what's shut" is the hero's voice — it works set at 62px
+    // over a photograph and reads as marketing in a tab and a search result.
+    // This uses the site's own vocabulary instead: the description below has
+    // always called it a closure and status directory, and `feature_status`
+    // is what the table is named.
+    //
+    // 26 characters. A tab with a dozen siblings still truncates, and the
+    // favicon is what identifies one at that width.
+    default: "Mont Blanc massif — status",
     template: "%s — massif",
   },
   description:
