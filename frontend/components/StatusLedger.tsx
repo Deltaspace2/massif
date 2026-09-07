@@ -73,13 +73,19 @@ function doubt(feature: Feature): Doubt | null {
 
 const DOUBT_LABEL: Record<Doubt, string> = {
   old: "OLD",
-  unchecked: "UNCHECKED",
+  // "UNCHECKED" sat directly beside "checked 4 h" and read as a flat
+  // contradiction — Steven asked how it could be both. It never meant "nobody
+  // has checked this"; it means a re-check is past due for THIS source, and a
+  // 30-minute lift feed and a weekly hut directory cannot share one idea of
+  // "recent". "OVERDUE" says that and agrees with the line under it: checked
+  // four hours ago, and overdue.
+  unchecked: "OVERDUE",
 };
 
 /** Why it is flagged, in words, for the banner and for a title attribute. */
 const DOUBT_WHY: Record<Doubt, string> = {
   old: "this has aged past the window its kind of notice holds for",
-  unchecked: "we have not re-read the source within its own cadence",
+  unchecked: "a re-check is past due — this source publishes more often than we have read it",
 };
 
 /** Worth interrupting a trip planner for. Season, never the clock: a lift
@@ -393,9 +399,14 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
   // twice on one screen. A hut that is actually shut still appears above in
   // IN FORCE NOW, which is a different job from an index — that pairing is
   // intentional, two rows in two routine listings was not.
-  const rest = routine
-    .filter((f) => f.type !== "lift" && f.type !== "hut")
-    .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  // There is deliberately no third status band. Routes and couloirs are
+  // excluded for exactly the reason huts are — they have their own complete
+  // directory below, and listing the one or two that happen to carry a notice
+  // here as well printed the Goûter Route and the Arête des Cosmiques twice on
+  // one screen. Once they were excluded the band held nothing at all: every
+  // feature in it had been a duplicate. The glaciers and access roads it was
+  // nominally for have moved into that directory, where they are at least
+  // findable — they appeared nowhere on the site before.
 
   // Within a band, what still deserves a line of its own. The handoff shows
   // exceptions above a collapsed "9 lifts routine" row, and the thing that
@@ -409,7 +420,6 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
   });
   const liftNotices = notices.filter((f) => f.type === "lift").length;
   const liftRows = split(lifts);
-  const restRows = split(rest);
 
   // Every hut, not just the ones with a notice. Most have nothing published
   // about them, so a status listing shows a handful — while their capacity,
@@ -451,11 +461,26 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
   // were reachable only by typing the URL. Summit-first, because that is the
   // order anyone thinks about them in.
   const routes = features
-    .filter((f) => f.type === "route" || f.type === "couloir")
+    .filter(
+      (f) =>
+        !f.parent_slug &&
+        (f.type === "route" ||
+          f.type === "couloir" ||
+          f.type === "glacier" ||
+          f.type === "access_road"),
+    )
     .sort(
       (a, b) =>
         (b.alt_max ?? 0) - (a.alt_max ?? 0) || a.name.localeCompare(b.name),
     );
+
+  // How many of that band anyone actually publishes about. Derived for the
+  // same reason the country list is: the sentence that used to be there named
+  // one route and went stale twice — once when camptocamp started reporting
+  // the Cosmiques, once when the band widened.
+  const routesSpokenFor = routes.filter(
+    (f) => f.season.reason || f.status.summary,
+  ).length;
 
   const asleep = routine.filter(
     (f) => f.status.closure_kind === "outside_hours" && f.season.value === "open",
@@ -601,21 +626,6 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
                 <LedgerRow key={f.slug} feature={f} />
               ))}
               <QuietRows rows={liftRows.quiet} noun="lift" />
-            </Band>
-          )}
-
-          {rest.length > 0 && (
-            <Band
-              belongsTo="routes"
-              focus={focus}
-              folded={`${rest.length} tracked`}
-              label="ROUTES & ACCESS"
-              note="routes, glaciers and the roads that reach them"
-            >
-              {restRows.shown.map((f) => (
-                <LedgerRow key={f.slug} feature={f} />
-              ))}
-              <QuietRows rows={restRows.quiet} noun="feature" />
             </Band>
           )}
 
@@ -770,8 +780,13 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
               belongsTo="routes"
               focus={focus}
               folded={`${routes.length} tracked`}
-              label="ROUTES & COULOIRS"
-              note={`${routes.length} tracked · highest first · only the Goûter has a source that publishes about it`}
+              label="ROUTES, GLACIERS & ACCESS"
+              /* Counted, not asserted. This said "only the Goûter has a
+                 source that publishes about it", which stopped being true
+                 when camptocamp-outings started reporting conditions on the
+                 Arête des Cosmiques, and again when this band widened to
+                 cover glaciers and access roads. */
+              note={`${routes.length} tracked · highest first · ${routesSpokenFor} of them has anyone published about`}
             >
               <div className="cells">
                 {routes.map((f) => {
@@ -816,10 +831,11 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
                 })}
               </div>
               <p className="band__credit">
-                Saint-Gervais regulates the Goûter and publishes about it. The
-                rest are tracked and findable, and will carry a status the day
-                anybody publishes one. Absence here is our coverage, not a
-                report that a route is fine.
+                Saint-Gervais regulates the Goûter route and publishes about
+                it; camptocamp contributors report conditions on a handful of
+                the rest. Everything else here is tracked and findable, and
+                will carry a status the day anybody publishes one. Absence is
+                our coverage, not a report that a route is fine.
               </p>
             </Band>
           )}
