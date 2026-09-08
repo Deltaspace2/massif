@@ -110,6 +110,29 @@ a:hover { text-decoration: underline; }
 }
 .masthead__nav { display: flex; gap: 26px; font-size: 12.5px; font-weight: 500; letter-spacing: 0.08em; }
 .masthead__nav a:hover { text-decoration: underline; text-underline-offset: 4px; }
+/* Below ~470px the masthead does not fit and it fails silently in both
+   directions: `space-between` puts the wordmark hard against STATUS with a 0px
+   gap, and REPORT — measured 56px past the right edge on a 375px screen —
+   simply leaves the page. Nothing wraps, nothing clips visibly, so it reads as
+   a design rather than an overflow.
+   The height stays 52px. `.mapfull` sizes itself `calc(100dvh - 52px)`, so a
+   masthead that grew to two rows on a phone would leave the full-screen map
+   overhanging by exactly the amount it grew. */
+@media (max-width: 560px) {
+  .masthead { padding: 0 12px; gap: 10px; }
+  .masthead__mark { flex: none; font-size: 13.5px; letter-spacing: 0.14em; }
+  /* The nav takes the remaining width and spaces itself inside it, rather than
+     carrying a fixed 26px gap that decides the total. `min-width: 0` because a
+     flex item refuses to shrink below its content otherwise, which is what
+     pushed REPORT off in the first place. */
+  .masthead__nav {
+    flex: 1; min-width: 0;
+    gap: 0; justify-content: space-between;
+    font-size: 11px; letter-spacing: 0.04em;
+  }
+  /* The text is 11px; the touch target is not. */
+  .masthead__nav a { padding: 8px 0; }
+}
 
 /* -------------------------------------------------------------------- hero */
 .hero { position: relative; height: 560px; overflow: hidden; background: #1a1f24; }
@@ -746,8 +769,27 @@ table.history th { color: var(--secondary); font-weight: 500; }
   /* One column of cells: two 165px columns cut every hut name in half. */
   .cells { grid-template-columns: 1fr; }
   .layout { grid-template-columns: 1fr; gap: 24px; padding-top: 26px; }
-  .mappane { min-height: 0; position: static; }
+  /* `relative`, not `static`. The only thing wanted here was "stop being
+     sticky" — but `static` also takes away the containing block, and the
+     legend below is `position: absolute`. It then resolved against the
+     initial containing block and rendered a screen and a half above the map
+     it explains, on top of the ledger rows. `relative` un-sticks it and keeps
+     the containing block, so nothing positioned inside this card can escape
+     it again. */
+  .mappane { min-height: 0; position: relative; }
   .mappane__map { min-height: 220px; height: 220px; }
+  /* And the key stops floating. On the desktop card it is one wrapped line
+     over a 420px map, which is what the float was for. Here it wraps to five
+     lines over a 220px map and covers the cartography it is captioning, so it
+     goes below the map in normal flow, as the foot of the card. */
+  .mappane__legend {
+    position: static;
+    border: 0; border-top: 1px solid var(--rule); border-radius: 0;
+    box-shadow: none;
+    background: var(--card);
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    gap: 6px 14px;
+  }
   /* Two competing labels on one 390px line collided; the caption is a desktop
      nicety and the count is the useful half. */
   .mappane__head { flex-direction: row; gap: 12px; }
