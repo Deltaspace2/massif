@@ -126,6 +126,12 @@
     - Midi Plan traverse
     - Traversée Midi-Plan
     - Arete Midi Plan
+  # Added 8 Sep 2026 so rule 8's altitude guard can run at all: it is
+  # `if feature.alt_max and elevation`, so a null silently skipped the
+  # check and accepted a match on name score alone.
+  # Aiguille du Midi, OSM node/167075493 — the high point of the traverse,
+  # which then runs down to the Aiguille du Plan (3673 m).
+  alt_max: 3842
   country: FR
   # camptocamp 53804 — 3776 m. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the
@@ -157,6 +163,11 @@
     - Devil's Arête
     - Arete du Diable
     - Cresta del Diavolo
+  # Added 8 Sep 2026 so rule 8's altitude guard can run at all: it is
+  # `if feature.alt_max and elevation`, so a null silently skipped the
+  # check and accepted a match on name score alone.
+  # The Diable pinnacles finish on Mont Blanc du Tacul, OSM node/344715573.
+  alt_max: 4248
   country: FR
   # camptocamp 54098 — 4248 m; the other candidate sits at 300 m. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the
@@ -170,6 +181,11 @@
     - Frendo Spur
     - Eperon Frendo
     - Frendo
+  # Added 8 Sep 2026 so rule 8's altitude guard can run at all: it is
+  # `if feature.alt_max and elevation`, so a null silently skipped the
+  # check and accepted a match on name score alone.
+  # The spur tops out at the Aiguille du Midi, OSM node/167075493.
+  alt_max: 3842
   country: FR
   # camptocamp 54021 — 3842 m; their Spanish locale of the Éperon Frendo. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the
@@ -195,6 +211,13 @@
   aliases:
     - Petite Verte
     - Petite Aiguille Verte
+  # Added 8 Sep 2026 so rule 8's altitude guard can run at all: it is
+  # `if feature.alt_max and elevation`, so a null silently skipped the
+  # check and accepted a match on name score alone.
+  # Petite Aiguille Verte, OSM node/4357285689. NOT the Aiguille Verte
+  # (4121 m) — the two are 600 m apart in altitude and one alias apart
+  # in name, which is exactly the confusion rule 8 exists for.
+  alt_max: 3512
   country: FR
   # camptocamp 53783 — 3512 m; their Slovenian locale of the normal route. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the
@@ -207,6 +230,12 @@
   aliases:
     - Aiguille du Tour
     - Tour normal route
+  # Added 8 Sep 2026 so rule 8's altitude guard can run at all: it is
+  # `if feature.alt_max and elevation`, so a null silently skipped the
+  # check and accepted a match on name score alone.
+  # Aiguille du Tour, OSM node/290497885. c2c's pinned document independently
+  # says 3542 too.
+  alt_max: 3542
   country: FR
   # camptocamp 56749 — 3542 m. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the
@@ -224,6 +253,13 @@
     - VB
     - Valle Bianca
     - Vallée Blanche descent
+  # Added 8 Sep 2026 so rule 8's altitude guard can run at all: it is
+  # `if feature.alt_max and elevation`, so a null silently skipped the
+  # check and accepted a match on name score alone.
+  # The descent starts at the Aiguille du Midi, OSM node/167075493, and runs
+  # down to Montenvers. alt_min left unset: where it ends depends on
+  # whether the Mer de Glace is skiable to the railway that year.
+  alt_max: 3842
   country: FR
 
 # -------------------------------------------------------------- glaciers ---

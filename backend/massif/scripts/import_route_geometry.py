@@ -186,9 +186,36 @@ def main(argv: list[str]) -> int:
         for feature in targets:
             names = [feature.name_default, *(feature.aliases or [])]
 
-            document = next((index[key(n)] for n in names if key(n) in index), None)
+            # A HAND-PINNED ID BEATS ANY AMOUNT OF MATCHING, and nine of the
+            # thirteen routes already carry one — pinned for the conditions
+            # source in `camptocamp_outings`, which has always read them and
+            # this importer never did. It fuzzy-matched instead and disagreed
+            # with the human three times:
+            #
+            #   petite-aiguille-verte  pinned "po normalki (SZ greben)"
+            #                          matched "Malade Manoeuvre"
+            #   aiguille-du-tour-normal pinned "Voie normale depuis l'Envers
+            #                          des Dorées", matched "Sommet S par
+            #                          l'arête W"
+            #   vallee-blanche         pinned 50892 "Vallée Blanche classique"
+            #                          matched 50893 "Vraie Vallée Blanche"
+            #
+            # The last is one digit apart and was live on the map. All three
+            # are the right mountain and the wrong route, which is precisely
+            # what a name score cannot separate and what the altitude guard
+            # below cannot catch either — same peak, same altitude.
+            pinned = (feature.external_ids or {}).get("camptocamp_route")
+            document = None
             score = 100.0
             title = None
+
+            if pinned:
+                # By id, not through the bbox index: a pinned route we failed
+                # to list is still pinned, and silently falling back to fuzzy
+                # would undo the human's decision at the moment it matters.
+                document = {"document_id": int(pinned)}
+            else:
+                document = next((index[key(n)] for n in names if key(n) in index), None)
 
             if document is None:
                 # Fuzzy is SAFE here and was not before. The candidate set is
@@ -221,6 +248,12 @@ def main(argv: list[str]) -> int:
                 skipped += 1
                 continue
             time.sleep(1)
+
+            # A pinned document is a bare id with no locales, so its name is
+            # only known once fetched — and the name is the evidence a person
+            # reads to tell whether the pin is right.
+            if title == "?":
+                title = (titles(detail) or ["?"])[0]
 
             line = line_from(detail)
             if not line or len(line) < 2:
@@ -291,6 +324,10 @@ def main(argv: list[str]) -> int:
             if apply:
                 feature.geom = f"SRID=4326;{wkt}"
                 feature.geom_verified = False
+                # `camptocamp` is where the GEOMETRY came from; the pinned
+                # `camptocamp_route` is the human's choice of document. They
+                # are the same value whenever a pin exists, and recording both
+                # is what makes a divergence visible rather than assumed.
                 feature.external_ids = {
                     **(feature.external_ids or {}),
                     "camptocamp": str(document["document_id"]),
