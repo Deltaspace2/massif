@@ -882,3 +882,16 @@ table.history th { color: var(--secondary); font-weight: 500; }
 .meta.withdrawn { border-left: 2px solid var(--rule); padding-left: 12px; }
 .meta.withdrawn q { font-style: italic; }
 .meta.withdrawn a { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Route lines in the key. The map has drawn routes since the camptocamp
+   import and the key described points only, so a dotted line — the one that
+   says "we drew this, nobody surveyed it" — had nothing explaining it. */
+.mapkey__line, .mapfull__legend .mapkey__line {
+  display: inline-block; width: 18px; height: 0;
+  border-top: 2px solid var(--secondary); margin-right: 6px;
+  vertical-align: middle;
+}
+.mapkey__line--schematic { border-top-style: dotted; border-top-width: 3px; }
+
+/* The schematic note sits directly under the map it is about. */
+.schematic-note { margin-top: 10px; max-width: 640px; }

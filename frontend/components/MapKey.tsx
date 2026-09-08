@@ -51,6 +51,18 @@ export default function MapKey({ className }: { className?: string }) {
       <span>
         <i style={{ color: "var(--unknown)" }}>○</i>nothing published
       </span>
+      {/* Lines were never in the key at all — it described points only, while
+          the map has drawn routes since the camptocamp import. The dotted
+          entry is the one that has to be there: a line we drew must be
+          tellable from one somebody surveyed, and the dots are the only thing
+          saying so on the map itself. */}
+      <span>
+        <i className="mapkey__line" aria-hidden="true" />a route
+      </span>
+      <span>
+        <i className="mapkey__line mapkey__line--schematic" aria-hidden="true" />
+        schematic — our line, not a survey
+      </span>
       <span className="mapkey__note">
         The house means hut, not open — a hut&rsquo;s status is the dot on its
         corner, and most have none.

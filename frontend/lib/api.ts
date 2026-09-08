@@ -86,6 +86,14 @@ export interface Feature {
   country: string | null;
   geometry: { type: string; coordinates: unknown } | null;
   geom_verified: boolean;
+  /** Where the geometry came from: "camptocamp" or "osm" for a surveyed line,
+   *  "schematic" for one we drew through waypoints we already hold.
+   *
+   *  NOT the same question as `geom_verified`, which means "not checked
+   *  against IGN" and is false on everything, surveyed lines included.
+   *  Optional for the deploy-skew reason `facts` records — read it as
+   *  `?? ""`, never assume the API sends it. */
+  geom_source?: string | null;
   status: FeatureStatus;
   /** Directory facts, carried on the list as well as the detail.
    *

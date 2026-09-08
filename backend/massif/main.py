@@ -363,6 +363,11 @@ def _feature_dict(
         "country": feature.country,
         "geometry": _geojson(feature),
         "geom_verified": feature.geom_verified,
+        # Where the line came from. 'schematic' means we drew it through
+        # waypoints we hold rather than anyone surveying it, and the map draws
+        # those dashed. Shipping the geometry without this field would make a
+        # drawing indistinguishable from a GPX track.
+        "geom_source": feature.geom_source,
         "status": {
             "value": status.status if status else StatusValue.UNKNOWN,
             "severity": status.severity if status else 0,

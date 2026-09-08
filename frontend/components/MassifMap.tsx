@@ -215,6 +215,10 @@ export default function MassifMap({ features }: { features: Feature[] }) {
               type: feature.type,
               colour: colourFor(feature),
               known: hasStatus(feature) ? 1 : 0,
+              // Drawn by us through waypoints we hold, not surveyed by
+              // anyone. `?? ""` because the API and this app deploy
+              // separately and an older API does not send the field.
+              schematic: (feature.geom_source ?? "") === "schematic" ? 1 : 0,
               summary:
                 feature.status.summary ?? "no notices — shown for context",
             },
@@ -231,7 +235,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         id: "routes-casing",
         type: "line",
         source: "routes",
-        filter: ["==", ["get", "known"], 1],
+        filter: ["all", ["==", ["get", "known"], 1], ["!=", ["get", "schematic"], 1]],
         layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": "#ffffff", "line-width": 8.5, "line-opacity": 0.95 },
       });
@@ -252,7 +256,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
           "line-width": ["interpolate", ["linear"], ["zoom"], 9, 3.2, 14, 6],
           "line-opacity": 1,
         },
-        filter: ["==", ["get", "known"], 1],
+        filter: ["all", ["==", ["get", "known"], 1], ["!=", ["get", "schematic"], 1]],
       });
 
       // Separate layer for context routes: line-dasharray is a paint property
@@ -266,7 +270,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         id: "routes-context-casing",
         type: "line",
         source: "routes",
-        filter: ["!=", ["get", "known"], 1],
+        filter: ["all", ["!=", ["get", "known"], 1], ["!=", ["get", "schematic"], 1]],
         layout: { "line-cap": "butt", "line-join": "round" },
         paint: {
           "line-color": "#ffffff",
@@ -279,7 +283,7 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         id: "routes-context",
         type: "line",
         source: "routes",
-        filter: ["!=", ["get", "known"], 1],
+        filter: ["all", ["!=", ["get", "known"], 1], ["!=", ["get", "schematic"], 1]],
         layout: { "line-cap": "butt", "line-join": "round" },
         paint: {
           "line-color": ["get", "colour"],
@@ -290,6 +294,45 @@ export default function MassifMap({ features }: { features: Feature[] }) {
           // deliberately provisional at a glance, where the old [2, 1.6] at
           // 1.7px just read as a faint smudge.
           "line-dasharray": [2.6, 2],
+        },
+      });
+
+      // ---- schematic lines: drawn by us, and they must not look surveyed.
+      //
+      // A THIRD treatment, not a reuse of the dashes above. Dashed already
+      // means "nobody has reported a status", so dashing a schematic would
+      // make two different unknowns look identical — and the whole point of
+      // geom_source is that a line we drew must be tellable from a GPX track.
+      // Dotted reads as approximate on sight, which is what these are: the
+      // Goûter route through the Nid d'Aigle, Tête Rousse, the Aiguille, the
+      // hut, the Dôme and the summit. Right mountain, right order, straight
+      // between the points.
+      instance.addLayer({
+        id: "routes-schematic-casing",
+        type: "line",
+        source: "routes",
+        filter: ["==", ["get", "schematic"], 1],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 9, 5, 14, 8],
+          "line-opacity": 0.85,
+        },
+      });
+
+      instance.addLayer({
+        id: "routes-schematic",
+        type: "line",
+        source: "routes",
+        filter: ["==", ["get", "schematic"], 1],
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": ["get", "colour"],
+          "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.8, 14, 4.6],
+          "line-opacity": 1,
+          // Round caps on a near-zero dash draw dots. The gap is wide enough
+          // that it never reads as a broken solid line.
+          "line-dasharray": [0.1, 2.2],
         },
       });
 
@@ -312,6 +355,11 @@ export default function MassifMap({ features }: { features: Feature[] }) {
           .setHTML(
             `<strong>${props.name}</strong><br/>` +
               `<span style="color:#5f6873">${props.summary}</span><br/>` +
+              // Said in words as well as in dots. Somebody who does not know
+              // the key still has to be told they are looking at our drawing.
+              (String(props.schematic) === "1"
+                ? `<span style="color:#5f6873;font-size:11px">Line is schematic — drawn through huts and summits, not a surveyed track.</span><br/>`
+                : "") +
               `<a href="/${props.type}/${props.slug}">details</a>`,
           )
           .addTo(instance);

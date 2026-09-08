@@ -66,6 +66,11 @@ class Feature(Base):
 
     geom = mapped_column(Geometry("GEOMETRY", srid=4326), nullable=True)
     geom_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Where `geom` came from. NOT the same question as geom_verified, which
+    # means "not checked against IGN" and is false on everything we hold —
+    # surveyed camptocamp lines included. 'schematic' means we drew it through
+    # waypoints we already have, and the map must render it differently.
+    geom_source: Mapped[str | None] = mapped_column(Text)
 
     alt_min: Mapped[int | None] = mapped_column(Integer)
     alt_max: Mapped[int | None] = mapped_column(Integer)

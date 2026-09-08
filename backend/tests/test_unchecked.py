@@ -79,6 +79,9 @@ class _Feature:
     names: dict = {}
     alt_min = None
     alt_max = None
+    # Provenance of the geometry. None here — this fake has no geometry, and
+    # a lift that came through the OSM candidates would say 'osm'.
+    geom_source = None
     country = "FR"
     geom = None
     geom_verified = False

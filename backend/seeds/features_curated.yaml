@@ -36,6 +36,26 @@
     - Normalweg
   alt_min: 1653
   alt_max: 4808
+  # No line exists for this anywhere we can reach. camptocamp splits the
+  # route (their "Accès au refuge du Goûter" stops at 3840 m) and OSM's only
+  # matches are decoys: 'Impasse du Gouter' is a residential street in the
+  # valley, and the three "Goûter" ways are refuge BUILDING outlines.
+  #
+  # So it is drawn through waypoints we already hold, and every one of them is
+  # a real surveyed position rather than a guess: four of our own features and
+  # two OSM peak nodes. It follows the actual line of the route — up from the
+  # tramway terminus, past Tête Rousse, over the Aiguille du Goûter (the Grand
+  # Couloir is crossed on that leg), the Goûter hut, the Dôme, the summit.
+  #
+  # It is a SCHEMATIC and is written geom_source: schematic, which the map
+  # draws dashed. It is not a GPX track and must never be presented as one.
+  schematic_via:
+    - refuge-du-nid-d-aigle
+    - refuge-tete-rousse
+    - osm:node/1438494348      # Aiguille du Goûter, 3863 m
+    - refuge-du-gouter
+    - osm:node/3559071817      # Dôme du Goûter, 4304 m
+    - osm:node/281399025       # Mont Blanc, 4807 m
   country: FR
 
 - slug: grand-couloir
@@ -55,6 +75,19 @@
     - le Grand Couloir
   alt_min: 3200
   alt_max: 3400
+  # NO SCHEMATIC, and the reason is worth keeping.
+  #
+  # Tried on 8 Sep 2026 as Tête Rousse -> Aiguille du Goûter, on the argument
+  # that the couloir is a gully cut by that leg. build_schematic_routes
+  # refused it: those waypoints top out at 3863 m and this couloir is
+  # 3200-3400 m, so the line would have been 463 m too high — drawn up the
+  # slope ABOVE the crossing rather than at it.
+  #
+  # That is the altitude guard rejecting a line we drew ourselves, which is
+  # exactly what it is for. The Grand Couloir crossing is a point on open
+  # slope at about 3340 m and is not a feature we hold a position for, so
+  # there is nothing honest to draw it through. It stays unmapped until
+  # somebody has a real position for the crossing.
   country: FR
   notes: >
     The single most-searched feature on this map. Rockfall-exposed traverse on
@@ -132,6 +165,11 @@
   # Aiguille du Midi, OSM node/167075493 — the high point of the traverse,
   # which then runs down to the Aiguille du Plan (3673 m).
   alt_max: 3842
+  # The traverse, Aiguille du Midi to Aiguille du Plan. Both ends are
+  # positions we already hold.
+  schematic_via:
+    - aiguille-du-midi
+    - osm:node/344715578       # Aiguille du Plan, 3673 m
   country: FR
   # camptocamp 53804 — 3776 m. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the
@@ -153,6 +191,12 @@
   # On the border, and approached from Torino on the Italian side. It was the
   # only feature on the site with no country at all, which rendered as a
   # missing flag beside twelve that had one.
+  # Rifugio Torino to the summit. OSM's only "Dent du Geant" ways are a
+  # highway=tertiary street and an avenue — the same class of decoy as the
+  # 'Ancien refuge du Goûter', and neither is on this mountain.
+  schematic_via:
+    - refuge-torino
+    - osm:node/7164832145      # Dent du Géant / Pointe Graham, 4013 m
   country: IT
 
 - slug: arete-du-diable
@@ -199,6 +243,15 @@
     - Chéré Couloir
     - Chere couloir
     - Goulotte Chere
+  # Cosmiques hut to the Triangle du Tacul, which is where the goulotte
+  # tops out — not the Mont Blanc du Tacul summit 278 m above it.
+  schematic_via:
+    - refuge-des-cosmiques
+    - osm:node/2417756510      # Triangle du Tacul, 3970 m
+  # Triangle du Tacul, OSM node/2417756510 — where the goulotte finishes.
+  # Left null until 8 Sep 2026 because no peak node had been found for it;
+  # the Mont Blanc du Tacul summit 278 m higher would have been wrong.
+  alt_max: 3970
   country: FR
   # camptocamp 54159 — 4248 m, Mont Blanc du Tacul. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the
@@ -236,6 +289,11 @@
   # Aiguille du Tour, OSM node/290497885. c2c's pinned document independently
   # says 3542 too.
   alt_max: 3542
+  # Refuge Albert 1er to the summit. The pinned camptocamp document is the
+  # right route and carries a marker only, no line.
+  schematic_via:
+    - refuge-albert-1er
+    - osm:node/290497885       # Aiguille du Tour, 3542 m
   country: FR
   # camptocamp 56749 — 3542 m. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the

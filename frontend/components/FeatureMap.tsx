@@ -172,7 +172,17 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
           type: "line",
           source: "feature",
           layout: { "line-cap": "round", "line-join": "round" },
-          paint: { "line-color": colour, "line-width": 4 },
+          paint: {
+            "line-color": colour,
+            "line-width": 4,
+            // Dotted when we drew it. Same grammar as the overview map, and
+            // for the same reason: this is the page where somebody studies
+            // the line closely, so it is the page where mistaking our drawing
+            // for a surveyed track would cost the most.
+            ...((feature.geom_source ?? "") === "schematic"
+              ? { "line-dasharray": [0.1, 2.0] as [number, number] }
+              : {}),
+          },
         });
         if (bounds) instance.fitBounds(bounds, { padding: 48, duration: 0, maxZoom: 14 });
       }

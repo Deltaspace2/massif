@@ -141,6 +141,22 @@ export default async function FeaturePage({ params }: { params: Params }) {
 
       <FeatureMap feature={feature} />
 
+      {/* Said in words, not only in dots. camptocamp holds no line for these
+          routes and OSM's matches were decoys — a residential street called
+          'Impasse du Gouter', refuge building outlines, a highway=tertiary
+          named 'Dent du Geant'. So the line is ours, drawn through positions
+          we already hold, and a reader studying it deserves to be told that
+          in a sentence rather than left to decode a dash pattern. */}
+      {(feature.geom_source ?? "") === "schematic" && (
+        <p className="meta schematic-note">
+          The line on this map is <b>schematic</b>. Nobody publishes a survey of
+          this route that we can use, so it is drawn straight between huts and
+          summits whose positions we do hold. It shows roughly where the route
+          goes and in what order — not the ground you would actually walk, and
+          never a line to navigate by.
+        </p>
+      )}
+
       <div
         className={routine ? "card routine" : `card ${feature.status.value}`}
         style={{ marginTop: 14 }}
