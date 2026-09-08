@@ -208,11 +208,13 @@ class RefugesInfoScraper(Scraper):
 
     def collect(
         self, session: Session, source: Source
-    ) -> list[tuple[Document, list[ExtractedStatement]]]:
+    ) -> list[tuple[Document, list[ExtractedStatement] | None]]:
         response = fetch(API)
         document, is_new = store_document(session, source, API, response)
         if not is_new:
-            return []
+            # Unchanged, not empty — see Scraper.collect. `[]` here would say
+            # the directory had gone silent about every hut at once.
+            return [(document, None)]
         return [(document, extract(response.json(), datetime.now(UTC)))]
 
     def resolve_and_build(self, session, source, document, item, resolver):

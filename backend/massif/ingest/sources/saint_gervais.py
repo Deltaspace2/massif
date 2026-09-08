@@ -426,7 +426,7 @@ class SaintGervaisScraper(Scraper):
 
     def collect(
         self, session: Session, source: Source
-    ) -> list[tuple[Document, list[ExtractedStatement]]]:
+    ) -> list[tuple[Document, list[ExtractedStatement] | None]]:
         listing = fetch(LISTING)
         store_document(session, source, LISTING, listing)
 
@@ -461,6 +461,10 @@ class SaintGervaisScraper(Scraper):
                 session, source, url, response, published_at=published
             )
             if not is_new:
+                # Unchanged, not empty. Most of this feed sits still between
+                # runs, and skipping it here is what froze the Goûter notice's
+                # last_seen_at seventeen hours behind the fetch that found it.
+                results.append((document, None))
                 continue
             # Same extraction path re-extraction uses, so the two cannot drift.
             results.append((document, extract_page(response.text, url, observed_at)))

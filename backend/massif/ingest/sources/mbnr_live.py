@@ -334,11 +334,13 @@ class MbnrLiveScraper(Scraper):
 
     def collect(
         self, session: Session, source: Source
-    ) -> list[tuple[Document, list[ExtractedStatement]]]:
+    ) -> list[tuple[Document, list[ExtractedStatement] | None]]:
         response = fetch(URL)
         document, is_new = store_document(session, source, URL, response)
         if not is_new:
-            return []  # unchanged since last fetch
+            # Unchanged, not empty. This page usually does move between runs,
+            # so this branch is rare — which is exactly why it must be right.
+            return [(document, None)]
         tree = HTMLParser(response.text)
         return [(document, extract(tree, datetime.now(UTC)))]
 

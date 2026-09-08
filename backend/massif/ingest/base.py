@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import sys
 import time
 import unicodedata
 import urllib.robotparser
@@ -257,6 +258,40 @@ def resolve_child(session: Session, parent_slug: str, name: str) -> Match | None
     return Match(str(child.id), 100.0, name)
 
 
+def confirm_still_standing(
+    session: Session, document: Document, now: datetime
+) -> list[Statement]:
+    """A document came back unchanged: its live claims were seen again.
+
+    Rule 10 says `last_seen_at` is "when we last fetched and found it still
+    standing". A scraper that skips an unchanged page fetches it, finds the
+    notice exactly where it was, and then writes nothing down — so the column
+    advanced only when a page's bytes happened to change. Measured 8 Sep 2026:
+    the Goûter reopening notice was re-read every six hours and last recorded
+    seventeen hours earlier, badging an arrêté-regulated route OVERDUE while
+    three stored copies of the article all still parsed to the same statement.
+
+    This is deliberately not "re-extract and insert". A new row per statement
+    per run would churn the table, and `observed_at` would have to be faked or
+    carried; re-extraction is driven by a better parser, never by a clock.
+    Nothing about the claim changes here. Only our record of having looked.
+
+    Returns the statements confirmed, so the caller can recompute their
+    features — the API reads `last_seen_at` from `feature_status`, and a
+    statement refreshed without a recompute is invisible.
+    """
+    live = session.scalars(
+        select(Statement).where(
+            Statement.document_id == document.id,
+            Statement.superseded_at.is_(None),
+            Statement.superseded_by.is_(None),
+        )
+    ).all()
+    for statement in live:
+        statement.last_seen_at = now
+    return list(live)
+
+
 def retire_replaced(session: Session, incoming: Statement) -> int:
     """Mark older readings that this statement replaces as superseded.
 
@@ -371,8 +406,24 @@ class Scraper(ABC):
     @abstractmethod
     def collect(
         self, session: Session, source: Source
-    ) -> list[tuple[Document, list[ExtractedStatement]]]:
-        """Fetch, store documents, and extract statements from them."""
+    ) -> list[tuple[Document, list[ExtractedStatement] | None]]:
+        """Fetch, store documents, and extract statements from them.
+
+        The statement list may be `None`, and `None` is NOT `[]`. They are the
+        two different things a fetch can find, and conflating them is what this
+        contract exists to prevent:
+
+            []    we read this document and it contains no notice. Real and
+                  common — most of a mairie's news feed is not about closures.
+            None  this document came back byte-identical to the copy we already
+                  hold, so we did not re-parse it. Whatever it said, it still
+                  says.
+
+        `None` is how `last_seen_at` advances on an unchanged page. Return it
+        instead of skipping the document, or every claim from a source whose
+        pages sit still ages into OVERDUE while we dutifully re-read them —
+        see `confirm_still_standing`.
+        """
 
     def extract_stored(self, document: Document) -> list[ExtractedStatement]:
         """Re-run extraction over an already-stored document, no network.
@@ -467,7 +518,15 @@ class Scraper(ABC):
         touched: set = set()
 
         try:
+            confirmed_total = 0
             for document, extracted in self.collect(session, source):
+                # None means "unchanged, not re-parsed", which is a different
+                # finding from "parsed and found nothing" — see collect().
+                if extracted is None:
+                    confirmed = confirm_still_standing(session, document, datetime.now(UTC))
+                    touched.update(st.feature_id for st in confirmed)
+                    confirmed_total += len(confirmed)
+                    continue
                 run.documents_new += 1
                 for item in extracted:
                     statement = self.resolve_and_build(session, source, document, item, resolver)
@@ -480,6 +539,15 @@ class Scraper(ABC):
                     touched.add(statement.feature_id)
 
                 document.extracted_at = datetime.now(UTC)
+
+            # No silent work: a run that confirmed forty statements and wrote
+            # none is a healthy run, and looks identical to a broken one in a
+            # log that only counts what was written.
+            if confirmed_total:
+                print(
+                    f"  {confirmed_total} statements still standing on unchanged pages",
+                    file=sys.stderr,
+                )
 
             session.flush()
             recompute_many(session, touched)

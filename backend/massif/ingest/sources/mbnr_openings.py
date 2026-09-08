@@ -315,11 +315,13 @@ class MbnrOpeningsScraper(Scraper):
 
     def collect(
         self, session: Session, source: Source
-    ) -> list[tuple[Document, list[ExtractedStatement]]]:
+    ) -> list[tuple[Document, list[ExtractedStatement] | None]]:
         response = fetch(URL)
         document, is_new = store_document(session, source, URL, response)
         if not is_new:
-            return []
+            # Unchanged, not empty. A seasonal calendar is stable for months
+            # at a time; `[]` would retire every season it publishes.
+            return [(document, None)]
         return [(document, extract(response.text, datetime.now(UTC)))]
 
 

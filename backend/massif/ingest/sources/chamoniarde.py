@@ -574,7 +574,13 @@ class ChamoniardeScraper(Scraper):
                 response,
                 published_at=article["posted"] if article else None,
             )
-            if not is_new or article is None:
+            # Two different findings, previously fused into one skip.
+            if not is_new:
+                # Unchanged: the bulletin still says what it said.
+                results.append((document, None))
+                continue
+            if article is None:
+                # Stored for provenance, but nothing parseable to extract.
                 continue
             results.append((document, statements_for(article, url, observed_at)))
 
