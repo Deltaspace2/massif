@@ -783,18 +783,37 @@ section. That one looked identical from the outside and has a different cause,
 which is worth remembering before reading a frozen statement as evidence of a
 quiet source.
 
-**Two things to decide, and they are separate:**
+**Two things to decide, and they are separate.**
 
-1. **The mechanism.** Should a statement expire when its source has run
-   successfully N times without mentioning its feature? That is real evidence:
-   the source was asked and did not say it. Care needed — a feed that omits a
-   feature for one run because of a partial outage must not retire it, so this
-   wants consecutive successful runs, not elapsed time. Consider also whether
-   the feature should fall back to `unknown` rather than keeping a stale
-   status, since "the operator no longer lists this lift" is closer to "we do
-   not know" than to "it is closed".
+1. **The mechanism — DONE 8 Sep 2026.** `retire_unmentioned` in
+   `massif/ingest/base.py`, opted in per source via
+   `retire_after_unmentioned_runs` in `fetch_config`, set to 3 for `mbnr-live`
+   by migration `0014`. The five frozen statements retired on the first run
+   that carried it and the features now read `unknown` / nothing published,
+   which is what this section asked for.
 
-2. **The scope.** Megève is 19–22 km from Chamonix and outside the massif; the
+   Two things about the shape, both deliberate:
+
+   * **Opt-in, because absence is only evidence when one fetch enumerates
+     everything a source speaks about.** `mbnr-live` does — its 32 live
+     statements were exactly the 27 it re-emits plus the 5 orphans.
+     `mairie-saint-gervais` does not, and it caps at `MAX_ARTICLES`, so
+     absence there can be *our own cap*. Retiring on it would drop a valid
+     arrêté and turn a shut route `unknown` — the Goûter bug with the polarity
+     reversed, and that direction fails unsafe. Do not make this a default.
+   * **No counter column.** The count is "successful runs of this source that
+     started after we last saw this statement", which works only because
+     `confirm_still_standing` now advances `last_seen_at` on every run that did
+     mention it, unchanged pages included. Before that landed the same code
+     would have retired everything from any source whose pages sit still.
+
+   **Still open from this:** a retired statement vanishes from the feature page
+   entirely, so there is no trace of what the operator last said before it
+   stopped saying it. That may be right — it is not current, and this site
+   shows what is current — or the feature page may want a "last reported"
+   line. Decide it rather than leaving it as a side effect of `superseded_at`.
+
+2. **The scope — still open, and no longer urgent.** Megève is 19–22 km from Chamonix and outside the massif; the
    OSM hut import already filters on a boundary polygon and these lifts did
    not go through it. Either they belong and should be refreshed, or they do
    not and should never have been auto-discovered. Note the same question
