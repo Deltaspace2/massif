@@ -612,6 +612,65 @@ def list_features(
     return {"count": len(rows), "features": items, "disclaimer": DISCLAIMER}
 
 
+def _last_reported(session: Session, feature_id, status) -> dict | None:
+    """What a source used to say about this feature before it stopped.
+
+    ONLY where there is no current status. Beside a live one this would read as
+    a competing claim from a second source; in its absence the page says "no
+    source this site watches has published anything about this", which for a
+    lift dropped at the end of the season is simply false — and that false
+    sentence is what this exists to replace.
+
+    ONLY `retired_reason == "unmentioned"`, which is the narrowest of the three
+    ways a statement can end up with `superseded_at` set:
+
+      ordinary     a newer reading replaced it — the reader can already see
+                   the replacement, so repeating the old one is noise
+      reextract    a better parser retracted it — we decided it was wrong,
+                   and republishing it is publishing something we disbelieve
+      unmentioned  the source stopped listing the feature — nothing replaced
+                   it, and this is the only case worth showing
+
+    All three share `superseded_at` set with `superseded_by` null, so the
+    reason must be read and never inferred from the shape.
+
+    `summary_en` is returned AS STORED and deliberately not passed through
+    `phrase_for_now`. That function re-tenses a claim toward the present, and a
+    withdrawn one is going the other way: this is quoted past reporting, and
+    the date rendered beside it is what keeps it readable as such.
+    """
+    if status is not None and status.status != StatusValue.UNKNOWN:
+        return None
+
+    row = session.execute(
+        select(Statement, Source)
+        .join(Source, Source.id == Statement.source_id)
+        .where(
+            Statement.feature_id == feature_id,
+            Statement.retired_reason == "unmentioned",
+        )
+        # The most recently confirmed one: a feature can have been dropped by
+        # more than one source, and the freshest withdrawal is the relevant one.
+        .order_by(desc(Statement.last_seen_at))
+        .limit(1)
+    ).first()
+    if row is None:
+        return None
+
+    withdrawn, source = row
+    return {
+        "status": withdrawn.status,
+        "summary": withdrawn.summary_en,
+        "observed_at": withdrawn.observed_at,
+        "last_seen_at": withdrawn.last_seen_at,
+        "retired_at": withdrawn.superseded_at,
+        # Attribution travels with it, as everywhere else here: the reader is
+        # being shown someone else's sentence and needs to know whose, and
+        # where to go now that we cannot answer.
+        "source": {"name": source.name, "url": source.url},
+    }
+
+
 @app.get("/features/{slug}")
 def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
     row = session.execute(
@@ -670,6 +729,8 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
         .limit(1)
     ).first()
 
+    last_reported = _last_reported(session, feature.id, status)
+
     parent = session.get(Feature, feature.parent_id) if feature.parent_id else None
     payload = _feature_dict(
         feature,
@@ -680,6 +741,8 @@ def get_feature(slug: str, session: Session = Depends(get_session)) -> dict:
         _season_status(live_here, publishes_seasons),
         _source_intervals(session).get(current.source_id) if current else None,
     )
+
+    payload["last_reported"] = last_reported
 
     payload["other_notices"] = [
         {

@@ -172,6 +172,43 @@ export default async function FeaturePage({ params }: { params: Params }) {
             {feature.status.stale &&
               " — this has aged past the window its kind of notice holds for"}
           </div>
+        ) : feature.last_reported ? (
+          /* A source published about this and then stopped. Before this
+             branch existed the page fell through to "no source this site
+             watches has published anything about this", which for a lift
+             dropped at the end of the season is simply false.
+
+             Written for the case where the withdrawn reading said OPEN,
+             because that is the one that can hurt: "last reported open" is
+             the stale-open-reading-as-clearance failure this site exists to
+             avoid. So the sentence leads with the withdrawal and not with the
+             status word, the claim is quoted and dated rather than asserted,
+             and it closes by tying back to the unknown above. The stored
+             summary is NOT re-tensed — phrase_for_now moves a claim toward
+             the present, and this one is going the other way. */
+          <div className="meta withdrawn">
+            <b>{feature.last_reported.source.name}</b> used to publish a status
+            for {feature.name} and has stopped
+            {feature.last_reported.last_seen_at && (
+              <> — we last found one {sinceLabel(feature.last_reported.last_seen_at)}</>
+            )}
+            . The last thing they said
+            {feature.last_reported.observed_at && (
+              <>, on {resortTime(feature.last_reported.observed_at)} resort time,</>
+            )}{" "}
+            was{" "}
+            {feature.last_reported.summary ? (
+              <q>{feature.last_reported.summary}</q>
+            ) : (
+              <q>{feature.last_reported.status}</q>
+            )}
+            . That reading was withdrawn rather than updated, so it is not a
+            current status and says nothing about today — which is why the
+            status above is unknown.{" "}
+            <a href={feature.last_reported.source.url} rel="nofollow noopener">
+              Check with {feature.last_reported.source.name} directly.
+            </a>
+          </div>
         ) : saysUnwardened ? (
           <div className="meta">
             {feature.name} is an unstaffed shelter, so there is no warden

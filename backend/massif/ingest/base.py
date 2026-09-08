@@ -362,8 +362,13 @@ def retire_unmentioned(session: Session, source: Source, now: datetime) -> list[
     for statement in live:
         if statement.last_seen_at < cutoff:
             # superseded_by stays null: there is no successor, which is the
-            # same shape re-extraction orphans already have.
+            # same shape re-extraction orphans already have — and the same
+            # shape an ordinary replacement has, which is why the reason is
+            # recorded rather than inferred. The feature page shows only this
+            # kind, so without it a withdrawn claim is indistinguishable from
+            # one that was simply replaced.
             statement.superseded_at = now
+            statement.retired_reason = "unmentioned"
             retired.append(statement)
     return retired
 

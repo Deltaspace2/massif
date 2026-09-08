@@ -872,3 +872,13 @@ table.history th { color: var(--secondary); font-weight: 500; }
    numbers for one hut is information, and picking one silently would be us
    deciding which contributor was right. */
 .facts__whose { color: var(--tertiary); font-weight: 400; font-size: 11.5px; }
+
+/* A reading a source withdrew, on a feature that now has no status.
+   Deliberately NOT a status colour and not a card: it is quoted past
+   reporting, and anything that reads as a live verdict here is the
+   stale-open-as-clearance failure. The quote marks are the styling that
+   matters — they are what stops "close — départ toutes les 30 mn" being read
+   as a sentence this site is asserting. */
+.meta.withdrawn { border-left: 2px solid var(--rule); padding-left: 12px; }
+.meta.withdrawn q { font-style: italic; }
+.meta.withdrawn a { text-decoration: underline; text-underline-offset: 3px; }

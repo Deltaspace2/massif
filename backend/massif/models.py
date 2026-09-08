@@ -219,6 +219,12 @@ class Statement(Base):
     # fewer statements than it did before, or none — so a retired statement
     # often has no successor to point at.
     superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Why superseded_at was set. Null for an ordinary replacement — which is
+    # most of them, and is not worth telling a reader about because the
+    # replacement is already on the page. 'unmentioned' means the source
+    # stopped listing the feature, which IS worth telling them, because
+    # otherwise the page says nobody ever published anything about it.
+    retired_reason: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

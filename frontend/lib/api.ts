@@ -146,9 +146,37 @@ export interface FactBlock {
   };
 }
 
+/** What a source used to say about a feature, before it stopped saying it.
+ *
+ *  Not a status and must never render as one. A source that drops a feature
+ *  from its feed — a ski area at the end of the season — leaves its last
+ *  reading with nothing to replace it, so the reading is retired rather than
+ *  updated. Without this the page tells the reader "no source this site
+ *  watches has published anything about this", which is simply false.
+ *
+ *  `summary` is the sentence AS STORED and deliberately not re-tensed: it is
+ *  quoted past reporting, and the date beside it is what makes it read that
+ *  way. A "last reported open" that loses its date becomes clearance. */
+export interface LastReported {
+  status: StatusValue;
+  summary: string | null;
+  /** When the source published it. */
+  observed_at: string | null;
+  /** The last time we fetched and still found it — i.e. when it went quiet. */
+  last_seen_at: string | null;
+  /** When we gave up on it, after N successful runs that did not mention it. */
+  retired_at: string | null;
+  source: { name: string; url: string };
+}
+
 export interface FeatureDetail extends Feature {
   /** The detail endpoint returns the notices themselves, not just a count. */
   other_notices: Notice[];
+  /** Set only where there is no current status and a source has withdrawn
+   *  one. Optional for the deploy-skew reason `facts` records: the API and
+   *  this app deploy separately, so for the length of every deploy this
+   *  renders against a backend that predates the field. */
+  last_reported?: LastReported | null;
   /** Our own editorial line about this feature, shown above the directory
    *  facts. Optional for the same deploy-skew reason as `facts` below. */
   notes?: string | null;
