@@ -727,6 +727,23 @@ The badges are doing their job — OLD and UNCHECKED are exactly what a reader
 needs here — but they are the only thing standing between a reader and a
 sentence the source withdrew months ago.
 
+**Seen again 8 Sep 2026, on a different source and in the dangerous
+direction.** Goûter Route, Refuge du Goûter and Refuge de Tête Rousse have all
+carried *"Open since 26 Aug 2026"* since `mairie-saint-gervais` last confirmed
+it at 13:55 on 7 Sep. The source has run cleanly since — the 21:09 sweep logged
+`[mairie-saint-gervais] ok — 1 new documents, 0 statements, 0 unresolved`. It
+fetched the page, stored it, and extracted nothing, so `last_seen_at` stopped
+advancing while the statement stood. Whether the mairie withdrew the notice or
+the parser stopped matching it is not yet established, and that is the first
+thing to find out: the stored documents are there to diff.
+
+This matters more than Megève. Megève's frozen sentence says *closed*, which
+fails safe. This one says **open**, on the route the commune regulates by
+arrêté — "a stale open must never read as clearance" is the line in CLAUDE.md,
+and this is that case arriving on its own. It is currently mitigated only by
+the OVERDUE badge, which was itself meaningless until the cadence fix on 8 Sep
+because it was lit on eight lifts permanently. Two bugs were hiding each other.
+
 **Two things to decide, and they are separate:**
 
 1. **The mechanism.** Should a statement expire when its source has run
