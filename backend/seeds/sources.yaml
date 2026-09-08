@@ -95,7 +95,25 @@
   language: fr
   country: FR
   trust_weight: 0.95
-  fetch_interval_minutes: 30
+  # 180, not 30, and this is a statement about US rather than about the feed.
+  #
+  # The page really does change every few minutes; we do not read it that
+  # often and cannot. Ingest runs from a GitHub Actions cron, and measured
+  # over 6-8 Sep 2026 the delivered gaps between scheduled runs were
+  # min 91 / median 188 / mean 225 / max 434 minutes, against a `*/30`
+  # schedule. Actions drops most firings and asking harder does not help: the
+  # cron was already tightened from hourly to half-hourly on 7 Sep and the
+  # delivered median barely moved.
+  #
+  # The cadence feeds `_unchecked`, which badges a feature OVERDUE at two
+  # missed intervals. At 30 that is one hour, so eight lifts carried the badge
+  # about five-sixths of the time and it stopped meaning anything. At 180 it
+  # is six hours, which two of nine measured gaps exceeded — a badge that
+  # fires on the tail, which is what it is for.
+  #
+  # Lower this the moment the trigger becomes reliable, and re-measure rather
+  # than guessing. tests/test_ingest_schedule.py holds the floor.
+  fetch_interval_minutes: 180
   active: true
   notes: >
     Real-time per-lift open/closed and operating hours, plus weather and

@@ -16,6 +16,19 @@ this one is load-bearing: it is half of the answer to "is this stale".
 So: a source may not promise a cadence the trigger cannot attempt. That is the
 invariant here. It does not promise GitHub will deliver — nothing can — only
 that we are not asking for something structurally impossible.
+
+REVISED 8 Sep 2026, because attempting was the wrong bar. The cron went to
+`*/30` and `mbnr-live` at 30 then satisfied this check exactly — and the eight
+lifts stayed badged, because what matters is what Actions DELIVERS, not what
+the schedule asks for. Measured over 6-8 Sep across ten delivered scheduled
+runs: min 91, median 188, mean 225, max 434 minutes. Tightening the cron from
+hourly to half-hourly barely moved the median; Actions drops most firings and
+asking harder does not help.
+
+So the floor is now the measured delivery rate, not the cron period. The number
+below is an observation with a date on it, and it is the kind of observation
+that goes stale: if the trigger is ever moved off Actions, re-measure it and
+change it here rather than assuming it improved.
 """
 
 from __future__ import annotations
@@ -53,20 +66,59 @@ def cron_period_minutes(expression: str) -> int:
     raise ValueError(f"teach this function about {expression!r}")
 
 
-def test_no_source_asks_for_a_cadence_the_cron_cannot_attempt():
+# What GitHub Actions actually delivered, in minutes between consecutive
+# successful scheduled runs, measured 6-8 Sep 2026 over ten runs:
+#
+#     min 91 · median 188 · mean 225 · max 434
+#
+# The median is the floor, rounded down to a round three hours: 188 is a
+# reading off ten samples, not a constant of nature, and a floor no source can
+# sit exactly on invites somebody to write 189 to get past it.
+#
+# The median and not the mean, which one 7-hour outlier drags up; and not the
+# max, which would let a source declare a cadence so loose that OVERDUE could
+# never fire at all. A badge that cannot light is as useless as one that never
+# goes out.
+OBSERVED_DELIVERY_MINUTES = 180
+
+
+def test_no_source_asks_for_a_cadence_faster_than_we_actually_deliver():
+    """The bar is delivery, not the schedule.
+
+    A source's cadence is the yardstick `_unchecked` measures our diligence
+    against, so declaring one we do not meet does not make the site fresher —
+    it makes the badge permanent, and then invisible.
+    """
     schedule = re.search(r'cron:\s*"([^"]+)"', WORKFLOW.read_text(encoding="utf-8"))
     assert schedule, "the ingest workflow has no cron"
-    period = cron_period_minutes(schedule.group(1))
+    # Both bars: the cron cannot attempt faster than its period, and Actions
+    # does not deliver at the period. Whichever is slower is the real floor.
+    floor = max(cron_period_minutes(schedule.group(1)), OBSERVED_DELIVERY_MINUTES)
 
     sources = yaml.safe_load(SOURCES.read_text(encoding="utf-8"))
     too_eager = [
         (s["slug"], s["fetch_interval_minutes"])
         for s in sources
-        if s.get("active") and s.get("fetch_interval_minutes", 0) < period
+        if s.get("active") and s.get("fetch_interval_minutes", 0) < floor
     ]
     assert not too_eager, (
-        f"the cron fires every {period} min, so these can never be fetched "
-        f"inside their own cadence and will sit UNCHECKED for ever: {too_eager}"
+        f"ingest is delivered every {floor} min at best, so these can never be "
+        f"read inside their own cadence and will sit OVERDUE for ever: {too_eager}"
+    )
+
+
+def test_the_floor_is_the_delivered_rate_and_not_merely_the_cron_period():
+    """The bug this file was rewritten for.
+
+    `*/30` plus a 30-minute source satisfied the old check exactly while eight
+    lifts stayed badged. If the floor ever collapses back to the cron period,
+    that returns.
+    """
+    schedule = re.search(r'cron:\s*"([^"]+)"', WORKFLOW.read_text(encoding="utf-8"))
+    period = cron_period_minutes(schedule.group(1))
+    assert OBSERVED_DELIVERY_MINUTES > period, (
+        "measured delivery is no worse than the cron period — if that is really "
+        "true the trigger has been fixed, so re-measure and say so here"
     )
 
 
