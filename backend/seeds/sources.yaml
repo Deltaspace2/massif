@@ -115,6 +115,16 @@
   # than guessing. tests/test_ingest_schedule.py holds the floor.
   fetch_interval_minutes: 180
   active: true
+  # Absence is evidence HERE and almost nowhere else: one fetch of this page
+  # enumerates every lift the operator is speaking about, so a lift that stops
+  # appearing has been dropped rather than merely not repeated. Measured 8 Sep
+  # 2026: 32 live statements were exactly the 27 re-emitted plus the 5 Megève
+  # orphans left behind when the ski season ended.
+  #
+  # Do not copy this to a notice feed. `mairie-saint-gervais` caps at
+  # MAX_ARTICLES, so absence there can be our own limit rather than the
+  # source's silence, and retiring on it would drop a still-valid arrêté.
+  retire_after_unmentioned_runs: 3
   notes: >
     Real-time per-lift open/closed and operating hours, plus weather and
     avalanche risk. Server-rendered HTML, so selectolax rather than Playwright.

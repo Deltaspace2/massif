@@ -292,6 +292,82 @@ def confirm_still_standing(
     return list(live)
 
 
+def retire_unmentioned(session: Session, source: Source, now: datetime) -> list[Statement]:
+    """Retire claims this source has been asked for, repeatedly, and not repeated.
+
+    `retire_replaced` retires an old reading when a NEW one arrives for the same
+    feature. A source that simply stops listing a feature never sends that
+    successor, so nothing retires and the last thing it ever said stands for
+    ever. Megève is where it surfaced: six features dropped from the live feed
+    when the ski season ended, frozen mid-sentence on *"close — départ toutes
+    les 30 mn à partir de 9h"*, still rendering in September.
+
+    OPT-IN, and the criterion is narrow: **does one fetch enumerate everything
+    this source speaks about?** Only then is absence evidence. `mbnr-live`
+    qualifies — measured 8 Sep 2026, its 32 live statements were exactly the 27
+    it re-emitted plus the 5 Megève orphans. `mairie-saint-gervais` does not,
+    three times over, and the third reason is the dangerous one: it caps at
+    `MAX_ARTICLES`, so absence there can be caused by our own limit rather than
+    by the source. Retiring on that would delete a still-valid arrêté because
+    of a cap we imposed on ourselves, and a `closed` decree scrolling off the
+    listing would turn a shut route UNKNOWN. That is this morning's Goûter bug
+    with the polarity reversed, and it fails unsafe.
+
+    Counted in RUNS, not elapsed time: a feed that omits a feature for one run
+    because of a partial outage must not lose it. Only successful runs count,
+    for the same reason.
+
+    `started_at` and never `finished_at`. `finished_at` is set after statements
+    are written, so it is later than the `last_seen_at` of the very statements
+    that run created — every fresh statement would show a miss the moment it
+    was born. `started_at` precedes the write and excludes it.
+
+    This works only because `confirm_still_standing` advances `last_seen_at` on
+    every run that DID mention a statement, including runs where the page was
+    unchanged. Every successful run after that timestamp is therefore a run
+    that asked and did not say it, and one mention resets the count to zero
+    with no bookkeeping. Before that fix landed, this would have retired
+    everything from any source whose pages sit still.
+
+    The current run is not counted — it is not marked `ok` yet — so N means N
+    completed successful runs since the last mention.
+    """
+    threshold = (source.fetch_config or {}).get("retire_after_unmentioned_runs")
+    if not threshold:
+        return []
+
+    live = session.scalars(
+        select(Statement).where(
+            Statement.source_id == source.id,
+            Statement.superseded_at.is_(None),
+            Statement.superseded_by.is_(None),
+        )
+    ).all()
+    if not live:
+        return []
+
+    starts = session.scalars(
+        select(IngestRun.started_at)
+        .where(IngestRun.source_id == source.id, IngestRun.ok.is_(True))
+        .order_by(IngestRun.started_at.desc())
+        .limit(threshold)
+    ).all()
+    # Not enough history to have asked N times. A fresh database must not
+    # retire everything on its first run.
+    if len(starts) < threshold:
+        return []
+    cutoff = starts[-1]
+
+    retired = []
+    for statement in live:
+        if statement.last_seen_at < cutoff:
+            # superseded_by stays null: there is no successor, which is the
+            # same shape re-extraction orphans already have.
+            statement.superseded_at = now
+            retired.append(statement)
+    return retired
+
+
 def retire_replaced(session: Session, incoming: Statement) -> int:
     """Mark older readings that this statement replaces as superseded.
 
@@ -546,6 +622,17 @@ class Scraper(ABC):
             if confirmed_total:
                 print(
                     f"  {confirmed_total} statements still standing on unchanged pages",
+                    file=sys.stderr,
+                )
+
+            # Only for sources that enumerate everything they speak about; see
+            # retire_unmentioned. Recomputed like anything else, or the
+            # retirement never reaches the API.
+            retired = retire_unmentioned(session, source, datetime.now(UTC))
+            if retired:
+                touched.update(st.feature_id for st in retired)
+                print(
+                    f"  retired {len(retired)} statements this source has stopped mentioning",
                     file=sys.stderr,
                 )
 

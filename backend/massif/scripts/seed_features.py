@@ -63,6 +63,7 @@ def seed_sources(session) -> int:
         notes = row.pop("notes", None)
         licence = row.pop("licence", None)
         licence_url = row.pop("licence_url", None)
+        retire_after = row.pop("retire_after_unmentioned_runs", None)
         existing = session.scalar(select(Source).where(Source.slug == row["slug"]))
         if existing is None:
             existing = Source(slug=row["slug"])
@@ -85,6 +86,13 @@ def seed_sources(session) -> int:
             config["licence"] = licence
         if licence_url:
             config["licence_url"] = licence_url
+        # Opt-in, and only for a source that enumerates everything it speaks
+        # about on every fetch — see massif.ingest.base.retire_unmentioned.
+        # It must be listed here as well as in the YAML: this assignment
+        # REPLACES fetch_config, so a key the loader does not know about is
+        # silently dropped on the next reseed.
+        if retire_after:
+            config["retire_after_unmentioned_runs"] = retire_after
         existing.fetch_config = config
         count += 1
     return count

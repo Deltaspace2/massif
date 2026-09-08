@@ -151,6 +151,10 @@ class _Source:
     id = uuid.uuid4()
     slug = "fake-source"
     language = "fr"
+    # No `retire_after_unmentioned_runs`, so this source is opted out of
+    # retiring on absence — which is the default and what every source but
+    # mbnr-live wants. See test_retire_unmentioned.py.
+    fetch_config: dict | None = None
     last_success_at = None
     last_fetch_at = None
     consecutive_failures = 0
