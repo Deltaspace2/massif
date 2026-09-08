@@ -702,6 +702,57 @@ oddities and can interfere with certificate issuance.
 reminder comes round, staying put is a perfectly reasonable answer — this note
 exists so that is a decision rather than a default.
 
+## `last_seen_at` only advances when the page bytes change
+
+Found 8 Sep 2026. Goûter Route, Refuge du Goûter and Refuge de Tête Rousse all
+carried *"Open since 26 Aug 2026"* badged OVERDUE, last confirmed 13:55 on
+7 Sep while the source had been fetched 3.7 hours earlier. It looked exactly
+like the Megève case above. It is not.
+
+**Diffed the stored documents. The notice is still on the page and the parser
+still reads it.** Three stored copies of the reopening article exist (26 Aug,
+31 Aug, 7 Sep) and today's parser run over every one of them returns the same
+three statements, the newest copy included. Nothing was withdrawn and nothing
+broke.
+
+The cause is in `saint_gervais.collect()`:
+
+    document, is_new = store_document(session, source, url, response, ...)
+    if not is_new:
+        continue
+
+An unchanged article is skipped and emits **no statements**. `last_seen_at`
+lives on the Statement row and only moves when `run()` writes a new one, so it
+advances only when the article's bytes change. The three stored copies are
+three incidental changes to page furniture; between them the statements sit
+frozen and age into OVERDUE while we are in fact re-reading the page every six
+hours and finding the notice exactly where it was.
+
+This contradicts what rule 10 in CLAUDE.md says the column means: *"when we
+last fetched and found it still standing"*. We did. We just did not write it
+down.
+
+**Measured across all ten sources**, only `mairie-saint-gervais` currently
+diverges — fetched 3.7h ago, newest live statement 17.1h old, a 13.3h gap;
+every other source sits at 0.0h. Seven live statements affected. The reason it
+surfaces here first is shape, not luck: this scraper fetches ~10 article pages
+per run and most are unchanged most of the time, whereas the others fetch one
+endpoint whose content moves. `mbnr_live`, `mbnr_openings`, `refuges_info` and
+`chamoniarde` carry the identical `if not is_new: continue` and are latent.
+
+**The fix is to record the observation without rewriting the claim.** When a
+document comes back unchanged, refresh `last_seen_at` on the live statements
+already attached to it rather than skipping. Re-extracting and re-inserting
+every run would work too and should not be done: it would churn a new row per
+statement per run and lose `observed_at`, and re-extraction is supposed to be
+driven by a better parser, not by a clock.
+
+Note what this cost. The badge is the only thing standing between a reader and
+a frozen **open** on an arrêté-regulated route — "a stale open must never read
+as clearance" — and the badge was itself meaningless until the cadence fix
+earlier the same day, because it was permanently lit on eight lifts. Two bugs
+were hiding each other, and the one that fails unsafe was underneath.
+
 ## What happens when a source stops mentioning a feature
 
 Found 7 Sep 2026 by five lifts sitting permanently UNCHECKED after the cron
@@ -727,22 +778,10 @@ The badges are doing their job — OLD and UNCHECKED are exactly what a reader
 needs here — but they are the only thing standing between a reader and a
 sentence the source withdrew months ago.
 
-**Seen again 8 Sep 2026, on a different source and in the dangerous
-direction.** Goûter Route, Refuge du Goûter and Refuge de Tête Rousse have all
-carried *"Open since 26 Aug 2026"* since `mairie-saint-gervais` last confirmed
-it at 13:55 on 7 Sep. The source has run cleanly since — the 21:09 sweep logged
-`[mairie-saint-gervais] ok — 1 new documents, 0 statements, 0 unresolved`. It
-fetched the page, stored it, and extracted nothing, so `last_seen_at` stopped
-advancing while the statement stood. Whether the mairie withdrew the notice or
-the parser stopped matching it is not yet established, and that is the first
-thing to find out: the stored documents are there to diff.
-
-This matters more than Megève. Megève's frozen sentence says *closed*, which
-fails safe. This one says **open**, on the route the commune regulates by
-arrêté — "a stale open must never read as clearance" is the line in CLAUDE.md,
-and this is that case arriving on its own. It is currently mitigated only by
-the OVERDUE badge, which was itself meaningless until the cadence fix on 8 Sep
-because it was lit on eight lifts permanently. Two bugs were hiding each other.
+**NOT the same bug as the Goûter case found the same day** — see the next
+section. That one looked identical from the outside and has a different cause,
+which is worth remembering before reading a frozen statement as evidence of a
+quiet source.
 
 **Two things to decide, and they are separate:**
 
