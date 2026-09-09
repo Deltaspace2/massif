@@ -161,3 +161,35 @@ def test_one_feature_claiming_a_key_through_many_forms_is_not_ambiguous():
     feature — that is emphasis, not ambiguity."""
     r = _resolver(GOUTER_ROUTE)
     assert _got(r, "Voie du Goûter").feature_id == str(GOUTER_ROUTE.id)
+
+
+def test_the_scoped_hut_resolver_still_composes_with_the_tiers():
+    """ffcam's HutResolver subclasses this and filters the index to huts. The
+    tier rework broke it at RUNTIME while the whole suite stayed green,
+    because every ffcam test fakes the resolver — this one builds the real
+    subclass. Scoping makes a route-and-hut key hut-only, so "Goûter" (the
+    ROUTE's alias in the shared resolver) belongs to the refuge here."""
+    from massif.ingest.sources.ffcam import HutResolver
+
+    class _HutFeature(_Feature):
+        feature_type = "hut"
+
+    class _ScopedSession(_Session):
+        def scalars(self, query):
+            where = str(getattr(query, "whereclause", "")).lower()
+            if "feature_type" in where:
+                # HutResolver's own query: just the ids of the huts.
+                hut_ids = [
+                    f.id for f in self.features if getattr(f, "feature_type", "") == "hut"
+                ]
+                return _Rows(hut_ids)
+            return _Rows(self.features)
+
+    refuge = _HutFeature("Refuge du Goûter", ["Goûter"])
+    route = _Feature("Goûter Route", ["Goûter"])
+    r = HutResolver(_ScopedSession([refuge, route]))
+    match, _ = r.resolve("GOÛTER")
+    assert match is not None and match.feature_id == str(refuge.id)
+    # And the route is unreachable through the scoped resolver entirely.
+    match, candidates = r.resolve("Goûter Route")
+    assert match is None or match.feature_id == str(refuge.id)

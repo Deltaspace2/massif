@@ -352,9 +352,18 @@ class HutResolver(FeatureResolver):
                 select(Feature.id).where(Feature.feature_type == FeatureType.HUT)
             )
         }
-        for key, (feature_id, _form) in list(self._index.items()):
-            if feature_id not in huts:
-                del self._index[key]
+        # Drop non-hut CLAIMS from every tier, not whole keys. A key shared
+        # between a route and a hut — "gouter" — becomes hut-only here, and
+        # therefore unambiguous within this scoped resolver: that is the whole
+        # point of scoping, and it composes with the ambiguity guard rather
+        # than fighting it.
+        for tier in (self._exact, self._tight, self._loose):
+            for key, claims in list(tier.items()):
+                kept = [(fid, form) for fid, form in claims if fid in huts]
+                if kept:
+                    tier[key] = kept
+                else:
+                    del tier[key]
 
 
 def _report_skipped(url: str, html: str, found: list[ExtractedStatement]) -> None:
