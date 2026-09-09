@@ -493,8 +493,12 @@ a.focus__item:hover { border-color: var(--ink); color: var(--ink); text-decorati
    one. These were checked, they are in season, and there is nothing to say
    about them, which is a different thing from no data. */
 .quiet__summary {
-  display: flex; align-items: center; gap: 14px; padding: 11px 0; margin: 0;
-  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; gap: 14px; padding: 4px 0 12px; margin: 0;
+  /* A stronger rule than a row's, because this line is the section's headline
+     and everything under it is detail — without it the sentence reads as the
+     first row rather than as a statement about the rest. */
+  border-bottom: 1.5px solid var(--rule-strong);
+  margin-bottom: 2px;
 }
 .quiet__text { font-size: 13.5px; color: var(--body); }
 

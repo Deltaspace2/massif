@@ -719,10 +719,14 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
                 " · coloured by season, not by the clock"
               }
             >
+              {/* The summary FIRST, above the exceptions. Its rows still come
+                  last: the sentence is the section's headline, and the rows it
+                  counts are the ones with nothing to say. */}
+              <QuietSummary rows={liftRows.quiet} noun="lift" />
               {liftRows.shown.map((f) => (
                 <LedgerRow key={f.slug} feature={f} />
               ))}
-              <QuietRows rows={liftRows.quiet} noun="lift" />
+              <QuietRows rows={liftRows.quiet} />
             </Band>
           )}
 
@@ -974,33 +978,47 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
  *  `<details>`, not a button: moment three of the brief is a phone in a hut on
  *  bad signal, so this has to open with no JavaScript at all. The pill in the
  *  handoff is the summary's styling, not a control of its own. */
-function QuietRows({ rows, noun }: { rows: Feature[]; noun: string }) {
+/** The section's normal state, said before the exceptions rather than after.
+ *
+ *  Split out of QuietRows so it can sit at the TOP of a band. Everything below
+ *  it is either an exception or one of the routine rows it is counting, and a
+ *  reader who opens a section wants that sentence first — "nine of these are
+ *  fine and were checked this sweep" is the context for the one that is not.
+ *
+ *  It is not a control. It was a `<details>` summary with a "Show all" pill
+ *  until the bands themselves began to fold, at which point opening a section
+ *  asked you to open it again.
+ *
+ *  It is also what stops a quiet section reading as an empty one: checked, in
+ *  season, nothing to report is a different thing from no data. */
+function QuietSummary({ rows, noun }: { rows: Feature[]; noun: string }) {
   if (rows.length === 0) return null;
-  // NOT a fold any more. It was one when the band around it was always open
-  // and the routine rows were the bulk of the page; now the band itself folds
-  // and starts shut, so this was a second "Show all" inside the first —
-  // open a section and you are asked to open it again.
-  //
-  // The line above the rows stays. It is not a control, it is the sentence
-  // that stops a quiet section reading as an empty one: these were checked,
-  // they are in season, and there is nothing to say about them.
   return (
-    <div className="quiet">
-      <p className="quiet__summary">
-        <span className="lrow__glyph open" style={{ color: "var(--open)" }} aria-hidden="true">
-          ●
-        </span>
-        <span className="quiet__text">
-          {rows.length} {noun}
-          {rows.length === 1 ? "" : "s"} routine, in season · all checked this
-          sweep
-        </span>
-      </p>
-      <div className="quiet__body">
-        {rows.map((f) => (
-          <LedgerRow key={f.slug} feature={f} />
-        ))}
-      </div>
+    <p className="quiet__summary">
+      <span className="lrow__glyph open" style={{ color: "var(--open)" }} aria-hidden="true">
+        ●
+      </span>
+      <span className="quiet__text">
+        {rows.length} {noun}
+        {rows.length === 1 ? "" : "s"} routine, in season · all checked this
+        sweep
+      </span>
+    </p>
+  );
+}
+
+/** The routine rows themselves, after the exceptions.
+ *
+ *  Last, deliberately. They are the ones with nothing to say, and a reader
+ *  scanning for what is shut should not have to pass nine "in season" lines to
+ *  reach the one that is not. */
+function QuietRows({ rows }: { rows: Feature[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="quiet__body">
+      {rows.map((f) => (
+        <LedgerRow key={f.slug} feature={f} />
+      ))}
     </div>
   );
 }
