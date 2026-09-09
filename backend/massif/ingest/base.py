@@ -275,6 +275,66 @@ def resolve_child(session: Session, parent_slug: str, name: str) -> Match | None
     return Match(str(child.id), 100.0, name)
 
 
+def inherit_review(session: Session, statement: Statement) -> Statement | None:
+    """Carry a person's decision forward to the same sentence, read again.
+
+    Accepting a statement sets `reviewed_at` on that ROW. `reextract`
+    supersedes every statement a document produced and writes fresh ones, so
+    the decision died with the row and the item came back to the queue — seen
+    for real, the Cosmiques statement accepted from the admin page was back
+    after the next re-extract. A reviewer whose work evaporates whenever a
+    parser improves stops reviewing.
+
+    So the decision belongs to the EVIDENCE, not the row: the same sentence
+    stays approved however often it is re-read. No second table to hold that —
+    `statements` is never deleted, so it already is the record of who decided
+    what, and a separate store would only be something else to drift.
+
+    FIVE THINGS MUST MATCH, and each is a way of asking "is this the same
+    decision?": the feature, the source, the statement type, the status, and
+    the verbatim evidence. Evidence alone is not enough — the same sentence can
+    support "open" on one reading and "closed" on a better one, and inheriting
+    across that would launder a new claim through an old approval.
+
+    ONLY APPROVALS ARE CARRIED. A rejection is recorded as `superseded_at` with
+    no `reviewed_at`, and re-applying one silently would drop a statement
+    nobody chose to drop this time. Rejections are cheap to repeat and the
+    prose-identity fix means they rarely come round; a wrong auto-rejection is
+    invisible.
+    """
+    if not (statement.payload or {}).get("needs_review"):
+        # Nothing to inherit: this statement can take a status slot already.
+        return None
+    evidence = (statement.original_text or "").strip()
+    if not evidence:
+        # Guard 1 in llm.py means an LLM statement always has evidence. An
+        # empty one matching every other empty one would carry an approval
+        # across unrelated readings.
+        return None
+
+    prior = session.scalars(
+        select(Statement)
+        .where(
+            Statement.feature_id == statement.feature_id,
+            Statement.source_id == statement.source_id,
+            Statement.statement_type == statement.statement_type,
+            Statement.status == statement.status,
+            Statement.original_text == statement.original_text,
+            Statement.reviewed_at.is_not(None),
+        )
+        .order_by(Statement.reviewed_at.desc())
+        .limit(1)
+    ).first()
+    if prior is None:
+        return None
+
+    # The instant of the ORIGINAL decision, not now: this is that decision
+    # still standing, and dating it today would hide how old it is.
+    statement.reviewed_at = prior.reviewed_at
+    statement.review_note = f"[carried forward] {prior.review_note or ''}".strip()
+    return prior
+
+
 def confirm_still_standing(
     session: Session, document: Document, now: datetime
 ) -> list[Statement]:
@@ -585,7 +645,7 @@ class Scraper(ABC):
             )
             return None
 
-        return Statement(
+        built = Statement(
             feature_id=match.feature_id,
             source_id=source.id,
             document_id=document.id,
@@ -602,6 +662,11 @@ class Scraper(ABC):
             extraction_method=item.extraction_method,
             extraction_confidence=item.extraction_confidence,
         )
+        # Here rather than in run(), because reextract builds statements
+        # through this same method — and re-extraction is precisely when a
+        # decision used to be lost.
+        inherit_review(session, built)
+        return built
 
     def run(self, session: Session) -> IngestRun:
         source = session.scalar(select(Source).where(Source.slug == self.slug))
