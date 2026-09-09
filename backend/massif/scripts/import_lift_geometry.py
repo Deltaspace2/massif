@@ -103,6 +103,36 @@ def _ask(query: str) -> list[dict] | None:
     return None
 
 
+def _osm_api_geometry(oid: str) -> list[list[tuple[float, float]]] | None:
+    """One object from the canonical OSM API, as line parts.
+
+    The LAST resort, after every Overpass endpoint: on 10 Sep 2026 the route
+    to overpass-api.de was dead from this network and the Mail.ru mirror had
+    begun rate-limiting, while api.openstreetmap.org answered fine. The main
+    API is for light, specific use — which single-object fetches with a pause
+    are — and never for search; the bbox listing has no fallback here on
+    purpose.
+    """
+    kind, _, num = oid.partition("/")
+    # .json, or the 0.6 API answers in XML.
+    url = f"https://api.openstreetmap.org/api/0.6/{kind}/{num}/full.json"
+    try:
+        response = httpx.get(url, headers=UA, timeout=120)
+        response.raise_for_status()
+    except Exception as exc:
+        print(f"      osm api {oid}: {type(exc).__name__}", file=sys.stderr)
+        return None
+    elements = response.json().get("elements", [])
+    nodes = {e["id"]: (e["lon"], e["lat"]) for e in elements if e["type"] == "node"}
+    ways = [e for e in elements if e["type"] == "way"]
+    parts = []
+    for way in ways:
+        points = [nodes[n] for n in way.get("nodes", []) if n in nodes]
+        if len(points) >= 2:
+            parts.append(points)
+    return parts or None
+
+
 def fetch_geometry(osm_ids: list[str]) -> dict[str, list[list[tuple[float, float]]]]:
     """OSM id -> its parts, each a list of (lon, lat).
 
@@ -122,10 +152,14 @@ def fetch_geometry(osm_ids: list[str]) -> dict[str, list[list[tuple[float, float
             continue
         query = f"[out:json][timeout:120];{kind}({num});out geom;"
         got = _ask(query)
-        if got is None:
-            print(f"      {oid}: all endpoints failed", file=sys.stderr)
-        else:
+        if got is not None:
             elements.extend(got)
+        else:
+            parts = _osm_api_geometry(oid)
+            if parts is None:
+                print(f"      {oid}: every source failed", file=sys.stderr)
+            else:
+                out[oid] = parts
         time.sleep(2)
 
     for element in elements:
@@ -165,6 +199,20 @@ _STOPWORDS = re.compile(
 )
 
 
+def _replaceable(geom) -> bool:
+    """A point may be upgraded to the machine's line; a line is kept.
+
+    The seed guard enforces the same rule in the other direction — a line is
+    never downgraded — and this is what lets Les Planards' chairlift line
+    replace the resort's node dot."""
+    try:
+        from geoalchemy2.shape import to_shape
+
+        return to_shape(geom).geom_type == "Point"
+    except Exception:
+        return True
+
+
 def machine_key(name: str) -> str:
     flat = "".join(
         c for c in unicodedata.normalize("NFD", name or "") if unicodedata.category(c) != "Mn"
@@ -188,7 +236,7 @@ def match_machines(lifts, aerialways: list[dict]) -> dict[str, list[str]]:
     """
     out: dict[str, list[str]] = {}
     for lift in lifts:
-        if lift.geom is not None:
+        if lift.geom is not None and not _replaceable(lift.geom):
             continue
         key = machine_key(lift.name_default)
         if not key:
@@ -226,9 +274,159 @@ def fetch_aerialways() -> list[dict]:
     return out
 
 
+# What a lift KIND is called on the page. The display name is prefixed with
+# it, and that is a resolver decision, not cosmetics: a chairlift named
+# "Glacier des Bossons" or a platter named "Mont Blanc" indexed under its bare
+# OSM name would collide with the glacier feature at the exact tier, and every
+# collision makes both sides unreachable. "Télésiège Glacier des Bossons" keys
+# apart from the glacier at every tier.
+FRENCH_TYPE = {
+    "cable_car": "Téléphérique",
+    "gondola": "Télécabine",
+    "mixed_lift": "Télémix",
+    "chair_lift": "Télésiège",
+    "drag_lift": "Téléski",
+    "t-bar": "Téléski",
+    "platter": "Téléski",
+    "rope_tow": "Téléski",
+}
+_SLUG_PREFIX = {
+    "cable_car": "tph",
+    "gondola": "tc",
+    "mixed_lift": "tmx",
+    "chair_lift": "ts",
+    "drag_lift": "tk",
+    "t-bar": "tk",
+    "platter": "tk",
+    "rope_tow": "tk",
+}
+# OSM sometimes bakes the type into the name ("TK Grépon"); the prefix would
+# then say it twice.
+_LEADING_TYPE = re.compile(
+    r"^(?:tph|tcd|tc|tsd|ts|tk"
+    r"|telepherique|telecabine|telesiege|teleski)"
+    r"\s+(?:de\s+|du\s+|des\s+)?",
+    re.I,
+)
+
+# A staff supply cable is not a lift anyone rides.
+_NOT_A_RIDE = re.compile(r"ligne de service", re.I)
+
+
+def _slugify(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c)).lower()
+    return re.sub(r"-+", "-", re.sub(r"[^a-z0-9]+", "-", text)).strip("-")
+
+
+def fetch_all_aerialways() -> list[dict]:
+    """Every named PASSENGER aerialway in the bbox, with kind and line."""
+    got = _ask(
+        '[out:json][timeout:150];way["aerialway"]["name"](45.72,6.60,46.05,7.10);out geom;'
+    )
+    if got is None:
+        return []
+    out = []
+    for element in got:
+        tags = element.get("tags", {})
+        points = [(p["lon"], p["lat"]) for p in element.get("geometry") or []]
+        if len(points) >= 2 and tags.get("aerialway") in FRENCH_TYPE:
+            out.append(
+                {
+                    "id": f"way/{element['id']}",
+                    "name": tags["name"],
+                    "kind": tags["aerialway"],
+                    "line": points,
+                }
+            )
+    return out
+
+
+def create_missing_lifts(session, lifts, aerialways: list[dict], apply: bool) -> int:
+    """Every passenger lift inside the massif boundary becomes a feature.
+
+    Steven's call, twice stated: "all trams, telecabines, chairlifts etc.,
+    need to be shown on the map." The boundary POLYGON is the arbiter, the
+    same one the hut import uses — the bbox alone holds 271 named aerialways,
+    181 of them in ski areas outside the massif ring.
+
+    These carry no status source, so they read "nothing published" until a
+    source speaks — which is honest, and the ledger already keeps statusless
+    features off the front page. They exist for the map, the search, and the
+    day a source does speak.
+    """
+    from shapely.geometry import Point
+
+    from massif.scripts.import_osm_huts import load_boundary
+
+    boundary = load_boundary()
+    if boundary is None:
+        print("  no massif_boundary.wkt — refusing to create anything", file=sys.stderr)
+        return 0
+
+    claimed: set[str] = set()
+    keys: set[str] = set()
+    slugs = {lift.slug for lift in lifts}
+    for lift in lifts:
+        for field in ("osm", "osm_line"):
+            value = str((lift.external_ids or {}).get(field) or "")
+            claimed.update(part.strip() for part in value.split(",") if part.strip())
+        for form in [lift.name_default, *(lift.aliases or [])]:
+            keys.add(machine_key(form))
+
+    created = 0
+    for a in sorted(aerialways, key=lambda x: (x["kind"], x["name"])):
+        if _NOT_A_RIDE.search(a["name"]):
+            continue
+        mid = a["line"][len(a["line"]) // 2]
+        if not boundary.contains(Point(mid[0], mid[1])):
+            continue
+        if a["id"] in claimed:
+            continue
+        if machine_key(a["name"]) in keys:
+            # A tracked lift already means this machine; its geometry is
+            # phase 2's job, and a second feature would be a duplicate.
+            continue
+        bare = _LEADING_TYPE.sub("", a["name"]).strip() or a["name"]
+        name = f"{FRENCH_TYPE[a['kind']]} {bare}"
+        slug = f"{_SLUG_PREFIX[a['kind']]}-{_slugify(bare)}"
+        if slug in slugs:
+            print(f"  !!    {slug:30} slug already taken — skipped, resolve by hand")
+            continue
+        length = span_km([a["line"]])
+        if length > 8.0 or not in_massif(a["line"]):
+            print(f"  XX    {slug:30} {length:.1f} km or outside — refusing")
+            continue
+        print(f"  NEW   {slug:30} {name[:34]:34} {length:>4.1f} km")
+        if apply:
+            from massif.models import Feature as _F
+
+            session.add(
+                _F(
+                    slug=slug,
+                    feature_type="lift",
+                    name_default=name,
+                    names={},
+                    aliases=[],
+                    geom=f"SRID=4326;{wkt([a['line']])}",
+                    geom_source="osm",
+                    geom_verified=False,
+                    external_ids={"osm_line": a["id"]},
+                )
+            )
+        slugs.add(slug)
+        created += 1
+    return created
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="write; otherwise dry run")
+    parser.add_argument(
+        "--create",
+        action="store_true",
+        help="also create features for boundary lifts nobody tracks yet",
+    )
     args = parser.parse_args(argv)
 
     pins = pinned_lines()
@@ -309,6 +507,12 @@ def main(argv: list[str] | None = None) -> int:
                 lift.geom_verified = False
                 lift.external_ids = {**(lift.external_ids or {}), "osm_line": ",".join(ids)}
             drawn += 1
+
+        if args.create:
+            all_aerialways = fetch_all_aerialways()
+            print(f"\n{len(all_aerialways)} named passenger aerialways in the bbox")
+            created = create_missing_lifts(session, lifts, all_aerialways, args.apply)
+            print(f"{created} new lift features" + ("" if args.apply else " (dry)"))
 
         print(f"\n{drawn} drawn, {refused} refused")
         if not args.apply:
