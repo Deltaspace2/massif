@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  // Self-referential, and safe on a page rather than on the layout: layout
+  // metadata is inherited verbatim by every route below it, so a canonical
+  // there would name the front page as the original for the whole site.
+  alternates: { canonical: "/about" },
   title: "About",
   description:
     "What this site is, where every status comes from, how it is collected, " +

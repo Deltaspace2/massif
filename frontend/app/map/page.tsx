@@ -6,6 +6,10 @@ import { listFeatures, getHealth, sinceLabel, type Feature } from "@/lib/api";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
+  // Self-referential, and safe on a page rather than on the layout: layout
+  // metadata is inherited verbatim by every route below it, so a canonical
+  // there would name the front page as the original for the whole site.
+  alternates: { canonical: "/map" },
   title: "Map",
   description:
     "Every tracked feature in the Mont Blanc massif on one map, coloured by " +
