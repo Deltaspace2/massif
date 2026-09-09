@@ -271,6 +271,22 @@
   # (4121 m) — the two are 600 m apart in altitude and one alias apart
   # in name, which is exactly the confusion rule 8 exists for.
   alt_max: 3512
+  # Anchored on the Aiguille des Grands Montets, NOT on the lift.
+  #
+  # The obvious start is the Grands Montets top station, and the obvious fix
+  # was to add that lift. It does not exist. OSM way/1447084429 carries
+  # `aerialway=construction`, `construction:aerialway=gondola` and a note
+  # citing Compagnie du Mont-Blanc's own project page: the second section
+  # opens in 2027. Our `grands-montets` feature is that cable car, which is
+  # why it has neither geometry nor a status.
+  #
+  # The route is climbed from the Aiguille des Grands Montets whether or not
+  # a lift takes you there, and that summit IS a position we hold — OSM
+  # node/2401280720, 3296 m, about 90 m from the unbuilt station. So the line
+  # is drawn from the mountain rather than from the machine.
+  schematic_via:
+    - osm:node/2401280720      # Aiguille des Grands Montets, 3296 m
+    - osm:node/4357285689      # Petite Aiguille Verte, 3512 m
   country: FR
   # camptocamp 53783 — 3512 m; their Slovenian locale of the normal route. Pinned by hand: their search ranks
   # strings, and matching by name put our Goûter route on the
@@ -432,6 +448,25 @@
   name_default: Téléphérique des Grands Montets
   aliases: [Grands Montets, Grand Montets, Les Grands Montets]
   country: FR
+  # NO GEOMETRY, AND THAT IS THE ANSWER RATHER THAN A GAP. Checked 9 Sep 2026.
+  #
+  # This is the second section, Lognan to the Aiguille des Grands Montets, and
+  # it is not built. OSM way/1447084429 carries `aerialway=construction` with
+  # `construction:aerialway=gondola`, a note describing a 3S with nine 24-seat
+  # cabins, and a source_ref pointing at Compagnie du Mont-Blanc's own project
+  # page. Their cited article says the second section opens in 2027.
+  #
+  # So there is a surveyed line for it, and drawing it would put a cable car on
+  # the map that nobody can ride. Leave it unmapped until it opens; the day it
+  # does, way/1447084429 is where its geometry comes from.
+  #
+  # This also explains the missing status: mbnr-live cannot report a lift that
+  # is not running, so `unknown` here is correct and not a coverage hole.
+  #
+  # It was never in osm_candidates.yaml because that query asks for
+  # `aerialway~cable_car|gondola` and this is tagged `construction` — the
+  # FOURTH time "not in OSM" has meant "we never asked for that tag", after the
+  # rack railways, the bivouacs and the Refuge du Montenvers.
 
 - slug: brevent
   feature_type: lift
