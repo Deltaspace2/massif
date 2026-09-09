@@ -457,8 +457,29 @@ class SaintGervaisScraper(Scraper):
             if published is None:
                 print(f"  {url}: no datePublished, falling back to scrape time", file=sys.stderr)
 
+            # THE ARTICLE IS ITS TITLE AND BODY, not its bytes. These pages
+            # rotate something in the markup on every fetch — 54 document rows
+            # for 17 distinct URLs, one article stored eight times — while the
+            # words never move: extracted, all eight copies of each of the four
+            # repeatedly-stored articles were identical, measured 10 Sep 2026.
+            #
+            # That inflated every count anyone quoted here, and one of them
+            # badly: "28 of 36 stored documents produce nothing" is 11 distinct
+            # articles, not 28, and nearly bought a model a job it was not
+            # needed for.
+            #
+            # TITLE AND BODY, never body alone. Rule 2 classifies from the
+            # title — an article ABOUT closures is not a closure — so two
+            # articles differing only in their title are two documents and have
+            # to stay two.
+            title, body = article_text(response.text)
             document, is_new = store_document(
-                session, source, url, response, published_at=published
+                session,
+                source,
+                url,
+                response,
+                published_at=published,
+                identity=f"{title}\n{body}",
             )
             if not is_new:
                 # Unchanged, not empty. Most of this feed sits still between

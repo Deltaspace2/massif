@@ -198,3 +198,66 @@ def test_hut_sites_confirms_instead_of_re_reading_when_the_prose_is_unchanged(mo
     second = scraper.collect(session, _Source)
     assert second[0][1] is None, "unchanged prose must confirm, not re-read"
     assert second[0][0] is first[0][0], "and confirm against the document that produced them"
+
+
+# ---------------------------------- and the mairie, where the counts came from
+
+
+def test_saint_gervais_keys_an_article_on_its_title_and_body(monkeypatch):
+    """54 document rows for 17 distinct URLs, one article stored eight times.
+
+    Measured 10 Sep 2026: of the four articles stored more than once, every
+    copy of every one extracted to identical title-and-body. The markup rotates
+    and the notice does not, so each fetch wrote a new row, re-read the same
+    sentences and re-emitted the same statements.
+
+    That inflated every count quoted about this source, and one of them badly —
+    "28 of 36 stored documents produce nothing" is 11 distinct articles, not 28.
+    """
+    from massif.ingest.sources import saint_gervais as mod
+
+    article = (
+        "<html><head><meta name='t' content='{tok}'></head><body><article>"
+        "<h1>Réouverture des refuges</h1><p>Le refuge rouvre le 26/08/26.</p>"
+        "</article></body></html>"
+    )
+    pages = {
+        mod.LISTING: _Response(
+            b"<html><body><a href='/mairie/actualites/x/'>Reouverture</a></body></html>"
+        ),
+        "https://www.saintgervais.com/mairie/actualites/x/": None,
+    }
+    tokens = iter(["a", "b"])
+
+    def fake_fetch(url):
+        if url == mod.LISTING:
+            return pages[mod.LISTING]
+        return _Response(article.format(tok=next(tokens)).encode())
+
+    monkeypatch.setattr(mod, "fetch", fake_fetch)
+    monkeypatch.setattr(mod, "extract_page", lambda html, url, when: ["a statement"])
+
+    session = _Session()
+    scraper = mod.SaintGervaisScraper()
+
+    first = scraper.collect(session, _Source)
+    article_first = [pair for pair in first if pair[1] is not None]
+    assert article_first, "a notice seen for the first time is read"
+
+    second = scraper.collect(session, _Source)
+    unchanged = [pair for pair in second if pair[0].url.endswith("/x/")]
+    assert unchanged[0][1] is None, "the markup moved, the notice did not — confirm, do not re-read"
+
+
+def test_the_title_is_part_of_the_identity_not_just_the_body():
+    """Rule 2 classifies from the TITLE — an article ABOUT closures is not a
+    closure — so two notices differing only in their heading are two documents
+    and have to stay two. Keying on the body alone would merge them and lose
+    the second."""
+    import inspect
+
+    from massif.ingest.sources import saint_gervais as mod
+
+    source = inspect.getsource(mod.SaintGervaisScraper.collect)
+    assert "article_text(response.text)" in source
+    assert 'identity=f"{title}\\n{body}"' in source
