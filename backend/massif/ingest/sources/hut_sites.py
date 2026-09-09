@@ -112,7 +112,7 @@ class HutSiteScraper(Scraper):
 
     def collect(
         self, session: Session, source: Source
-    ) -> list[tuple[Document, list[ExtractedStatement]]]:
+    ) -> list[tuple[Document, list[ExtractedStatement] | None]]:
         extractor = build_extractor(session)
         if extractor is None:
             # Same contract as a source with no registered scraper: skipped,
@@ -135,7 +135,26 @@ class HutSiteScraper(Scraper):
             except Exception as error:  # noqa: BLE001 — one dead site is not a run
                 print(f"  ! {hut.slug}: {type(error).__name__}: {error}")
                 continue
-            document, _ = store_document(session, source, url, response)
+            # The PROSE is this document's identity, not its bytes. These
+            # pages rotate a token or a timestamp on every fetch while the
+            # words stay identical, so hashing the markup made every weekly
+            # run a fresh document — and a fresh document means fresh
+            # statements, which supersede the ones a person cleared and go
+            # back in the queue. Measured: every hut site here changed bytes
+            # between runs and not one changed a word.
+            prose = readable_text(
+                response.text if response.text else (response.content or b"").decode(
+                    "utf-8", "replace"
+                )
+            )
+            document, is_new = store_document(session, source, url, response, identity=prose)
+            if not is_new:
+                # Unchanged prose cannot produce a different reading, so there
+                # is nothing to re-decide. None confirms what already stands —
+                # see Scraper.collect — and leaves `reviewed_at` where it is.
+                print(f"  = {hut.slug}: unchanged, still standing")
+                out.append((document, None))
+                continue
             out.append((document, self._read(document, extractor, hut.slug)))
         return out
 

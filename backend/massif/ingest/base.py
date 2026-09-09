@@ -149,9 +149,26 @@ def store_document(
     *,
     raw_text: str | None = None,
     published_at: datetime | None = None,
+    identity: str | None = None,
 ) -> tuple[Document, bool]:
-    """Returns (document, is_new). Unchanged content writes no new row."""
-    content_hash = hashlib.sha256(response.content).hexdigest()
+    """Returns (document, is_new). Unchanged content writes no new row.
+
+    `identity` overrides WHAT MAKES A DOCUMENT THE SAME DOCUMENT. The default
+    is the raw bytes, which is right for a page read as markup. A source read
+    as PROSE should pass the prose instead, because the bytes around it rotate
+    and the prose does not.
+
+    Measured on the hut sites, 9 Sep 2026: trelatete.com returned HTML of
+    identical length on two fetches with a different checksum, and aneuve.ch
+    differed by two bytes — a token or a timestamp. Extracted, both were
+    character-for-character identical prose. So every run stored a new
+    document, re-read the same sentences, produced the same statement,
+    superseded the one a person had cleared, and put it back in the review
+    queue. The model was never re-called — `llm_cache` keys on the prose — so
+    the only cost was the reviewer's, which is the expensive one.
+    """
+    basis = response.content if identity is None else identity.encode("utf-8")
+    content_hash = hashlib.sha256(basis).hexdigest()
 
     existing = session.scalar(
         select(Document).where(
