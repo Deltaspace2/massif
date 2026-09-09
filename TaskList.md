@@ -377,6 +377,55 @@ A coverage fact, not a defect. It only improves with more sources.
 
 # Recon notes (so nobody repeats them)
 
+## Italian hut seasons — RECONNED 9 Sep 2026, ceiling is 3 huts not 10
+
+"IT 10" above counts wardened rifugi with no status. Reconned properly, and
+the number that can actually be reached is **three**.
+
+31 Italian huts are held. Thirteen are bivouacs and already read `unstaffed`,
+which is complete and correct — a bivouac has no warden season for anyone to
+open or close. Five more already carry a status. That leaves ten rifugi, and
+we hold no website for any of them, so the URLs came from the OSM ids we
+already have (`website` tag) rather than from guessing domains.
+
+Then the same three gates `hut-sites` applies, run for real:
+
+    REFUSED by robots.txt      cabaneducombal.com · rifugioelisabetta.com
+                               rifugiogonella.com · randonneurmb.com
+    JS-rendered, no prose      caitorino.it/rifugi/dalmazzi (17 chars)
+                               rifugioelena.it (0 chars)
+    READABLE, states a season  rifugiotorino.com      1911 chars
+                               rifugiomonzino.com     1336 chars
+                               rifugiobonatti.it      3579 chars
+
+Four refusals is the single biggest cause, and they are refusals: not fetched,
+not worked around. `base.fetch` would raise on them anyway.
+
+**The blocker on the remaining three is dates, not access.** They say
+"!! CHIUSURA 13 SETTEMBRE" and "Il rifugio è aperto" — Italian. `llm.py`
+verifies every model-returned date phrase by re-reading it with
+`fr_dates.parse_range`, unconditionally and in French only, so an Italian
+phrase fails that check, the statement arrives undated, and rule 3 correctly
+demotes it to UNKNOWN. Adding these three to `seeds/hut_sites.yaml` before
+that is fixed would add three items to the review queue and gain no status.
+
+**So the order is: Italian dates first, then the three huts.** Extending
+`fr_dates` rather than writing an `it_dates` beside it, because the grammar is
+nearly identical — "dal 20 giugno al 20 settembre" is "du 20 juin au 20
+septembre" with different vocabulary — and the subtle part being duplicated
+would be the coarse ranges, the qualifiers and the year-crossing, not the
+month names.
+
+**Verified by:** the three sites producing dated statements that a person
+clears, and `Rifugio Torino`, `Monzino` and `Bonatti` reading something other
+than unknown.
+
+**Not worth doing:** chasing the four refusals, or a headless browser for the
+two JS sites. The Valle d'Aosta region is also out — `regione.vda.it/robots.txt`
+disallows `/turismo/` entirely, and `lovevda.it` is the regional tourist board,
+which is the same distinction already made for chamonix.fr over the tourist
+office and for courmayeurmontblanc.it.
+
 ## Hut coverage: the operator-by-operator route (the biggest remaining move)
 FFCAM turned out to be the shape that works — an OPERATOR publishing its own
 huts' warden seasons on its own pages — and it took French huts from 2 to 14.
