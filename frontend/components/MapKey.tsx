@@ -57,7 +57,9 @@ export default function MapKey({ className }: { className?: string }) {
           tellable from one somebody surveyed, and the dots are the only thing
           saying so on the map itself. */}
       <span>
-        <i className="mapkey__line" aria-hidden="true" />a route
+        {/* Lifts share the line treatment since they became lines; a label
+            saying only "route" would misname most of what it points at. */}
+        <i className="mapkey__line" aria-hidden="true" />a route or lift
       </span>
       <span>
         <i className="mapkey__line mapkey__line--schematic" aria-hidden="true" />
