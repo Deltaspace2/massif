@@ -1,75 +1,133 @@
 # Task list
 
-Steven's items as headings, kept verbatim. Notes underneath are mine, with
-state as of 1 Sep 2026. This file is now the only task list — the agent-side
-one went away with its MCP server, so anything that mattered is folded in here.
+Steven's items as headings. Notes underneath are mine.
+
+Cleaned up 10 Sep 2026: everything finished was collapsed into **Done** at the
+foot of this file, one line each. Nothing measured was deleted — the recon
+notes are the most valuable thing here, because every one of them is an
+afternoon somebody does not have to spend twice.
 
 ---
 
-## Weather updates/ status
-NOT STARTED, and deliberately out of scope: CLAUDE.md "Not in v1" excludes
-weather and avalanche bulletins until v1 has run a full season. Both are
-already linked from sources we scrape (Meteo VDA, BERA, bollettino valanghe),
-so the cheap version is linking out rather than ingesting.
+# Next up
 
-## Events happening within the massif? - ie. races, concerts etc.
-NOT STARTED. Also v1-excluded as "events", BUT the Courmayeur recon turned up
-the part that IS in scope: UTMB and Tor des Géants close roads
-(`chiusura-strade-utmb`, `chiusura-strade-torx`). A race is not our business; a
-road shut for a race is exactly "what is currently shut".
+Ranked. The top one is the recommendation.
 
-## Feed Page
-**DONE.** Built at /feed: every notice we hold, newest first, source on each
-row, two clocks kept apart. It was worse than "not built" — the masthead had
-linked to it from every page for days, so the whole site carried a 404 in its
-global navigation.
+## Saint-Gervais stores the same article three times over
+The mechanism for this already exists and exactly one source uses it.
 
-## Bug/Feedback page
-**DONE.** The page existed but was reachable from one buried text link and the
-404 page. REPORT is now in the masthead on every page, and feature pages carry
-an inline prompt — that is where someone actually notices a wrong status.
-Contact address is steven@innes.io.
+`store_document` now takes an `identity` — what makes a document the same
+document — and `hut-sites` passes the extracted prose, because those pages
+rotate a token in the markup while the words stay identical. Saint-Gervais has
+the same shape and still hashes raw HTML: **52 document rows for 18 distinct
+URLs**, which is what made "28 of 36 stored documents produce nothing" a number
+nobody could reconcile with the 11 articles actually behind it.
 
-Still open: the scraping User-Agent in `.env` and `DEPLOY.md` carries the old
-gmail. That string is what we present to every server we fetch from, so it is
-an outward-facing identity and Steven's to change. Now folded into "Make a new
-email, put it on the website, and take my personal one off" at the end of this
-file, which covers every address the site publishes rather than just that one.
+Two things to get right, because this source is not hut-sites:
 
-## List cabanes and other similar things on the webpage.
-**DONE for now, 24 -> 59 huts.** Front page lists every hut, highest first,
-with capacity/warden/water and per-hut CC BY-SA attribution. 29 FR, 25 IT,
-5 CH; all have geometry and an altitude; 50 of 59 carry directory facts.
+* Identity has to be **title + body**, not body alone. Rule 2 classifies from
+  the title, so two articles differing only in title are two documents and must
+  stay two.
+* **Measure first**, the way hut-sites was measured: pull the stored copies of
+  one article and compare extracted text across them. If the prose genuinely
+  differs between fetches then this is not the same bug, and the fix is the
+  other option — report distinct URLs wherever a document count is printed.
 
-The Swiss ones went in (Trient, Envers des Dorées, Orny, A Neuve, Saleinaz).
-Three Swiss remain unimported pending a call on where the massif ends: Col de
-Balme (on the border itself), Petoudes and Le Peuty — all valley-floor or col
-rather than alpine. They are in `seeds/osm_candidates.yaml`.
+Small, well understood, and it makes every count in this file trustworthy.
 
-Watch the low-altitude tail: `chalet-du-caf-contamines` (1164 m),
-`auberge-du-truc` (1750 m), `rifugio-maison-vieille-bar-ristorante` (1956 m)
-and `la-casermetta` (an Espace Mont-Blanc visitor centre) are what OSM tags as
-huts, not what a climber means by one. Prune by hand or add an altitude floor.
+## The Mont Blanc Express railway is not carried
+SNCF Réseau's line through the valley, 112 OSM segments inside the boundary. It
+is the access railway for the whole Chamonix side and we hold nothing for it.
+Genuinely missing, unlike most of the apparent lift gap.
 
-## Refuges that need adding: Montenvers, Flégère, Lac Blanc
-**NOT DONE — and all three are explained, none is missing from OSM.**
+## 26 of 40 lifts have no geometry
+The biggest remaining hole on the map now that routes are 12 of 12. Start by
+widening `fetch_osm_candidates`' tag query: the Grands Montets cable car was
+invisible because it is tagged `aerialway=construction`, the FOURTH time "not
+in OSM" has meant "we never asked for that tag" — after the rack railways, the
+bivouacs and the Refuge du Montenvers. Expect more than lifts to arrive with it.
 
-- **Refuge du Montenvers** — OSM way/97315062, tagged `tourism=hotel`. Our
-  recon query in `fetch_osm_candidates.py` asks for `tourism=alpine_hut`,
-  `wilderness_hut` and `amenity=shelter+basic_hut`, so it never asked for
-  hotels. THIS IS THE THIRD TIME that exact bug has bitten: the rack railways
-  and the bivouacs were both "OSM does not have it" when the query simply never
-  asked. Fix in the query, not by hand, and expect more than Montenvers to
-  arrive with it — the massif has several refuges that are legally hotels.
-- **La Flégère** — a hut in OSM, 14.2 km from the summit.
-- **Refuge du Lac Blanc** — a hut in OSM, 2352 m, 16.7 km from the summit.
+Steven's related note below: lifts are drawn inconsistently — some marked, some
+with a line, some a bare dot — and every tram, telecabine and chairlift should
+be on the map. Standardise the symbology in the same pass.
 
-Both of the last two are real massif huts that the 12 km import radius cut off,
-along with Dalmazzi (15 km) and Comino (15 km). The radius was chosen because
-at 14 km the Beaufortain starts arriving (Mont-Joly, Nant Borrant), so widening
-it is not the answer — hand-written entries are, which is what the curated file
-is for. `python -m massif.scripts.import_osm_huts --radius 17` would show what
-a wider net catches if you want to compare.
+## Search, then filter
+115 features, all server-rendered, so this is a server-side filter on /features
+rather than a client-side index. Search subsumes most of what a filter is for,
+so it comes first. The hut directory at 74 rows is the first listing long
+enough to need either.
+
+---
+
+# Waiting on you
+
+None of this can move without a decision or an account only you have.
+
+## Make a new email, put it on the website, and take my personal one off
+
+NOT STARTED — and the mailbox has to exist before any of the code changes.
+Both addresses below have already been broadcast to every server we fetch, so
+this is not a find-and-replace: the strings come out of the repo, the mailboxes
+stay reachable.
+
+**Where an address is published today.** Two different ones, both personal:
+
+| Where | Address | What it is |
+| --- | --- | --- |
+| `frontend/app/about/page.tsx:12` (`CONTACT`) | `steven@innes.io` | the "please stop fetching" contact on /about |
+| `frontend/app/about/page.tsx:25` (`USER_AGENT`) | `steven@innes.io` | the string /about quotes verbatim |
+| `frontend/app/feedback/page.tsx:11` (`CONTACT`) | `steven@innes.io` | every `mailto:` on /feedback |
+| `DEPLOY.md:243` | `steven.innes8@gmail.com` | the `gh variable set USER_AGENT` line |
+
+`.env.example` and `backend/massif/config.py:27` carry
+`contact@example.org` — placeholders, nothing to remove.
+
+**The live values are not in the repo.** The User-Agent actually sent is the
+GitHub Actions repository variable `USER_AGENT` (Settings → Secrets and
+variables → Actions → Variables) and the same variable on the Vercel API
+project. Editing `DEPLOY.md` changes the instructions, not what goes out on
+the wire. Both have to be set by hand, and `about/page.tsx:25` is a hand-copy
+of that same string with nothing enforcing the match — its own comment says
+so. All three move together or the page quotes an address we do not send.
+
+**Suggested address: `contact@montblancmassif.org`.** Same domain as the site,
+so it needs no explaining in a log line, and it survives the person behind it
+changing. Cheapest way to have it is forwarding rather than a mailbox —
+Cloudflare Email Routing is free and lands it in whatever inbox you already
+read, which pairs with the registrar move above (that item puts the domain on
+Cloudflare's nameservers anyway, which is what Routing requires). If the
+domain is staying put, most registrars sell forwarding for a few pounds a year.
+
+**Forward BOTH old addresses, do not just drop them.** Neither is only a
+string in a file. The gmail was the deployed `USER_AGENT` and went out on
+every request up to 8 Sep 2026 — `4f07d57` records the page printing
+`steven@innes.io` while the variable actually sent
+`steven.innes8@gmail.com` — and the innes.io one has gone out since. Both are
+sitting in other people's access logs, and that address is what a sysadmin
+uses when they want us to stop. A bounce there is the one failure this project
+promised not to have, and it arrives months later with no way to know it
+happened. Keep both forwarding for a season at least; delete the strings from
+the repo, not the mailboxes.
+
+**Check what the variable actually says before changing anything.** `4f07d57`
+changed the page, not the deployment, and nothing enforces the match — the
+value in Actions may still be the gmail. `gh variable list` (or the Actions
+Variables tab) settles it, and whatever it says is what the logs of every
+server we fetch currently carry.
+
+**Order:**
+
+1. Create the address and confirm mail actually arrives at it.
+2. Set the Actions variable and the Vercel env var to the new string.
+3. Change `CONTACT` on both pages, `USER_AGENT` in `about/page.tsx`, and the
+   example line in `DEPLOY.md`; `grep -rn 'innes\.io\|innes8' frontend backend
+   DEPLOY.md` should then come back empty.
+4. Leave both old addresses forwarding, and note where that forwarding lives
+   so the next person does not switch it off as tidying.
+
+**Verified by:** sending a message to the new address from outside and getting
+it; and `curl -s https://montblancmassif.org/about | grep massif/0.1` matching
+the deployed variable character for character.
 
 ## Refuge de la Leisse
 **ADDED ON REQUEST, BUT IT IS NOT IN THIS MASSIF — needs a decision first.**
@@ -95,6 +153,73 @@ Three ways to go, Steven's call:
 - **It was a different hut.** "Leisse" is distinctly Vanoise; if the one meant
   is nearer, name it and it goes straight in — the import script and the
   curated file both take single additions easily.
+
+## Move the domain to a cost-price registrar — window opens 6 Nov 2026
+
+`montblancmassif.org` was registered at Namecheap on 7 Sep 2026 for **$7.98**,
+promotional. It renews at **$14.48/yr**, which is above the $10 budget that
+picked this name in the first place.
+
+Cloudflare Registrar sells at cost — roughly $10–11 for `.org`, with no promo
+and no hike, because they make their money elsewhere. A transfer **adds a
+year** rather than resetting it, so nothing already paid for is wasted.
+
+**Dates.** ICANN locks a new registration against transfer for 60 days, so:
+
+- **not before 6 Nov 2026** — it will simply be refused
+- **do it around early Dec 2026** — comfortably past the lock, far from renewal
+- **not later than ~Aug 2027** — leave room before the 7 Sep 2027 renewal, or
+  auto-renew charges $14.48 first and the saving is gone for a year
+
+**Leave auto-renew ON throughout.** It is insurance, not the plan: losing the
+domain to a lapsed renewal once the feature pages are indexed costs far more
+than $6, and SEO is this project's only distribution channel.
+
+**The one trade-off, decided in advance so it is not a surprise:** Cloudflare
+Registrar requires the domain to use Cloudflare's nameservers, so DNS moves
+there from wherever it is. Vercel gives you the records to paste in. Set every
+record pointing at Vercel to **grey cloud ("DNS only")** — orange proxies the
+traffic through Cloudflare's CDN on top of Vercel's, which causes caching
+oddities and can interfere with certificate issuance.
+
+**Worth roughly $4/yr.** Small. If it is more fiddle than it is worth when the
+reminder comes round, staying put is a perfectly reasonable answer — this note
+exists so that is a decision rather than a default.
+
+## Confirm design 11a, or go back to 9c
+`/classic` still renders 9c, and `StatusLedgerRuled.tsx` is a second copy of
+the row logic promised not to drift. Deleting that component, `app/classic/`
+and the `.ruled` CSS block is one clean step the day you are sure — and it
+stops being clean once the two diverge.
+
+## Does Megève belong in this site at all?
+19-22 km from Chamonix and outside the massif; its lifts never went through the
+boundary polygon the hut import uses. They read `unknown` now rather than
+frozen on a closure, so this is tidiness rather than a wrong answer — but it is
+still unanswered, and the same question probably covers other operator-feed
+children.
+
+## A retired statement leaves no trace of what was last said
+`retire_unmentioned` removes a withdrawn claim from the feature page entirely.
+That may be right — it is not current, and this site shows what is current — or
+the page may want a "last reported" line, the way a source going quiet gets
+one. Worth deciding rather than leaving as a side effect of `superseded_at`.
+
+---
+
+# Open, not yet scoped
+
+## Weather updates/ status
+NOT STARTED, and deliberately out of scope: CLAUDE.md "Not in v1" excludes
+weather and avalanche bulletins until v1 has run a full season. Both are
+already linked from sources we scrape (Meteo VDA, BERA, bollettino valanghe),
+so the cheap version is linking out rather than ingesting.
+
+## Events happening within the massif? - ie. races, concerts etc.
+NOT STARTED. Also v1-excluded as "events", BUT the Courmayeur recon turned up
+the part that IS in scope: UTMB and Tor des Géants close roads
+(`chiusura-strade-utmb`, `chiusura-strade-torx`). A race is not our business; a
+road shut for a race is exactly "what is currently shut".
 
 ## Need to add Italian and Swiss lifts/railways too
 RECONNED. The stark numbers were **37 French lifts, 1 Italian, 0 Swiss** — but
@@ -143,19 +268,6 @@ It is not: the only occurrence is in the RSC payload's `resort` table of
 display labels, with no season or live row behind it. Giving the Tramway a
 status needs a source of its own.
 
-## Need to do more scans on the routes
-**Diagnosed: 13 routes and couloirs in the database, exactly 1 visible.**
-Not a scanning problem — a listing problem. The front page only lists features
-something has been published about, and Saint-Gervais publishes about the
-Goûter route and nothing else. The other 12 (Trois Monts, Aiguilles Grises,
-Cosmiques, Midi-Plan, Dent du Géant, Diable, Frendo, Chéré, Petite Verte,
-Aiguille du Tour, Vallée Blanche, Grand Couloir) are held and reachable only by
-URL or the map.
-
-Fix is the same pattern as the hut directory: a routes section that lists all
-of them regardless of status. Cheap, and it is the other half of the "huts and
-lifts are findable, routes are not" gap.
-
 ## A date-only source is being printed with an invented hour
 The Cosmiques route page reads "Published 10 Aug, 02:00 resort time". camptocamp
 gives a trip report a DATE and no time; the 02:00 is midnight UTC rendered in
@@ -167,122 +279,6 @@ only a day should print only the day. Needs an optional flag from the API
 (`date_only`, set where the payload says so) and a branch in the meta line.
 Left undone because the meta line is shared by every source and the wording
 there is yours.
-
-## Re-extraction throws away review decisions
-Accepting a statement sets `reviewed_at` on that ROW. `reextract` supersedes
-every statement a document produced and writes fresh ones, so the new rows come
-back with `needs_review` and no `reviewed_at` — the human decision is gone and
-the item reappears in the queue. Seen for real: the Cosmiques statement
-accepted from the admin page was back in the queue after the next re-extract.
-
-Not wrong exactly — the new statement genuinely IS a different reading, and
-silently inheriting an approval would be worse. But a reviewer whose work
-evaporates every time a parser improves will stop reviewing.
-
-Options, roughly in order of how much they cost:
-  * carry `reviewed_at` forward when the new statement is byte-identical to the
-    superseded one (same feature, type, status, window and evidence);
-  * record decisions against the EVIDENCE SPAN rather than the row, so the same
-    sentence stays approved however often it is re-read;
-  * leave it, and re-extract deliberately rather than casually.
-
-The second is the honest one and the most work.
-
-## Triage the statements waiting for review
-Eleven statements a model read are sitting in the queue, visible on feature
-pages but unable to take a status slot until a person clears one. Several look
-like real coverage — Saleinaz "unstaffed from 8 August until...", Plan Glacier's
-summer hours, the Requin's winter room. Each accepted one is potentially a hut,
-which is the cheapest route from 37 to low 40s.
-
-    python -m massif.scripts.review              # the list
-    python -m massif.scripts.review --show ID    # evidence, in full
-    python -m massif.scripts.review --accept ID --note "why"
-
-Read the evidence, not the summary: the summary is the only field the model
-WROTE rather than copied. Where a reading says "unknown" check the `demoted`
-line — rule 3 turns an undated closure into unknown, so "unknown" there means
-"it wanted to say closed and gave no dates", not "the model had no opinion".
-
-## Deployment has never actually run
-`gh secret list` and `gh variable list` are both EMPTY. No DATABASE_URL, no
-INGEST_ENABLED — which is why scheduled ingest runs show "skipped" rather than
-"success", and why a manual dispatch fails in 12 seconds on the config check.
-DEPLOY.md still has `<api-project>.vercel.app` placeholders and there is no
-.vercel link in the repo.
-
-So everything built so far lives in the local Postgres and on GitHub. "Runs
-weekly" is true of the code and the cron and untrue of the deployment.
-
-To finish it: set the Supabase `:5432` session URL as the DATABASE_URL secret,
-set USER_AGENT (with a real contact address — see the note about the gmail
-in it), set INGEST_ENABLED=true, then `gh workflow run ingest.yml`, which
-runs migrate before anything else.
-
-**Order matters now.** Migrations 0010 (llm_cache) and 0011 (statement_review)
-are not on the hosted database, and the ORM selects `statements.reviewed_at`.
-If Vercel is connected to this repo, the API will 500 on every request until
-that migration runs.
-
-## Hut websites via the model — MEASURED across all 25
-robots.txt on every host: **23 allow, 2 REFUSE** — `refuge-lac-blanc.fr` and
-`www.rifugiogonella.com`. Those stay out, not worked around.
-
-Then every allowed site was fetched and measured (free, no model):
-
-    15 of 24   have readable prose containing a month name
-     8 of 24   are JS-rendered and yield under 400 characters:
-               Miage, Bertone, Charpoua, Montenvers, Nid d'Aigle,
-               Grands Mulets, Dalmazzi, Elena
-     1         Auberge du Truc — camptocamp's URL 404s
-
-**ITALIAN WAS THE WRONG TARGET, and that was my call to make and I got it
-wrong.** I proposed extending fr_dates to Italian as "the single highest-value
-change". Of the 15 readable sites, ELEVEN are French-language — the seven
-French huts plus the four Suisse-romande CAS huts, where parse_range already
-works. Only four are Italian, and of those Bonatti's only date is 1948, Torino
-publishes one closing date and Monzino "APERTURA 12 GIUGNO" with no year.
-Italian date support is worth one or two huts, not the unlock I claimed.
-
-**THE REAL BLOCKER IS YEARLESS RECURRING SEASONS.** Refuge de Tré la Tête says
-"vous accueillent du 15 mars au 15 octobre" — a real season, no year, because
-it recurs annually. parse_range requires a year, so guard 2 drops the dates and
-the new rule-3 guard demotes the statement to unknown. Most hut homepages are
-written this way. This is the same shape `_coarse_windows` already solves for
-FFCAM, where the year comes from the document and the result is flagged
-`approximate` because the dates are OURS.
-
-Doing it here means letting a caller pass an assumed year into
-`cross_check_dates` — deliberately weakening a shared guard for one source —
-so it needs the same care FFCAM's version got: narrow the window, mark it
-approximate, and never let phrase_for_now print it as a published date.
-
-**IT DOES WORK WHERE THE PIECES LINE UP.** Cabane d'Orny returned "open,
-26 Jun – 13 Sep 2026", dated and parsed, from the operator's own page. The
-second statement on that page — "outside the season the A Neuve is completely
-closed" — was correctly demoted to unknown with `undated_status: closed`,
-which is the rule-3 guard doing its job on live data.
-
-Realistic ceiling: roughly 11 French-language sites, minus those whose season
-is prose the model declines, so call it 6-9 huts. Worth building. Not worth
-pretending it is more.
-
-Also: the operator URLs came from camptocamp and at least two are wrong
-(Saleinaz 404, Plan de l'Aiguille points at a regional gîte directory rather
-than the hut). They need curating and checking, not trusting.
-
-## One document, three rows — every "documents" count is inflated
-Saint-Gervais has 36 document rows for 15 distinct URLs. `store_document`
-dedupes on a hash of the content, and these pages change slightly on every
-fetch — a rotating nav item, a date somewhere — so the same article is stored
-again as a new row each time.
-
-Harmless for correctness (extraction is per document, and re-extraction
-supersedes per document), but it inflates every count anyone quotes, and it
-inflated one badly enough to nearly cost money: "28 of 36 documents produce
-nothing" is 11 distinct articles, not 28. Worth either hashing the extracted
-prose rather than the raw HTML, or reporting distinct URLs wherever a document
-count is printed.
 
 ## "Published" is our fetch clock wearing the source's label
 FOUND, NOT FIXED — the wording is a call for you, not for me.
@@ -337,25 +333,98 @@ swisstopo and the Italian regional layers may be better on their own side.
 
 # Settled, with the reasoning, so it does not get re-opened
 
-## The map drew two symbols per hut — RESOLVED
-IGN draws its own green hut glyph, and we painted a marker on top: two icons,
-one clickable. A ring around theirs was worse — it made the doubling obvious.
+## Add Filter for map.
 
-The fix was neither: IGN only starts drawing refuges at **z13**, measured by
-pulling tiles over the Goûter and the Cosmiques at z11–z16 and counting the
-glyph's green. The map opens at 10.2. So below z13 we draw a small locator dot,
-and from z13 up it fades and IGN's symbol has the point to itself. Status
-markers stay ours at every zoom, because a source having published something is
-the one thing IGN cannot know. The outer element is only ever a hit area, so
-every hut is clickable at any zoom.
 
-Checked for clutter at the opening view: 66 markers on screen at 1280×848, 5
-overlapping pairs. Not crowded. Nothing further needed here.
+## Some lifts are not marked, some lifts are marked and have a line, some lifts just have a green dot. This needs to be standardised, and all trams, telecabines, chairlifts etc.., need to be shown on the map.
 
-Note for anyone testing map behaviour: **neither clicking the zoom control nor
-dispatching wheel events from script moves a MapLibre map.** Both silently
-proved nothing until I measured the zoom itself. Set the initial zoom and
-reload instead.
+
+## Find a way to get on the google website list
+
+
+## Create a scraper for latest important news.
+
+
+## Re-run the hut-website recon across all 74 huts
+
+`seeds/hut_sites.yaml` configures **8**. That file was written when the
+inventory was smaller and the recon covered about 25 candidate sites; there are
+74 active huts now and 32 with no usable status, so most of them have never
+had their own website looked at.
+
+Two entries in it are also stale: `auberge-du-truc` and `refuge-du-fioux` point
+at `montourdumontblanc.com` in the legacy `il4-refuge_….aspx` form. That portal
+is now read properly, as structured availability, by `tmb-refuges` — which is a
+better source for it than asking a model to read the prose around a booking
+calendar. Drop both from `hut_sites.yaml`.
+
+The recon itself is mechanical and should be scripted rather than done by hand,
+because it will need doing again: for each hut with no status, find a candidate
+URL, check `robots.txt`, fetch once, measure `readable_text` length, and record
+the outcome **with its reason** — robots refusal, JS-rendered and under 400
+characters, already covered by a better source, or usable. The reasons are the
+valuable half: the current file's header is the only thing stopping the next
+person re-testing sites that have already been ruled out.
+
+Weigh the review load before turning any of it on. Everything from this path is
+written `needs_review`, so a person clears each statement before it can take a
+status slot — that is a safety net across eight huts and a bottleneck across
+fifty.
+
+**Verified by:** the recon script's output committed as the seed file's header,
+and a test that every entry in `hut_sites.yaml` names a hut that exists.
+
+## Hut coverage: the operator-by-operator route (the biggest remaining move)
+FFCAM turned out to be the shape that works — an OPERATOR publishing its own
+huts' warden seasons on its own pages — and it took French huts from 2 to 14.
+The same shape exists on the other two sides and is not built.
+
+Wardened huts with NO status, by country (the ones a season exists for):
+
+    FR  22   mostly non-FFCAM: Cosmiques, Plan de l'Aiguille, Charpoua, Lac
+             Blanc, Bellachat, Flégère, Montenvers, Miage, Tré la Tête, Plan
+             Glacier, Robert-Blanc, Fioux, Bionnassay, Truc, Lognan
+    IT  10   Torino, Gonella, Monzino, Elisabetta, Dalmazzi, Bonatti, Elena,
+             Monte Bianco, Maison Vieille, Le Randonneur
+    CH   6   Trient, Orny, Saleinaz, A Neuve, Col de Balme, Le Peuty
+
+**Italy — the CAI sezioni.** Torino, Gonella, Monzino and Elisabetta are each
+run by a CAI section that publishes its own season, exactly as FFCAM does.
+Start there rather than with a regional aggregator: an operator is
+authoritative about its own inventory, which is the whole reason the FFCAM
+parser could be strict. Also worth checking whether the Valle d'Aosta region
+publishes a rifugi dataset with opening periods.
+
+**Switzerland — SAC/CAS.** Trient, Orny, Saleinaz and A Neuve are CAS huts.
+sac-cas.ch has a per-hut portal; check whether the opening period is in the
+server HTML before reaching for anything heavier.
+
+**Already ruled out:** hut-reservation.org (the SAC booking platform) publishes
+`/api/v1/reservation/hutInfo/<id>` openly — name, coordinates, altitude,
+warden, website — but no season or availability. Everything past hut metadata
+is behind login, and neither it nor alpsonline.org serves a real robots.txt
+(both return the SPA HTML for it, so no rules are declared).
+
+## Fix unkown status for majority of the huts/refuges
+
+
+## One document, three rows — every "documents" count is inflated
+Saint-Gervais has 36 document rows for 15 distinct URLs. `store_document`
+dedupes on a hash of the content, and these pages change slightly on every
+fetch — a rotating nav item, a date somewhere — so the same article is stored
+again as a new row each time.
+
+Harmless for correctness (extraction is per document, and re-extraction
+supersedes per document), but it inflates every count anyone quotes, and it
+inflated one badly enough to nearly cost money: "28 of 36 documents produce
+nothing" is 11 distinct articles, not 28. Worth either hashing the extracted
+prose rather than the raw HTML, or reporting distinct URLs wherever a document
+count is printed.
+
+
+---
+
+# Settled, with the reasoning, so it does not get re-opened
 
 ## Why so much "unknown" — NOT A BUG
 Current, after FFCAM: **huts 11/74, lifts 4/38, routes 1/12** carry a status
@@ -376,6 +445,26 @@ A coverage fact, not a defect. It only improves with more sources.
 ---
 
 # Recon notes (so nobody repeats them)
+
+## The map drew two symbols per hut — RESOLVED
+IGN draws its own green hut glyph, and we painted a marker on top: two icons,
+one clickable. A ring around theirs was worse — it made the doubling obvious.
+
+The fix was neither: IGN only starts drawing refuges at **z13**, measured by
+pulling tiles over the Goûter and the Cosmiques at z11–z16 and counting the
+glyph's green. The map opens at 10.2. So below z13 we draw a small locator dot,
+and from z13 up it fades and IGN's symbol has the point to itself. Status
+markers stay ours at every zoom, because a source having published something is
+the one thing IGN cannot know. The outer element is only ever a hit area, so
+every hut is clickable at any zoom.
+
+Checked for clutter at the opening view: 66 markers on screen at 1280×848, 5
+overlapping pairs. Not crowded. Nothing further needed here.
+
+Note for anyone testing map behaviour: **neither clicking the zoom control nor
+dispatching wheel events from script moves a MapLibre map.** Both silently
+proved nothing until I measured the zoom itself. Set the initial zoom and
+reload instead.
 
 ## Italian hut seasons — RECONNED 9 Sep 2026, ceiling is 3 huts not 10
 
@@ -425,37 +514,6 @@ two JS sites. The Valle d'Aosta region is also out — `regione.vda.it/robots.tx
 disallows `/turismo/` entirely, and `lovevda.it` is the regional tourist board,
 which is the same distinction already made for chamonix.fr over the tourist
 office and for courmayeurmontblanc.it.
-
-## Hut coverage: the operator-by-operator route (the biggest remaining move)
-FFCAM turned out to be the shape that works — an OPERATOR publishing its own
-huts' warden seasons on its own pages — and it took French huts from 2 to 14.
-The same shape exists on the other two sides and is not built.
-
-Wardened huts with NO status, by country (the ones a season exists for):
-
-    FR  22   mostly non-FFCAM: Cosmiques, Plan de l'Aiguille, Charpoua, Lac
-             Blanc, Bellachat, Flégère, Montenvers, Miage, Tré la Tête, Plan
-             Glacier, Robert-Blanc, Fioux, Bionnassay, Truc, Lognan
-    IT  10   Torino, Gonella, Monzino, Elisabetta, Dalmazzi, Bonatti, Elena,
-             Monte Bianco, Maison Vieille, Le Randonneur
-    CH   6   Trient, Orny, Saleinaz, A Neuve, Col de Balme, Le Peuty
-
-**Italy — the CAI sezioni.** Torino, Gonella, Monzino and Elisabetta are each
-run by a CAI section that publishes its own season, exactly as FFCAM does.
-Start there rather than with a regional aggregator: an operator is
-authoritative about its own inventory, which is the whole reason the FFCAM
-parser could be strict. Also worth checking whether the Valle d'Aosta region
-publishes a rifugi dataset with opening periods.
-
-**Switzerland — SAC/CAS.** Trient, Orny, Saleinaz and A Neuve are CAS huts.
-sac-cas.ch has a per-hut portal; check whether the opening period is in the
-server HTML before reaching for anything heavier.
-
-**Already ruled out:** hut-reservation.org (the SAC booking platform) publishes
-`/api/v1/reservation/hutInfo/<id>` openly — name, coordinates, altitude,
-warden, website — but no season or availability. Everything past hut metadata
-is behind login, and neither it nor alpsonline.org serves a real robots.txt
-(both return the SPA HTML for it, so no rules are declared).
 
 ## Route status — MEASURED, and the ceiling is much lower than it looks
 The question "why do 12 of 13 routes read unknown" has an answer now, and it is
@@ -509,6 +567,53 @@ So the honest ceiling from this source today is roughly 1/13 -> 3/13, decaying
 as reports age past STALE_DAYS. It is worth having in a full season, which is
 more or less exactly what CLAUDE.md already says. The reason to revisit is
 winter, not effort.
+
+## Hut websites via the model — MEASURED across all 25
+robots.txt on every host: **23 allow, 2 REFUSE** — `refuge-lac-blanc.fr` and
+`www.rifugiogonella.com`. Those stay out, not worked around.
+
+Then every allowed site was fetched and measured (free, no model):
+
+    15 of 24   have readable prose containing a month name
+     8 of 24   are JS-rendered and yield under 400 characters:
+               Miage, Bertone, Charpoua, Montenvers, Nid d'Aigle,
+               Grands Mulets, Dalmazzi, Elena
+     1         Auberge du Truc — camptocamp's URL 404s
+
+**ITALIAN WAS THE WRONG TARGET, and that was my call to make and I got it
+wrong.** I proposed extending fr_dates to Italian as "the single highest-value
+change". Of the 15 readable sites, ELEVEN are French-language — the seven
+French huts plus the four Suisse-romande CAS huts, where parse_range already
+works. Only four are Italian, and of those Bonatti's only date is 1948, Torino
+publishes one closing date and Monzino "APERTURA 12 GIUGNO" with no year.
+Italian date support is worth one or two huts, not the unlock I claimed.
+
+**THE REAL BLOCKER IS YEARLESS RECURRING SEASONS.** Refuge de Tré la Tête says
+"vous accueillent du 15 mars au 15 octobre" — a real season, no year, because
+it recurs annually. parse_range requires a year, so guard 2 drops the dates and
+the new rule-3 guard demotes the statement to unknown. Most hut homepages are
+written this way. This is the same shape `_coarse_windows` already solves for
+FFCAM, where the year comes from the document and the result is flagged
+`approximate` because the dates are OURS.
+
+Doing it here means letting a caller pass an assumed year into
+`cross_check_dates` — deliberately weakening a shared guard for one source —
+so it needs the same care FFCAM's version got: narrow the window, mark it
+approximate, and never let phrase_for_now print it as a published date.
+
+**IT DOES WORK WHERE THE PIECES LINE UP.** Cabane d'Orny returned "open,
+26 Jun – 13 Sep 2026", dated and parsed, from the operator's own page. The
+second statement on that page — "outside the season the A Neuve is completely
+closed" — was correctly demoted to unknown with `undated_status: closed`,
+which is the rule-3 guard doing its job on live data.
+
+Realistic ceiling: roughly 11 French-language sites, minus those whose season
+is prose the model declines, so call it 6-9 huts. Worth building. Not worth
+pretending it is more.
+
+Also: the operator URLs came from camptocamp and at least two are wrong
+(Saleinaz 404, Plan de l'Aiguille points at a regional gîte directory rather
+than the hut). They need curating and checking, not trusting.
 
 ## La Chamoniarde / OHM — it is a DIRECTORY, not a publisher
 This was the last obvious candidate for ROUTE conditions, and CLAUDE.md still
@@ -592,216 +697,6 @@ never asked for that tag".
   `INGEST_ENABLED` and there is no deployed database, so `last_seen_at` ages
   until a human intervenes.
 
-## Implement new front page from Design (design 9C)
-
-## Fix unkown status for majority of the huts/refuges
-
-## Tell me when there is something to review
-
-The review queue only works if somebody knows it is non-empty. Right now the
-only way to find out is to go and look, which means it will be looked at
-enthusiastically for a week and then never.
-
-**Design, and the trap to avoid.** The ingest workflow already runs hourly and
-already has repo credentials. Add a final step that counts statements with
-`needs_review` true, `reviewed_at` null and `superseded_at` null, and — when
-that count is above zero — opens or **updates one issue**, never a new one per
-run. GitHub emails on issue activity, so there is no new service, no new
-secret and no push provider to sign up for.
-
-The "updates one" half is the whole design. A fresh issue every hour is the
-same mistake the top of `ingest.yml` already records: it failed 48 times a day
-and emailed every time, "which is not monitoring, it is training yourself to
-ignore the emails that will matter". One issue, edited in place, title carrying
-the count.
-
-Worth including in the body: which features are waiting, and how long the
-oldest has been. A queue of two is a chore; a queue of forty means a source is
-emitting noise and the useful fix is upstream, not in the panel.
-
-**Verified by:** a test over a seeded set asserting the count query ignores
-superseded and already-reviewed statements, plus one manual `workflow_dispatch`
-with a deliberately seeded queue.
-
-## Keep the admin panel off the public internet
-
-Current state, checked in production 6 Sep 2026: `/admin/review` returns
-**404** on massif-api.vercel.app. Not a login page — the routes are not
-mounted, because `ADMIN_TOKEN` is unset and `include_admin` refuses to register
-them without one. Absent rather than open. That is the design working, and it
-is also why nobody can use the panel yet.
-
-The question is what happens when it IS turned on. Today that would be HTTP
-Basic over TLS, POST-only accept/reject with an `Origin` check, and
-`noindex, nofollow` — decent, and all of it still on a public hostname where
-the only thing between a stranger and the queue is one password.
-
-**The better shape: a third Vercel project.** Same repo, same
-`backend/` root, `ADMIN_TOKEN` set, and Vercel's own **Deployment Protection**
-switched on so the whole hostname requires a Vercel login. The public API
-project keeps `ADMIN_TOKEN` unset and therefore keeps returning 404. Two
-independent gates, no new code, and the public surface loses the routes
-entirely rather than merely guarding them.
-
-Note the constraint that rules out the obvious alternative: Deployment
-Protection cannot go on the existing API project, because the frontend
-server-renders every page by calling it and SSO would block those calls too.
-That is the same trap as the 302 we hit on the first deployment URL.
-
-**MEASURED 7 Sep 2026 — the second gate is not available on Hobby.**
-`massif-admin` exists, at `massif-admin-iota.vercel.app`, with ADMIN_TOKEN set.
-Deployment Protection was switched on at **Standard Protection**, which the
-dropdown describes as "protect all except production Custom Domains". It also
-exempts the Vercel-ASSIGNED production domain: an unauthenticated request gets
-a plain 401 from our own Basic auth, not an SSO redirect, and `/health` returns
-200 to anyone. "All Deployments" is Pro-only.
-
-So what is actually in place is ONE gate, not two:
-
-- `ADMIN_TOKEN` over TLS, 32 bytes of entropy — 401 without it and with a
-  wrong one, checked
-- write routes additionally POST-only with an Origin check
-- the public API still registers no admin routes at all — 404, checked
-- `/health`, `/features` and `/docs` on the admin host are public, which leaks
-  nothing the public API does not already serve
-
-That is the design the code was written for and it is a real lock. It is
-weaker than what this section originally claimed, which was two independent
-gates. Options if it ever matters: Vercel Pro, or put the admin behind
-something else entirely — the token is doing all the work today.
-
-**Verified by:** `/admin/review` 404 on the public API and 401 on the admin
-host, both unauthenticated and with a wrong token.
-
-## Let a human force one source from the Actions tab
-
-`run_ingest <slug>` runs one source ignoring its cadence — that is the
-documented CLI usage and it is how the weekly hut sources get refreshed on
-demand. The workflow cannot do it: its step is a bare `run_ingest`, so a
-`workflow_dispatch` only ever runs what is already due.
-
-The consequence is that "refresh the huts now" currently requires a laptop
-with the production connection string on it, which is exactly the dependency
-deploying was supposed to remove.
-
-Add a `workflow_dispatch` input — `source`, optional, free text — and pass it
-through. Empty keeps today's behaviour.
-
-**Verified by:** one dispatch with the field blank running the due set, and one
-with `refuges-info` running that source when it is not due.
-
-## Re-run the hut-website recon across all 74 huts
-
-`seeds/hut_sites.yaml` configures **8**. That file was written when the
-inventory was smaller and the recon covered about 25 candidate sites; there are
-74 active huts now and 32 with no usable status, so most of them have never
-had their own website looked at.
-
-Two entries in it are also stale: `auberge-du-truc` and `refuge-du-fioux` point
-at `montourdumontblanc.com` in the legacy `il4-refuge_….aspx` form. That portal
-is now read properly, as structured availability, by `tmb-refuges` — which is a
-better source for it than asking a model to read the prose around a booking
-calendar. Drop both from `hut_sites.yaml`.
-
-The recon itself is mechanical and should be scripted rather than done by hand,
-because it will need doing again: for each hut with no status, find a candidate
-URL, check `robots.txt`, fetch once, measure `readable_text` length, and record
-the outcome **with its reason** — robots refusal, JS-rendered and under 400
-characters, already covered by a better source, or usable. The reasons are the
-valuable half: the current file's header is the only thing stopping the next
-person re-testing sites that have already been ruled out.
-
-Weigh the review load before turning any of it on. Everything from this path is
-written `needs_review`, so a person clears each statement before it can take a
-status slot — that is a safety net across eight huts and a bottleneck across
-fifty.
-
-**Verified by:** the recon script's output committed as the seed file's header,
-and a test that every entry in `hut_sites.yaml` names a hut that exists.
-
-## Move the domain to a cost-price registrar — window opens 6 Nov 2026
-
-`montblancmassif.org` was registered at Namecheap on 7 Sep 2026 for **$7.98**,
-promotional. It renews at **$14.48/yr**, which is above the $10 budget that
-picked this name in the first place.
-
-Cloudflare Registrar sells at cost — roughly $10–11 for `.org`, with no promo
-and no hike, because they make their money elsewhere. A transfer **adds a
-year** rather than resetting it, so nothing already paid for is wasted.
-
-**Dates.** ICANN locks a new registration against transfer for 60 days, so:
-
-- **not before 6 Nov 2026** — it will simply be refused
-- **do it around early Dec 2026** — comfortably past the lock, far from renewal
-- **not later than ~Aug 2027** — leave room before the 7 Sep 2027 renewal, or
-  auto-renew charges $14.48 first and the saving is gone for a year
-
-**Leave auto-renew ON throughout.** It is insurance, not the plan: losing the
-domain to a lapsed renewal once the feature pages are indexed costs far more
-than $6, and SEO is this project's only distribution channel.
-
-**The one trade-off, decided in advance so it is not a surprise:** Cloudflare
-Registrar requires the domain to use Cloudflare's nameservers, so DNS moves
-there from wherever it is. Vercel gives you the records to paste in. Set every
-record pointing at Vercel to **grey cloud ("DNS only")** — orange proxies the
-traffic through Cloudflare's CDN on top of Vercel's, which causes caching
-oddities and can interfere with certificate issuance.
-
-**Worth roughly $4/yr.** Small. If it is more fiddle than it is worth when the
-reminder comes round, staying put is a perfectly reasonable answer — this note
-exists so that is a decision rather than a default.
-
-## `last_seen_at` only advances when the page bytes change
-
-Found 8 Sep 2026. Goûter Route, Refuge du Goûter and Refuge de Tête Rousse all
-carried *"Open since 26 Aug 2026"* badged OVERDUE, last confirmed 13:55 on
-7 Sep while the source had been fetched 3.7 hours earlier. It looked exactly
-like the Megève case above. It is not.
-
-**Diffed the stored documents. The notice is still on the page and the parser
-still reads it.** Three stored copies of the reopening article exist (26 Aug,
-31 Aug, 7 Sep) and today's parser run over every one of them returns the same
-three statements, the newest copy included. Nothing was withdrawn and nothing
-broke.
-
-The cause is in `saint_gervais.collect()`:
-
-    document, is_new = store_document(session, source, url, response, ...)
-    if not is_new:
-        continue
-
-An unchanged article is skipped and emits **no statements**. `last_seen_at`
-lives on the Statement row and only moves when `run()` writes a new one, so it
-advances only when the article's bytes change. The three stored copies are
-three incidental changes to page furniture; between them the statements sit
-frozen and age into OVERDUE while we are in fact re-reading the page every six
-hours and finding the notice exactly where it was.
-
-This contradicts what rule 10 in CLAUDE.md says the column means: *"when we
-last fetched and found it still standing"*. We did. We just did not write it
-down.
-
-**Measured across all ten sources**, only `mairie-saint-gervais` currently
-diverges — fetched 3.7h ago, newest live statement 17.1h old, a 13.3h gap;
-every other source sits at 0.0h. Seven live statements affected. The reason it
-surfaces here first is shape, not luck: this scraper fetches ~10 article pages
-per run and most are unchanged most of the time, whereas the others fetch one
-endpoint whose content moves. `mbnr_live`, `mbnr_openings`, `refuges_info` and
-`chamoniarde` carry the identical `if not is_new: continue` and are latent.
-
-**The fix is to record the observation without rewriting the claim.** When a
-document comes back unchanged, refresh `last_seen_at` on the live statements
-already attached to it rather than skipping. Re-extracting and re-inserting
-every run would work too and should not be done: it would churn a new row per
-statement per run and lose `observed_at`, and re-extraction is supposed to be
-driven by a better parser, not by a clock.
-
-Note what this cost. The badge is the only thing standing between a reader and
-a frozen **open** on an arrêté-regulated route — "a stale open must never read
-as clearance" — and the badge was itself meaningless until the cadence fix
-earlier the same day, because it was permanently lit on eight lifts. Two bugs
-were hiding each other, and the one that fails unsafe was underneath.
-
 ## What happens when a source stops mentioning a feature
 
 Found 7 Sep 2026 by five lifts sitting permanently UNCHECKED after the cron
@@ -874,68 +769,26 @@ without re-emitting it stops being current; and, if the scope answer is "out",
 a boundary check on lift import mirroring `import_osm_huts.load_boundary`.
 
 
-## Make a new email, put it on the website, and take my personal one off
+---
 
-NOT STARTED — and the mailbox has to exist before any of the code changes.
-Both addresses below have already been broadcast to every server we fetch, so
-this is not a find-and-replace: the strings come out of the repo, the mailboxes
-stay reachable.
+# Done
 
-**Where an address is published today.** Two different ones, both personal:
+One line each; the reasoning lives in the commit that closed it.
 
-| Where | Address | What it is |
-| --- | --- | --- |
-| `frontend/app/about/page.tsx:12` (`CONTACT`) | `steven@innes.io` | the "please stop fetching" contact on /about |
-| `frontend/app/about/page.tsx:25` (`USER_AGENT`) | `steven@innes.io` | the string /about quotes verbatim |
-| `frontend/app/feedback/page.tsx:11` (`CONTACT`) | `steven@innes.io` | every `mailto:` on /feedback |
-| `DEPLOY.md:243` | `steven.innes8@gmail.com` | the `gh variable set USER_AGENT` line |
-
-`.env.example` and `backend/massif/config.py:27` carry
-`contact@example.org` — placeholders, nothing to remove.
-
-**The live values are not in the repo.** The User-Agent actually sent is the
-GitHub Actions repository variable `USER_AGENT` (Settings → Secrets and
-variables → Actions → Variables) and the same variable on the Vercel API
-project. Editing `DEPLOY.md` changes the instructions, not what goes out on
-the wire. Both have to be set by hand, and `about/page.tsx:25` is a hand-copy
-of that same string with nothing enforcing the match — its own comment says
-so. All three move together or the page quotes an address we do not send.
-
-**Suggested address: `contact@montblancmassif.org`.** Same domain as the site,
-so it needs no explaining in a log line, and it survives the person behind it
-changing. Cheapest way to have it is forwarding rather than a mailbox —
-Cloudflare Email Routing is free and lands it in whatever inbox you already
-read, which pairs with the registrar move above (that item puts the domain on
-Cloudflare's nameservers anyway, which is what Routing requires). If the
-domain is staying put, most registrars sell forwarding for a few pounds a year.
-
-**Forward BOTH old addresses, do not just drop them.** Neither is only a
-string in a file. The gmail was the deployed `USER_AGENT` and went out on
-every request up to 8 Sep 2026 — `4f07d57` records the page printing
-`steven@innes.io` while the variable actually sent
-`steven.innes8@gmail.com` — and the innes.io one has gone out since. Both are
-sitting in other people's access logs, and that address is what a sysadmin
-uses when they want us to stop. A bounce there is the one failure this project
-promised not to have, and it arrives months later with no way to know it
-happened. Keep both forwarding for a season at least; delete the strings from
-the repo, not the mailboxes.
-
-**Check what the variable actually says before changing anything.** `4f07d57`
-changed the page, not the deployment, and nothing enforces the match — the
-value in Actions may still be the gmail. `gh variable list` (or the Actions
-Variables tab) settles it, and whatever it says is what the logs of every
-server we fetch currently carry.
-
-**Order:**
-
-1. Create the address and confirm mail actually arrives at it.
-2. Set the Actions variable and the Vercel env var to the new string.
-3. Change `CONTACT` on both pages, `USER_AGENT` in `about/page.tsx`, and the
-   example line in `DEPLOY.md`; `grep -rn 'innes\.io\|innes8' frontend backend
-   DEPLOY.md` should then come back empty.
-4. Leave both old addresses forwarding, and note where that forwarding lives
-   so the next person does not switch it off as tidying.
-
-**Verified by:** sending a message to the new address from outside and getting
-it; and `curl -s https://montblancmassif.org/about | grep massif/0.1` matching
-the deployed variable character for character.
+- **Feed page** — /feed: every notice, newest first, source per row, two clocks apart.
+- **Bug/feedback page** — REPORT in the masthead on every page, plus an inline prompt on feature pages.
+- **List cabanes on the webpage** — Every hut listed, highest first, with per-hut attribution. 24 -> 74.
+- **Refuges that need adding: Montenvers, Flégère, Lac Blanc** — All three are features now. The OSM query gap that hid Montenvers is under 'the lesson that cost the most'.
+- **More scans on the routes** — Routes have their own section and 12 of 12 carry geometry: 6 from camptocamp, 5 schematic, grand-couloir deliberately unmapped.
+- **Implement new front page from Design (9C)** — Shipped, then superseded by 11a (photo headers). 9c kept at /classic until the choice is confirmed.
+- **Add show all button to each section, minimised by default** — All four bands fold, closed on load, count on the pill. QuietRows stopped being a second fold inside the first.
+- **Deployment has never actually run** — Supabase, two Vercel projects and the Actions cron, live on montblancmassif.org.
+- **Tell me when there is something to review** — review_digest opens one GitHub issue and edits it in place.
+- **Keep the admin panel off the public internet** — Separate Vercel project, token-gated; /admin is 404 on the public API.
+- **Let a human force one source from the Actions tab** — workflow_dispatch takes a source slug.
+- **Triage the statements waiting for review** — Queue cleared; it sits at 0.
+- **Re-extraction throws away review decisions** — inherit_review carries an approval to the same sentence re-read. Five things must match; approvals only, never rejections.
+- **last_seen_at only advances when the page bytes change** — confirm_still_standing: an unchanged document is confirmed rather than skipped.
+- **Hut websites on the detail page** — camptocamp's operator_url sat unexposed on 44 huts; OSM's website tag covers 18 more. 62 of 74.
+- **Italian dates** — fr_dates reads Italian, so the Courmayeur huts stop arriving undated. Torino, Monzino and Bonatti added.
+- **The Anthropic key reaches Actions** — hut-sites runs in CI; the workflow installs the .[llm] extra it needs.
