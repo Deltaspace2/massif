@@ -1,3 +1,21 @@
+/* ===========================================================================
+ * DESIGN 9c — "Ruled Ledger". THE PREVIOUS FRONT PAGE, KEPT ON PURPOSE.
+ *
+ * Superseded on 9 Sep 2026 by design 11a ("Photo Headers") in
+ * `StatusLedger.tsx`. This file is a byte-for-byte copy of 9c as it stood the
+ * moment before that patch, and it is still wired: `/classic` renders it, so
+ * the two can be compared side by side in a browser rather than in a diff.
+ *
+ * It is kept because the choice between them is a taste judgement that has
+ * not been made yet, and git archaeology is a poor way to look at a page.
+ * If 11a is confirmed, delete this file and `app/classic/`. If 11a is
+ * rejected, point `app/page.tsx` back at this and delete the other.
+ *
+ * DO NOT let the two drift. Every fix to row grammar, statuses, dates or
+ * counts belongs in BOTH until one of them is deleted — the row logic here is
+ * identical to 11a's, which changed only the section chrome.
+ * ======================================================================== */
+
 import Flag from "@/components/Flag";
 import MapKey from "@/components/MapKey";
 import MassifMap from "@/components/MassifMap";
@@ -255,63 +273,16 @@ function LedgerRow({
   );
 }
 
-/** The photo header of one band: a 64px scrimmed strip carrying the section
- *  name and its caveat.
+/** A band of the ledger: a label rail on the left, content on the right.
  *
- *  Design 11a. The 200px label rail of 9c is gone — the section name used to
- *  sit beside the rows and now sits in the strip above them. The rows below
- *  are untouched: this changed the section chrome, not the row grammar.
- *
- *  The scrim ramps dark to light left to right and EVERY word sits on the
- *  left, over the dark end. The right end is decorative and carries nothing,
- *  which is what lets a photograph vary underneath without the label's
- *  contrast varying with it. */
-function BandHead({
-  photo,
-  label,
-  note,
-  pill,
-}: {
-  photo: string;
-  label: string;
-  note?: string;
-  pill?: React.ReactNode;
-}) {
-  return (
-    <div className="band__head">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        className="band__photo"
-        src={`/backgrounds/${photo}-1200.jpg`}
-        srcSet={[
-          `/backgrounds/${photo}-768.webp 768w`,
-          `/backgrounds/${photo}-1200.webp 1200w`,
-        ].join(", ")}
-        sizes="(max-width: 900px) 100vw, 900px"
-        alt=""
-        loading="lazy"
-        decoding="async"
-        width={1200}
-        height={400}
-      />
-      <div className="band__scrim" />
-      <h2 className="band__label">{label}</h2>
-      {note && <p className="band__note">{note}</p>}
-      {pill}
-    </div>
-  );
-}
-
-/** A band of the ledger: a photo header above the rows.
- *
- *  A narrowed-away band is the same photo band as a link, still carrying its
- *  count — the reader has to be able to see the SIZE of what they narrowed
- *  away. Absence must read as "not shown here", never as "nothing there", and
- *  on this site that difference is the whole product. */
+ *  The rail is what makes this a ledger rather than a stack of tables — the
+ *  section name and its caveat sit beside the rows, not above them, so the
+ *  rows themselves stay a single unbroken column of ruled lines. */
 function Band({
   label,
   note,
-  photo,
+  tone,
+  first = false,
   belongsTo,
   focus = "all",
   folded,
@@ -319,8 +290,10 @@ function Band({
 }: {
   label: string;
   note?: string;
-  photo: string;
-  /** Which focus keeps this band open. Omitted means always open. */
+  tone?: "alert";
+  first?: boolean;
+  /** Which focus keeps this band open. Omitted means always open — that is
+   *  IN FORCE NOW, and it is deliberate: see the note on its rail. */
   belongsTo?: Focus;
   focus?: Focus;
   /** What the folded line says, with its count. */
@@ -330,15 +303,25 @@ function Band({
   const open = focus === "all" || belongsTo === undefined || belongsTo === focus;
   if (!open) {
     const href = FOCUS_BAR.find((f) => f.key === belongsTo)?.href ?? "/";
+    // A link, with its count. The reader has to be able to see the SIZE of
+    // what they narrowed away — the same rule as "no directory entry" on a
+    // hut cell. Absence must read as "not shown here", never as "nothing
+    // there", and on this site that difference is the whole product.
     return (
-      <a className="band band--folded" href={href}>
-        <BandHead photo={photo} label={label} note={`${folded} \u2192`} />
+      <a className={`band band--folded${first ? " band--first" : ""}`} href={href}>
+        <span className="band__label">{label}</span>
+        <span className="band__folded">{folded} →</span>
       </a>
     );
   }
   return (
-    <section className="band">
-      <BandHead photo={photo} label={label} note={note} />
+    <section className={`band${first ? " band--first" : ""}`}>
+      <div className="band__rail">
+        <h2 className={`band__label${tone === "alert" ? " band__label--alert" : ""}`}>
+          {label}
+        </h2>
+        {note && <p className="band__note">{note}</p>}
+      </div>
       <div className="band__body">{children}</div>
     </section>
   );
@@ -424,19 +407,6 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
     .filter(isNotice)
     .sort((a, b) => b.status.severity - a.status.severity || a.name.localeCompare(b.name));
   const noticed = new Set(notices.map((f) => f.slug));
-
-  // What is behind the fold, said on the fold. Derived, never written down:
-  // worst kind first, and a kind with none of it omitted rather than shown as
-  // a zero.
-  const noticesClosed = notices.filter((f) => f.season.value === "closed").length;
-  const noticeMix = [
-    noticesClosed > 0 ? `${noticesClosed} closed` : null,
-    notices.length - noticesClosed > 0
-      ? `${notices.length - noticesClosed} restricted`
-      : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
 
   const routine = withStatus.filter((f) => !noticed.has(f.slug));
   const lifts = routine
@@ -538,7 +508,7 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
   const quiet = notices.length === 0;
 
   return (
-    <main>
+    <main className="ruled">
       <section className="hero">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -576,20 +546,17 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
               the photo; 9C opens the ledger with it instead, and running both
               would have printed the same count twice within one screen. */}
           <header className="verdict">
-            {/* 11a: a dot, not the 68px numeral. The count is now stated by
-                the fold's "Show 10" pill and again by the band subtitle's
-                severity mix, and three statements of one number is two too
-                many. The sentence carries the number instead, so it still
-                reads as a sentence with the numeral gone. */}
             <span
-              className={`verdict__dot${quiet ? " verdict__dot--ok" : ""}`}
+              className={`verdict__count${quiet ? " verdict__count--ok" : ""}`}
               aria-hidden="true"
-            />
+            >
+              {notices.length}
+            </span>
             <div className="verdict__said">
               <p className="verdict__line">
                 {quiet
                   ? "Nothing unexpectedly shut."
-                  : `${notices.length} notice${notices.length === 1 ? "" : "s"} in force.`}
+                  : `notice${notices.length === 1 ? "" : "s"} in force.`}
               </p>
               <p className="verdict__counts">
                 {tracked.length - notices.length} of {tracked.length} features
@@ -642,44 +609,22 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
             </div>
           )}
 
-          {/* IN FORCE NOW folds, closed on every load.
-              It was the biggest block on the page and it duplicated the
-              verdict's job. `<details>`, not a button, and for the same reason
-              as QuietRows: moment three of the brief is a phone in a hut on
-              bad signal, so it has to open with no JavaScript at all.
-              The subtitle carries the severity mix, so nothing about the SIZE
-              or the SEVERITY of what is folded is hidden — only the rows are.
-              Derived here, never written down. */}
           {notices.length > 0 && (
-            <details className="force">
-              <summary className="force__summary">
-                <BandHead
-                  photo="section-notices"
-                  label="IN FORCE NOW"
-                  note={`${noticeMix} · all types, whatever you have narrowed to`}
-                  pill={
-                    <span className="force__pill">
-                      <span className="force__show">
-                        Show {notices.length} <span aria-hidden="true">▾</span>
-                      </span>
-                      <span className="force__hide">
-                        Hide <span aria-hidden="true">▴</span>
-                      </span>
-                    </span>
-                  }
-                />
-              </summary>
-              <div className="force__body">
-                {notices.map((f) => (
-                  <LedgerRow key={f.slug} feature={f} emphasis />
-                ))}
-              </div>
-            </details>
+            <Band
+              first
+              tone="alert"
+              label="IN FORCE NOW"
+              note="all types, whatever you have narrowed to · each with the source that published it, on its own page"
+            >
+              {notices.map((f) => (
+                <LedgerRow key={f.slug} feature={f} emphasis />
+              ))}
+            </Band>
           )}
 
           {lifts.length > 0 && (
             <Band
-              photo="section-lifts"
+              first={notices.length === 0}
               belongsTo="lifts"
               focus={focus}
               folded={`${lifts.length} tracked`}
@@ -709,7 +654,6 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
               "mont blanc closures". */}
           {huts.length > 0 && (
             <Band
-              photo="section-huts"
               belongsTo="huts"
               focus={focus}
               folded={`${huts.length} tracked`}
@@ -851,7 +795,6 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
 
           {routes.length > 0 && (
             <Band
-              photo="section-routes"
               belongsTo="routes"
               focus={focus}
               folded={`${routes.length} tracked`}

@@ -179,7 +179,14 @@ a:hover { text-decoration: underline; }
    beside it says so in words. */
 .verdict__count--ok { color: var(--open); }
 .verdict__said { min-width: 0; }
-.verdict__line { margin: 0; font-size: 21px; font-weight: 600; line-height: 1.15; }
+.verdict__line { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.2; }
+/* 11a: the dot that replaced the 68px numeral. The 9c numeral is still on
+   /classic — see the .ruled block at the foot of this file. */
+.verdict__dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--closed); flex: none; align-self: center;
+}
+.verdict__dot--ok { background: var(--open); }
 .verdict__counts { margin: 3px 0 0; font-size: 13px; color: var(--secondary); }
 .verdict__latest {
   margin-left: auto; text-align: right;
@@ -199,7 +206,14 @@ a:hover { text-decoration: underline; }
   display: grid; grid-template-columns: 1fr 440px; gap: 44px;
   align-items: start;
 }
-.col { display: flex; flex-direction: column; gap: 44px; }
+/* `min-width: 0` is load-bearing, not tidiness. As a grid item this defaults
+   to `min-width: auto`, which refuses to shrink below its content's
+   min-content width — and 11a's band subtitle is `white-space: nowrap`, so
+   that min-content width is the whole caveat on one line. Measured at 390px
+   before this was added: the column sized itself to 582px and took the entire
+   page with it, masthead included, 208px of horizontal scroll. 9c never hit
+   it because its subtitle wrapped. */
+.col { display: flex; flex-direction: column; gap: 44px; min-width: 0; }
 
 /* ------------------------------------------------------ unverified banner */
 .unverified {
@@ -213,30 +227,83 @@ a:hover { text-decoration: underline; }
 .unverified__text { font-size: 13px; line-height: 1.55; color: var(--body); }
 
 /* -------------------------------------------------------------- the ledger
-   A label rail beside the rows, not a heading above them. That is what makes
-   this a ledger rather than a stack of tables: the rows stay one unbroken
-   column of ruled lines from the top of the page to the bottom, and the rail
-   carries the section name and the caveat that belongs with it. */
-.band { display: grid; grid-template-columns: 200px 1fr; gap: 0 36px; }
-.band + .band {
-  border-top: 1.5px solid var(--ink); padding-top: 16px;
+   Design 11a: photo section headers. The section name and its caveat live
+   inside a 64px scrimmed strip of the user's own photography; the rows below
+   are unchanged, so this is section chrome and not row grammar.
+
+   The scrim ramps dark to light left to right and EVERY word sits on the
+   left, over the dark end. The right end is decorative and carries nothing —
+   which is what lets the photograph vary underneath without the label's
+   contrast varying with it. Design 9c, the 200px label rail this replaced, is
+   still in components/StatusLedgerRuled.tsx and rendered at /classic. */
+.band { display: block; }
+.band__head {
+  position: relative; height: 64px; border-radius: 10px; overflow: hidden;
+  display: flex; align-items: center; gap: 14px; padding: 0 16px 0 20px;
+  /* Paints before the photo loads, and instead of it if the photo 404s. The
+     scrim and the white label are legible against this alone. */
+  background: #1a1f24;
 }
-/* The first band sits under the verdict's own 3px rule; a second line 16px
-   below it reads as a mistake. */
-.band--first { border-top: 0; padding-top: 0; }
+.band__photo {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; display: block;
+}
+.band__scrim {
+  position: absolute; inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--scrim-ink), 0.88) 0%,
+    rgba(var(--scrim-ink), 0.62) 55%,
+    rgba(var(--scrim-ink), 0.30) 100%
+  );
+}
 .band__label {
-  margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.18em;
-  color: var(--ink);
+  position: relative; margin: 0; flex: none;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.18em;
+  color: #ffffff; white-space: nowrap;
 }
-.band__label--alert { color: var(--closed); }
 .band__note {
-  margin: 6px 0 0; font-size: 12px; line-height: 1.6; color: var(--tertiary);
+  position: relative; margin: 0; min-width: 0;
+  font-size: 12px; color: rgba(255, 255, 255, 0.92);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.band__body { min-width: 0; }
+.band__body { min-width: 0; padding-top: 6px; }
 .band__credit {
   margin: 10px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--secondary);
 }
 .band__credit a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* --------------------------------------------------- IN FORCE NOW, folded
+   `<details>`, not a button — the same rule as `.quiet` and the same reason:
+   moment three of the brief is a phone in a hut on bad signal, so this has to
+   open with no JavaScript at all. Closed on every load and never persisted.
+
+   Folding hides ROWS, never facts: the verdict states the count and the strip
+   subtitle states the severity mix, both derived. */
+.force > summary { list-style: none; cursor: pointer; }
+.force > summary::-webkit-details-marker { display: none; }
+.force > summary:hover .band__head {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.force__pill {
+  position: relative; margin-left: auto; flex: none;
+  font-size: 12px; font-weight: 600; color: var(--ink);
+  border-radius: 999px; padding: 6px 14px; background: #ffffff;
+  box-shadow: 0 1px 3px rgba(var(--scrim-ink), 0.24); white-space: nowrap;
+}
+.force__show, .force__hide { display: inline-flex; align-items: center; gap: 6px; }
+.force__hide { display: none; }
+.force[open] .force__show { display: none; }
+.force[open] .force__hide { display: inline-flex; }
+/* Notice cards, not ruled lines: the one place a row carries a box. The row
+   grammar inside — grid, two clocks, OLD and OVERDUE badges — is untouched.
+   All cards stay white: the badges carry severity, not the card tint. */
+.force__body { display: flex; flex-direction: column; gap: 12px; padding-top: 14px; }
+.force__body .lrow {
+  border: 1px solid var(--rule); border-radius: 10px;
+  background: var(--card); box-shadow: var(--shadow-card);
+  padding: 12px 16px;
+}
 
 /* ------------------------------------------------------------- focus bar
    "Show me only the huts." Four links, one of which is the page you are on
@@ -261,17 +328,16 @@ a.focus__item:hover { border-color: var(--ink); color: var(--ink); text-decorati
   font-weight: 600; cursor: default;
 }
 
-/* A band the reader has narrowed away. One line, its count, and a way back
-   in. The count is the point: absence has to read as "not shown here", never
-   as "nothing there" — the same rule as "no directory entry" on a hut cell,
-   and on this site that difference is the whole product. */
-.band--folded {
-  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-  color: inherit; padding-bottom: 14px;
-}
+/* A band the reader has narrowed away: the same photo strip, as a link back
+   in, still carrying its count. The count is the point — absence has to read
+   as "not shown here", never as "nothing there", the same rule as "no
+   directory entry" on a hut cell, and on this site that difference is the
+   whole product. */
+.band--folded { display: block; color: inherit; }
 .band--folded:hover { text-decoration: none; }
-.band--folded:hover .band__label { color: var(--closed); }
-.band__folded { font-size: 12.5px; color: var(--tertiary); }
+.band--folded:hover .band__note {
+  color: #ffffff; text-decoration: underline; text-underline-offset: 3px;
+}
 
 /* ------------------------------------------------------------ ledger rows */
 /* A grid, not the handoff's single baseline row.
@@ -728,16 +794,13 @@ table.history th { color: var(--secondary); font-weight: 500; }
 
 /* ------------------------------------------------- between the two designs
    The handoff has one desktop frame, at 1280. Below about 1180 the fixed 440px
-   map plus the 200px label rail leaves the rows under 300px and every status
-   string wraps three deep — so the rail folds up into a header first, and the
-   map pane narrows, before the layout goes single-column at 900. */
+   map leaves the rows under 300px and every status string wraps three deep, so
+   the map pane narrows before the layout goes single-column at 900.
+
+   The band rules that used to live here went with 11a: there is no 200px rail
+   to fold up any more, and the photo strip is full-width at every size. */
 @media (max-width: 1180px) and (min-width: 901px) {
   .layout { grid-template-columns: 1fr 360px; gap: 30px; }
-  .band { grid-template-columns: 1fr; gap: 10px; }
-  .band__rail {
-    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-  }
-  .band__note { margin: 0; }
 }
 
 /* ------------------------------------------------------------------ mobile
@@ -759,12 +822,12 @@ table.history th { color: var(--secondary); font-weight: 500; }
   .verdict__latest {
     margin-left: 0; text-align: left; width: 100%; margin-top: 8px;
   }
-  /* The 200px label rail collapses: section labels become full-width headers
-     above their rows. Written as one column rather than a narrower rail —
-     at 390px a rail wide enough for "LIFTS & RAILWAYS" leaves nothing for the
-     rows beside it. */
-  .band { grid-template-columns: 1fr; gap: 10px; }
-  .band__note { margin-top: 2px; }
+  /* The photo strip keeps its height and tightens its padding. The subtitle
+     ellipsizes rather than wrapping the strip taller — the full caveat for a
+     band is one tap away on its own page, and the severity mix ("8 closed ·
+     2 restricted") is short enough to survive 390px. */
+  .band__head { padding: 0 12px 0 14px; gap: 10px; }
+  .band__label { font-size: 11.5px; letter-spacing: 0.12em; }
   .col { gap: 30px; }
   /* One column of cells: two 165px columns cut every hut name in half. */
   .cells { grid-template-columns: 1fr; }
@@ -895,3 +958,54 @@ table.history th { color: var(--secondary); font-weight: 500; }
 
 /* The schematic note sits directly under the map it is about. */
 .schematic-note { margin-top: 10px; max-width: 640px; }
+
+
+/* ====================================================================== 9c
+   DESIGN 9c — the ruled label rail, kept alive for /classic only.
+   
+   Every rule here is scoped under `.ruled`, which only
+   components/StatusLedgerRuled.tsx sets. Deleting this block and that
+   component is a single step the day 11a is confirmed; until then the two
+   designs share one stylesheet without either reaching the other.
+
+   A label rail beside the rows, not a heading above them. That is what made
+   9c a ledger rather than a stack of tables: the rows stay one unbroken
+   column of ruled lines top to bottom, and the rail carries the section name
+   and the caveat that belongs with it. */
+.ruled .band { display: grid; grid-template-columns: 200px 1fr; gap: 0 36px; }
+.ruled .band + .band { border-top: 1.5px solid var(--ink); padding-top: 16px; }
+/* The first band sits under the verdict's own 3px rule; a second line 16px
+   below it reads as a mistake. */
+.ruled .band--first { border-top: 0; padding-top: 0; }
+.ruled .band__label {
+  position: static; margin: 0; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.18em; color: var(--ink); white-space: normal;
+}
+.ruled .band__label--alert { color: var(--closed); }
+.ruled .band__note {
+  position: static; margin: 6px 0 0; font-size: 12px; line-height: 1.6;
+  color: var(--tertiary); overflow: visible; white-space: normal;
+}
+.ruled .band__body { padding-top: 0; }
+.ruled .band--folded {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  color: inherit; padding-bottom: 14px;
+}
+.ruled .band--folded:hover .band__label { color: var(--closed); }
+.ruled .band--folded:hover .band__note { text-decoration: none; }
+.ruled .band__folded { font-size: 12.5px; color: var(--tertiary); }
+
+@media (max-width: 1180px) and (min-width: 901px) {
+  .ruled .band { grid-template-columns: 1fr; gap: 10px; }
+  .ruled .band__rail { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .ruled .band__note { margin: 0; }
+}
+@media (max-width: 900px) {
+  /* At 390px a rail wide enough for "LIFTS & RAILWAYS" leaves nothing for the
+     rows beside it, so the rail becomes a full-width header. */
+  .ruled .band { grid-template-columns: 1fr; gap: 10px; }
+  .ruled .band__note { margin-top: 2px; }
+}
+
+/* 9c's verdict: the 68px numeral, and the 21px line that sat beside it. */
+.ruled .verdict__line { font-size: 21px; font-weight: 600; line-height: 1.15; }
