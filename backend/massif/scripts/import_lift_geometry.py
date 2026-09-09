@@ -41,8 +41,10 @@ project keeps meeting.
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import time
+import unicodedata
 
 import httpx
 from sqlalchemy import select
@@ -52,7 +54,14 @@ from massif.models import Feature
 from massif.scripts.import_route_geometry import in_massif
 from massif.scripts.seed_features import load
 
-OVERPASS = "https://overpass-api.de/api/interpreter"
+# Tried in order. The official instance first; the Mail.ru mirror is a
+# long-running public instance and exists here because on 10 Sep 2026 the
+# route to overpass-api.de (and to the Kumi mirror) was dead from this
+# network while general connectivity was fine — errno 101, not a refusal.
+OVERPASS_ENDPOINTS = (
+    "https://overpass-api.de/api/interpreter",
+    "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+)
 UA = {"User-Agent": "massif/0.1 (+https://montblancmassif.org/about; steven@innes.io)"}
 
 # The massif is about 35 km across. Anything longer than this is not a lift in
@@ -76,6 +85,24 @@ def pinned_lines() -> dict[str, str]:
     }
 
 
+def _ask(query: str) -> list[dict] | None:
+    """One Overpass question, against whichever endpoint answers."""
+    for endpoint in OVERPASS_ENDPOINTS:
+        for attempt in range(2):
+            try:
+                response = httpx.post(endpoint, data={"data": query}, headers=UA, timeout=180)
+                response.raise_for_status()
+                return response.json().get("elements", [])
+            except Exception as exc:
+                print(
+                    f"      {endpoint.split('/')[2]}: attempt {attempt + 1}: "
+                    f"{type(exc).__name__}",
+                    file=sys.stderr,
+                )
+                time.sleep(4 * (attempt + 1))
+    return None
+
+
 def fetch_geometry(osm_ids: list[str]) -> dict[str, list[list[tuple[float, float]]]]:
     """OSM id -> its parts, each a list of (lon, lat).
 
@@ -94,15 +121,11 @@ def fetch_geometry(osm_ids: list[str]) -> dict[str, list[list[tuple[float, float
         if kind not in ("way", "relation") or not num.isdigit():
             continue
         query = f"[out:json][timeout:120];{kind}({num});out geom;"
-        for attempt in range(3):
-            try:
-                response = httpx.post(OVERPASS, data={"data": query}, headers=UA, timeout=180)
-                response.raise_for_status()
-                elements.extend(response.json().get("elements", []))
-                break
-            except Exception as exc:
-                print(f"      {oid}: attempt {attempt + 1}: {type(exc).__name__}", file=sys.stderr)
-                time.sleep(5 * (attempt + 1))
+        got = _ask(query)
+        if got is None:
+            print(f"      {oid}: all endpoints failed", file=sys.stderr)
+        else:
+            elements.extend(got)
         time.sleep(2)
 
     for element in elements:
@@ -131,6 +154,76 @@ def wkt(parts: list[list[tuple[float, float]]]) -> str:
         "(" + ",".join(f"{lon} {lat}" for lon, lat in part) + ")" for part in parts
     )
     return f"MULTILINESTRING({bodies})"
+
+
+# The operator writes "TPH AIGUILLE DU MIDI"; OSM writes "TPH Aiguille du
+# Midi" or just "Planpraz". Strip accents, the lift-type prefixes both sides
+# use, and French articles, and the two vocabularies meet in the middle.
+_STOPWORDS = re.compile(
+    r"\b(tph|tc|tcd|tsd|ts|tk|funi|telepherique|telecabine|telesiege|teleski|"
+    r"du|de|des|le|la|les|d)\b"
+)
+
+
+def machine_key(name: str) -> str:
+    flat = "".join(
+        c for c in unicodedata.normalize("NFD", name or "") if unicodedata.category(c) != "Mn"
+    ).lower()
+    return " ".join(_STOPWORDS.sub(" ", flat).split())
+
+
+def match_machines(lifts, aerialways: list[dict]) -> dict[str, list[str]]:
+    """slug -> OSM way ids, for tracked machines with no geometry.
+
+    EXACT normalised-name equality, within the massif bbox the aerialways were
+    fetched from — never a fuzzy score. Rule 8 says a name score cannot tell
+    you which mountain something is on, and the route import proved it; what
+    makes equality safe here is that the candidate set is only the lifts of
+    this massif, and their names ("Planpraz", "Charamillon", "Autannes") are
+    distinctive within it.
+
+    A trailing number is the one forgiveness: "La Breya 1" and "La Breya 2"
+    are both the thing our `la-breya` sector means, so a machine may match
+    several ways and become a MultiLineString.
+    """
+    out: dict[str, list[str]] = {}
+    for lift in lifts:
+        if lift.geom is not None:
+            continue
+        key = machine_key(lift.name_default)
+        if not key:
+            continue
+        hits = [
+            a["id"]
+            for a in aerialways
+            if machine_key(a["name"]) == key
+            or machine_key(a["name"]).rstrip("0123456789 ") == key
+        ]
+        if hits:
+            out[lift.slug] = hits
+    return out
+
+
+def fetch_aerialways() -> list[dict]:
+    """Every NAMED aerialway way in the massif bbox, with its line geometry.
+
+    All kinds, not `cable_car|gondola` — that narrow filter is the recorded
+    four-time "not in OSM meant we never asked" bug, and measured properly the
+    bbox holds 287 aerialway ways of which the old filter saw 45.
+    """
+    got = _ask(
+        '[out:json][timeout:150];way["aerialway"]["name"](45.72,6.60,46.05,7.10);out geom;'
+    )
+    if got is None:
+        return []
+    out = []
+    for element in got:
+        points = [(p["lon"], p["lat"]) for p in element.get("geometry") or []]
+        if len(points) >= 2:
+            out.append(
+                {"id": f"way/{element['id']}", "name": element["tags"].get("name"), "line": points}
+            )
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -184,6 +277,37 @@ def main(argv: list[str] | None = None) -> int:
                 lift.geom_source = "osm"
                 lift.geom_verified = False
                 lift.external_ids = {**(lift.external_ids or {}), "osm_line": osm}
+            drawn += 1
+
+        # ---- phase 2: the tracked machines. The operator feed creates them
+        # with no geometry by design; their lines exist in OSM under names a
+        # strict normaliser can meet.
+        aerialways = fetch_aerialways()
+        print(f"\n{len(aerialways)} named aerialways in the bbox")
+        matched = match_machines(lifts, aerialways)
+        by_id = {a["id"]: a for a in aerialways}
+        for slug, ids in sorted(matched.items()):
+            lift = next(x for x in lifts if x.slug == slug)
+            parts = [by_id[i]["line"] for i in ids]
+            flat = [p for part in parts for p in part]
+            length = span_km(parts)
+            if not in_massif(flat):
+                print(f"  XX    {slug:30} leaves the massif — refusing")
+                refused += 1
+                continue
+            if length > 8.0:
+                # No single cable in this massif is 8 km; a match that long is
+                # a wrong match wearing the right name.
+                print(f"  XX    {slug:30} spans {length:.1f} km — refusing")
+                refused += 1
+                continue
+            names = ", ".join(by_id[i]["name"] for i in ids)
+            print(f"  OK    {slug:30} {len(parts)} way(s), {length:>4.1f} km  <- {names[:40]}")
+            if args.apply:
+                lift.geom = f"SRID=4326;{wkt(parts)}"
+                lift.geom_source = "osm"
+                lift.geom_verified = False
+                lift.external_ids = {**(lift.external_ids or {}), "osm_line": ",".join(ids)}
             drawn += 1
 
         print(f"\n{drawn} drawn, {refused} refused")
