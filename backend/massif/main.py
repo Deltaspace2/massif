@@ -449,6 +449,16 @@ FACT_FIELDS = (
     "water",
     "latrines",
     "altitude_m",
+    # The hut's own page. Held on 44 huts since the camptocamp import and never
+    # exposed, so the site knew where every one of them lives and never said.
+    #
+    # A URL and not prose, so it passes the same test as the fields above: this
+    # client keeps structured values and never somebody's writing. The frontend
+    # shows the HOSTNAME rather than the whole URL, because camptocamp records
+    # these as "operator links" and some point at a directory entry — a
+    # refuges.info link should visibly read as refuges.info rather than be
+    # dressed up as the refuge's own website.
+    "operator_url",
     "phone",
 )
 

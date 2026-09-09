@@ -151,6 +151,10 @@ export interface FactBlock {
     latrines?: boolean;
     altitude_m?: number;
     phone?: string;
+    /** The hut's own site, as camptocamp records it. Sometimes a directory
+     *  entry rather than the hut's own domain, which is why the hostname is
+     *  what gets shown — a refuges.info link should look like one. */
+    operator_url?: string;
   };
 }
 

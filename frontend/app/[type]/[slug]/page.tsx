@@ -55,6 +55,19 @@ export async function generateMetadata({
   }
 }
 
+/** "https://www.rifugiotorino.com/en/" -> "rifugiotorino.com".
+ *
+ *  Falls back to the raw string rather than throwing: a malformed URL in
+ *  somebody else's directory should render as text, not 500 the page a
+ *  search engine sent someone to. */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
 export default async function FeaturePage({ params }: { params: Params }) {
   const { slug } = await params;
 
@@ -466,6 +479,23 @@ export default async function FeaturePage({ params }: { params: Params }) {
               push(
                 "Phone",
                 <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`}>{v.phone}</a>,
+                from,
+              );
+            // The hut's own page — held on 44 of them and never shown until
+            // now. The HOSTNAME is the link text, not the full URL: these are
+            // "operator links" as camptocamp records them, and some point at a
+            // directory entry rather than the hut's own site. Showing the host
+            // means a refuges.info link visibly reads as refuges.info instead
+            // of being dressed up as the refuge's own website.
+            //
+            // nofollow, like every outbound link here: we are citing them, not
+            // vouching for them.
+            if (v.operator_url !== undefined)
+              push(
+                "Website",
+                <a href={v.operator_url} rel="nofollow noopener">
+                  {hostOf(v.operator_url)}
+                </a>,
                 from,
               );
           }
