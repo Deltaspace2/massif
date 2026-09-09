@@ -51,15 +51,31 @@ Steven's related note below: lifts are drawn inconsistently — some marked, som
 with a line, some a bare dot — and every tram, telecabine and chairlift should
 be on the map. Standardise the symbology in the same pass.
 
-## Search, then filter
-115 features, all server-rendered, so this is a server-side filter on /features
-rather than a client-side index. Search subsumes most of what a filter is for,
-so it comes first. The hut directory at 74 rows is the first listing long
-enough to need either.
+## Filter (search shipped first, as planned)
+Search is live at /search — one GET form, server-rendered, accent-blind, and
+an empty result says "not carried" rather than implying anything is open or
+shut. It subsumes most of what a filter was for; whether a filter is still
+worth having is now a question to answer from use, not up front.
 
 ---
 
 # Waiting on you
+
+## Vercel's firewall is challenging the whole frontend
+Found 10 Sep 2026, evening: every request to montblancmassif.org from curl
+answers 429 with `x-vercel-mitigated: challenge` — the API project is
+untouched. Real browsers pass the JS challenge and the site works, verified.
+Nothing in the repo changed this; it is a project setting on Vercel's side
+(Firewall → Attack Challenge Mode or Bot Filter), possibly toggled during the
+analytics visit, possibly Vercel reacting to this session's own polling.
+
+Why it cannot just stay on unexamined: SEO is this project's distribution
+channel, and a challenge mode that gates crawlers would quietly cut the site
+off from the one channel it lives on. Attack Challenge Mode is documented as a
+temporary measure. Check the massif project's Firewall tab; if Bot Filter with
+verified-bot allowlisting is what is on, that is probably fine — if Attack
+Challenge Mode is on, turn it off once whatever prompted it has passed.
+
 
 None of this can move without a decision or an account only you have.
 
