@@ -237,6 +237,9 @@ a:hover { text-decoration: underline; }
    contrast varying with it. Design 9c, the 200px label rail this replaced, is
    still in components/StatusLedgerRuled.tsx and rendered at /classic. */
 .band { display: block; }
+/* A folded band is a <details> AND a .band: the marker goes, and the strip
+   keeps its own corners rather than inheriting a list-item box. */
+details.band { border: 0; padding: 0; }
 .band__head {
   position: relative; height: 64px; border-radius: 10px; overflow: hidden;
   display: flex; align-items: center; gap: 14px; padding: 0 16px 0 20px;
@@ -273,13 +276,17 @@ a:hover { text-decoration: underline; }
 }
 .band__credit a { text-decoration: underline; text-underline-offset: 2px; }
 
-/* --------------------------------------------------- IN FORCE NOW, folded
+/* ------------------------------------------------------- the folded bands
+   EVERY band folds, not just IN FORCE NOW, and every one starts shut.
    `<details>`, not a button — the same rule as `.quiet` and the same reason:
    moment three of the brief is a phone in a hut on bad signal, so this has to
    open with no JavaScript at all. Closed on every load and never persisted.
 
-   Folding hides ROWS, never facts: the verdict states the count and the strip
-   subtitle states the severity mix, both derived. */
+   Folding hides ROWS, never facts: the strip keeps the section name and its
+   caveat, and the pill keeps the count, so the size of what is folded is
+   always on the page. A closed `<details>` is still in the markup and still
+   indexable, which matters because people arrive here searching a hut by
+   name. */
 .force > summary { list-style: none; cursor: pointer; }
 .force > summary::-webkit-details-marker { display: none; }
 .force > summary:hover .band__head {

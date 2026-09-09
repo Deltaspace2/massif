@@ -315,6 +315,8 @@ function Band({
   belongsTo,
   focus = "all",
   folded,
+  count,
+  bodyClass = "band__body",
   children,
 }: {
   label: string;
@@ -323,8 +325,11 @@ function Band({
   /** Which focus keeps this band open. Omitted means always open. */
   belongsTo?: Focus;
   focus?: Focus;
-  /** What the folded line says, with its count. */
+  /** What the narrowed-away line says, with its count. */
   folded?: string;
+  /** How many rows are behind the fold, for the pill. */
+  count: number;
+  bodyClass?: string;
   children: React.ReactNode;
 }) {
   const open = focus === "all" || belongsTo === undefined || belongsTo === focus;
@@ -336,11 +341,40 @@ function Band({
       </a>
     );
   }
+  // EVERY band folds, and every one starts shut. `<details>`, not a button,
+  // and for the third time in this file the same reason: moment three of the
+  // brief is a phone in a hut on bad signal, and this has to open with no
+  // JavaScript at all.
+  //
+  // Folding hides ROWS, never facts. The strip keeps the section name and its
+  // caveat, and the pill keeps the count, so what is behind the fold is always
+  // stated — the same rule as a narrowed-away band, where absence must read as
+  // "not shown here" rather than "nothing there".
+  //
+  // The page is still one HTML document: a closed <details> is in the markup
+  // and indexable, which matters because people arrive here from searching a
+  // hut by name.
   return (
-    <section className="band">
-      <BandHead photo={photo} label={label} note={note} />
-      <div className="band__body">{children}</div>
-    </section>
+    <details className="band force">
+      <summary className="force__summary">
+        <BandHead
+          photo={photo}
+          label={label}
+          note={note}
+          pill={
+            <span className="force__pill">
+              <span className="force__show">
+                Show {count} <span aria-hidden="true">▾</span>
+              </span>
+              <span className="force__hide">
+                Hide <span aria-hidden="true">▴</span>
+              </span>
+            </span>
+          }
+        />
+      </summary>
+      <div className={bodyClass}>{children}</div>
+    </details>
   );
 }
 
@@ -651,35 +685,25 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
               or the SEVERITY of what is folded is hidden — only the rows are.
               Derived here, never written down. */}
           {notices.length > 0 && (
-            <details className="force">
-              <summary className="force__summary">
-                <BandHead
-                  photo="section-notices"
-                  label="IN FORCE NOW"
-                  note={`${noticeMix} · all types, whatever you have narrowed to`}
-                  pill={
-                    <span className="force__pill">
-                      <span className="force__show">
-                        Show {notices.length} <span aria-hidden="true">▾</span>
-                      </span>
-                      <span className="force__hide">
-                        Hide <span aria-hidden="true">▴</span>
-                      </span>
-                    </span>
-                  }
-                />
-              </summary>
-              <div className="force__body">
-                {notices.map((f) => (
-                  <LedgerRow key={f.slug} feature={f} emphasis />
-                ))}
-              </div>
-            </details>
+            <Band
+              photo="section-notices"
+              label="IN FORCE NOW"
+              count={notices.length}
+              // Cards rather than ruled lines: the one place a row carries a
+              // box. The row grammar inside is untouched.
+              bodyClass="force__body"
+              note={`${noticeMix} · all types, whatever you have narrowed to`}
+            >
+              {notices.map((f) => (
+                <LedgerRow key={f.slug} feature={f} emphasis />
+              ))}
+            </Band>
           )}
 
           {lifts.length > 0 && (
             <Band
               photo="section-lifts"
+              count={lifts.length}
               belongsTo="lifts"
               focus={focus}
               folded={`${lifts.length} tracked`}
@@ -710,6 +734,7 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
           {huts.length > 0 && (
             <Band
               photo="section-huts"
+              count={huts.length}
               belongsTo="huts"
               focus={focus}
               folded={`${huts.length} tracked`}
@@ -852,6 +877,7 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
           {routes.length > 0 && (
             <Band
               photo="section-routes"
+              count={routes.length}
               belongsTo="routes"
               focus={focus}
               folded={`${routes.length} tracked`}
