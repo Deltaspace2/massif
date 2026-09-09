@@ -25,7 +25,7 @@ export async function generateMetadata({
 }: {
   params: Params;
 }): Promise<Metadata> {
-  const { type, slug } = await params;
+  const { slug } = await params;
   try {
     const feature = await getFeature(slug);
     return {
@@ -34,7 +34,17 @@ export async function generateMetadata({
       // canonical set there would name the front page as the original for
       // all 132 of these — which is a request to drop the SEO surface from
       // the index as duplicates.
-      alternates: { canonical: `/${type}/${slug}` },
+      //
+      // Built from the feature's OWN type, never the `type` segment of the
+      // request. This route looks the feature up by SLUG and never reads that
+      // segment, so /banana/refuge-du-gouter serves the Goûter exactly as
+      // /hut/refuge-du-gouter does. Echoing the segment back makes each of
+      // those variants declare ITSELF the original, which is the duplicate
+      // this line exists to prevent. Nothing links to a wrong type today and
+      // the sitemap emits only the right one, so the cost of getting it wrong
+      // is one mistyped inbound link and page rank split across two urls,
+      // invisible the whole time it is happening.
+      alternates: { canonical: `/${feature.type}/${feature.slug}` },
       // The STATUS WORD, not the summary sentence. Interpolating the summary
       // produced "Abri Simond — Open all year and unstaffed — no warden, so
       // there is no season to open or close. Carry everything you need —
