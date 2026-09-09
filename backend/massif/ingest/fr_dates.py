@@ -37,8 +37,36 @@ MONTHS: dict[str, int] = {
     "decembre": 12,
 }
 
+# Italian, for the Courmayeur-side hut websites. Kept as its own table rather
+# than merged into MONTHS, because the month name is what tells the two
+# languages apart in a pattern: a French rule must not match Italian prose and
+# read "dal 20 al 30" with French grammar it does not have.
+#
+# Only `novembre` is spelled identically in both, and it is 11 in both, so the
+# merged lookup below is unambiguous.
+MONTHS_IT: dict[str, int] = {
+    "gennaio": 1,
+    "febbraio": 2,
+    "marzo": 3,
+    "aprile": 4,
+    "maggio": 5,
+    "giugno": 6,
+    "luglio": 7,
+    "agosto": 8,
+    "settembre": 9,
+    "ottobre": 10,
+    "novembre": 11,
+    "dicembre": 12,
+}
+
+# What the dispatch looks a matched month name up in. Safe to merge: each
+# language's patterns only ever offer their own month names.
+_MONTHS_ANY: dict[str, int] = {**MONTHS, **MONTHS_IT}
+
 _MONTH_ALT = "|".join(MONTHS)
+_MONTH_ALT_IT = "|".join(MONTHS_IT)
 _DAY = r"(\d{1,2})(?:\s*er)?"
+_NUM = r"(\d{1,2})/(\d{1,2})/(\d{2,4})"
 
 
 def published_date(moment: datetime) -> date:
@@ -100,7 +128,12 @@ _TYPOGRAPHIC = str.maketrans(
 # "Ouverture du Vendredi 12 Juin au soir, jusqu'au Mardi 8 Septembre 2026" —
 # both ends stated plainly — and it parsed to nothing, so the hut was demoted
 # to unknown under a message blaming the source for giving no dates.
-_WEEKDAYS = re.compile(r"\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)\b")
+_WEEKDAYS = re.compile(
+    r"\b(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche"
+    # Italian, accents already stripped by the time this runs:
+    # "mercoledì" arrives as "mercoledi".
+    r"|lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica)\b"
+)
 
 
 def _norm(text: str) -> str:
@@ -134,54 +167,106 @@ class DateRange:
         return self.start is not None and self.end is not None
 
 
-# Ordered most specific first: "du 28 décembre 2026 au 3 janvier 2027" also
-# contains a substring matching the same-month pattern.
-_PATTERNS: list[tuple[str, re.Pattern]] = [
-    (
-        "full_range",
-        re.compile(
-            rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"
+# ONE GRAMMAR, TWO VOCABULARIES.
+#
+# The shapes below are the same in both languages — "dal 20 giugno al 20
+# settembre" is "du 20 juin au 20 septembre" with different words — so the
+# rules are written once and instantiated per language. Duplicating them would
+# mean duplicating the parts that are actually subtle: the year-crossing in
+# from_until_split, and the ordering.
+#
+# ORDERING WITHIN A LANGUAGE IS LOAD-BEARING: most specific first, because
+# "du 28 décembre 2026 au 3 janvier 2027" also contains a substring matching
+# the same-month pattern.
+#
+# ORDERING BETWEEN THE LANGUAGES IS NOT, and the comment here used to claim it
+# was. The two vocabularies share no connective and only one month name
+# (`novembre`, 11 in both), so no Italian pattern can match French prose or the
+# reverse — swapping the order changes nothing, which a mutation confirmed.
+# French stays first as a statement of precedence, not as a guard.
+@dataclass(frozen=True)
+class _Vocab:
+    lang: str
+    months: str
+    frm: str
+    to: str
+    until: str
+    since: str
+    on: str
+    # Italian hut sites write "CHIUSURA 13 SETTEMBRE 2026" — a date with no
+    # connective in front of it at all. French notices always carry one, and
+    # allowing a bare day-month there would make `parse_range` fire on any
+    # number that happens to precede a month name.
+    bare_single: bool
+
+
+_FR = _Vocab(
+    lang="fr",
+    months=_MONTH_ALT,
+    frm=r"du",
+    to=r"au",
+    until=r"jusqu\'?\s*au",
+    since=r"a\s+partir\s+du",
+    on=r"le",
+    bare_single=False,
+)
+
+_IT = _Vocab(
+    lang="it",
+    months=_MONTH_ALT_IT,
+    frm=r"dal",
+    to=r"al",
+    until=r"(?:fino\s+al|entro\s+il)",
+    since=r"(?:a\s+partire\s+dal|dal)",
+    on=r"il",
+    bare_single=True,
+)
+
+
+def _patterns_for(v: _Vocab) -> list[tuple[str, str, re.Pattern]]:
+    """(kind, lang, pattern) for one language, most specific first."""
+    m, d, y = v.months, _DAY, r"(\d{4})"
+    out = [
+        ("full_range", re.compile(rf"{v.frm}\s+{d}\s+({m})\s+{y}\s+{v.to}\s+{d}\s+({m})\s+{y}")),
+        ("split_month", re.compile(rf"{v.frm}\s+{d}\s+({m})\s+{v.to}\s+{d}\s+({m})\s+{y}")),
+        ("same_month", re.compile(rf"{v.frm}\s+{d}\s+{v.to}\s+{d}\s+({m})\s+{y}")),
+        (
+            "numeric_range",
+            re.compile(rf"{v.frm}\s+(\d{{1,2}})/(\d{{1,2}})/(\d{{2,4}})\s+{v.to}\s+(\d{{1,2}})/(\d{{1,2}})/(\d{{2,4}})"),
         ),
-    ),
-    (
-        "split_month",
-        re.compile(rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"),
-    ),
-    ("same_month", re.compile(rf"du\s+{_DAY}\s+au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    (
-        "numeric_range",
-        re.compile(r"du\s+(\d{1,2})/(\d{1,2})/(\d{2,4})\s+au\s+(\d{1,2})/(\d{1,2})/(\d{2,4})"),
-    ),
-    # "du 26 mai 2026 et jusqu'au 29 mai 2026" — both ends stated, but not in
-    # the "du X au Y" shape full_range wants. Real, and from an arrêté: before
-    # this it fell through to `until` and lost its start date.
-    (
-        "from_until",
-        re.compile(
-            rf"du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})[^0-9]{{0,24}}?"
-            rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"
+        # Both ends stated, but not in the "from X to Y" shape full_range
+        # wants: "du 26 mai 2026 et jusqu'au 29 mai 2026". Real, from an
+        # arrêté — before this it fell through to `until` and lost its start.
+        (
+            "from_until",
+            re.compile(rf"{v.frm}\s+{d}\s+({m})\s+{y}[^0-9]{{0,24}}?{v.until}\s+{d}\s+({m})\s+{y}"),
         ),
-    ),
-    # "du 12 juin au soir, jusqu'au 8 septembre 2026" — both ends stated, only
-    # the second carrying a year. The first takes the second's year, which is
-    # the only reading that is not a range ending before it starts.
-    (
-        "from_until_split",
-        re.compile(
-            rf"du\s+{_DAY}\s+({_MONTH_ALT})\b[^0-9]{{0,24}}?"
-            rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})"
+        # Both ends stated, only the second carrying a year. The first takes
+        # the second's year, the only reading that is not a range ending
+        # before it starts.
+        (
+            "from_until_split",
+            re.compile(rf"{v.frm}\s+{d}\s+({m})\b[^0-9]{{0,24}}?{v.until}\s+{d}\s+({m})\s+{y}"),
         ),
-    ),
-    ("until", re.compile(rf"jusqu'?\s*au\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    # The numeric forms of the same two shapes. Hut websites write "gardé
-    # jusqu'au 30/08" where a mairie writes "jusqu'au 30 août 2026", and the
-    # named-month rules above could not see them at all.
-    ("until_numeric", re.compile(r"jusqu'?\s*au\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
-    ("from_numeric", re.compile(r"(?:a\s+partir\s+du|des\s+le)\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
-    ("from", re.compile(rf"a\s+partir\s+du\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    ("single_named", re.compile(rf"(?:le|du)\s+{_DAY}\s+({_MONTH_ALT})\s+(\d{{4}})")),
-    ("single_numeric", re.compile(r"le\s+(\d{1,2})/(\d{1,2})/(\d{2,4})")),
-]
+        ("until", re.compile(rf"{v.until}\s+{d}\s+({m})\s+{y}")),
+        # The numeric forms of the same two shapes. Hut websites write "gardé
+        # jusqu'au 30/08" where a mairie writes "jusqu'au 30 août 2026".
+        ("until_numeric", re.compile(rf"{v.until}\s+(\d{{1,2}})/(\d{{1,2}})/(\d{{2,4}})")),
+        (
+            "from_numeric",
+            re.compile(rf"(?:{v.since}|{v.frm})\s+{_NUM}"),
+        ),
+        ("from", re.compile(rf"{v.since}\s+{d}\s+({m})\s+{y}")),
+        ("single_named", re.compile(rf"(?:{v.on}|{v.frm})\s+{d}\s+({m})\s+{y}")),
+        ("single_numeric", re.compile(rf"{v.on}\s+(\d{{1,2}})/(\d{{1,2}})/(\d{{2,4}})")),
+    ]
+    if v.bare_single:
+        # Last, so every connective form is tried first.
+        out.append(("single_named", re.compile(rf"\b{d}\s+({m})\s+{y}")))
+    return [(kind, v.lang, pattern) for kind, pattern in out]
+
+
+_PATTERNS: list[tuple[str, str, re.Pattern]] = _patterns_for(_FR) + _patterns_for(_IT)
 
 
 def parse_range(text: str) -> DateRange | None:
@@ -189,76 +274,82 @@ def parse_range(text: str) -> DateRange | None:
     which is a normal outcome, not a failure: most municipal news has no dates."""
     flat = _norm(text)
 
-    for rule, pattern in _PATTERNS:
+    for kind, lang, pattern in _PATTERNS:
         match = pattern.search(flat)
         if not match:
             continue
         groups = match.groups()
+        # French keeps its bare label: tests and llm.py's ASSUMED suffix
+        # both key off the exact strings, and an Italian parse should be
+        # traceable as one.
+        rule = kind if lang == "fr" else f"{kind}:{lang}"
 
         try:
-            if rule == "full_range":
+            if kind == "full_range":
                 d1, m1, y1, d2, m2, y2 = groups
                 return DateRange(
-                    _at(_year(y1), MONTHS[m1], int(d1)),
-                    _at(_year(y2), MONTHS[m2], int(d2), end=True),
+                    _at(_year(y1), _MONTHS_ANY[m1], int(d1)),
+                    _at(_year(y2), _MONTHS_ANY[m2], int(d2), end=True),
                     rule,
                 )
-            if rule == "split_month":
+            if kind == "split_month":
                 d1, m1, d2, m2, year = groups
                 # A range crossing New Year is written with both years, so it
                 # matches full_range above; here both months share one year.
                 return DateRange(
-                    _at(_year(year), MONTHS[m1], int(d1)),
-                    _at(_year(year), MONTHS[m2], int(d2), end=True),
+                    _at(_year(year), _MONTHS_ANY[m1], int(d1)),
+                    _at(_year(year), _MONTHS_ANY[m2], int(d2), end=True),
                     rule,
                 )
-            if rule == "same_month":
+            if kind == "same_month":
                 d1, d2, month, year = groups
                 return DateRange(
-                    _at(_year(year), MONTHS[month], int(d1)),
-                    _at(_year(year), MONTHS[month], int(d2), end=True),
+                    _at(_year(year), _MONTHS_ANY[month], int(d1)),
+                    _at(_year(year), _MONTHS_ANY[month], int(d2), end=True),
                     rule,
                 )
-            if rule == "numeric_range":
+            if kind == "numeric_range":
                 d1, m1, y1, d2, m2, y2 = groups
                 return DateRange(
                     _at(_year(y1), int(m1), int(d1)),
                     _at(_year(y2), int(m2), int(d2), end=True),
                     rule,
                 )
-            if rule == "from_until":
+            if kind == "from_until":
                 d1, m1, y1, d2, m2, y2 = groups
                 return DateRange(
-                    _at(_year(y1), MONTHS[m1], int(d1)),
-                    _at(_year(y2), MONTHS[m2], int(d2), end=True),
+                    _at(_year(y1), _MONTHS_ANY[m1], int(d1)),
+                    _at(_year(y2), _MONTHS_ANY[m2], int(d2), end=True),
                     rule,
                 )
-            if rule == "from_until_split":
+            if kind == "from_until_split":
                 d1, m1, d2, m2, year = groups
-                start = _at(_year(year), MONTHS[m1], int(d1))
-                end = _at(_year(year), MONTHS[m2], int(d2), end=True)
+                start = _at(_year(year), _MONTHS_ANY[m1], int(d1))
+                end = _at(_year(year), _MONTHS_ANY[m2], int(d2), end=True)
                 if start > end:
                     # A season stated across new year: the start belongs to the
                     # year before the one the end names.
-                    start = _at(_year(year) - 1, MONTHS[m1], int(d1))
+                    start = _at(_year(year) - 1, _MONTHS_ANY[m1], int(d1))
                 return DateRange(start, end, rule)
-            if rule == "until":
+            if kind == "until":
                 day, month, year = groups
-                return DateRange(None, _at(_year(year), MONTHS[month], int(day), end=True), rule)
-            if rule == "until_numeric":
+                end = _at(_year(year), _MONTHS_ANY[month], int(day), end=True)
+                return DateRange(None, end, rule)
+            if kind == "until_numeric":
                 day, month, year = groups
                 return DateRange(None, _at(_year(year), int(month), int(day), end=True), rule)
-            if rule == "from_numeric":
+            if kind == "from_numeric":
                 day, month, year = groups
                 return DateRange(_at(_year(year), int(month), int(day)), None, rule)
-            if rule == "from":
+            if kind == "from":
                 day, month, year = groups
-                return DateRange(_at(_year(year), MONTHS[month], int(day)), None, rule)
-            if rule == "single_named":
+                return DateRange(_at(_year(year), _MONTHS_ANY[month], int(day)), None, rule)
+            if kind == "single_named":
                 day, month, year = groups
-                start = _at(_year(year), MONTHS[month], int(day))
-                return DateRange(start, _at(_year(year), MONTHS[month], int(day), end=True), rule)
-            if rule == "single_numeric":
+                start = _at(_year(year), _MONTHS_ANY[month], int(day))
+                last = _at(_year(year), _MONTHS_ANY[month], int(day), end=True)
+                return DateRange(start, last, rule)
+            if kind == "single_numeric":
                 day, month, year = groups
                 start = _at(_year(year), int(month), int(day))
                 return DateRange(start, _at(_year(year), int(month), int(day), end=True), rule)
@@ -339,7 +430,7 @@ def _one_ended(flat: str, match: re.Match, year: int) -> DateRange | None:
         return None
 
     on = int(explicit_year) if explicit_year else year
-    month_number = MONTHS[month]
+    month_number = _MONTHS_ANY[month]
     number = int(day) if day else QUALIFIERS[word][0 if ends_at else 1]
     number = min(number, _last_day(on, month_number))
     if ends_at:
@@ -378,7 +469,7 @@ def parse_coarse_range(text: str, year: int, *, may_cross_year: bool = False) ->
         day, word, month, explicit_year = match.groups()
         if not day and not word:
             return None  # a bare month name is not a date
-        month_number = MONTHS[month]
+        month_number = _MONTHS_ANY[month]
         on = int(explicit_year) if explicit_year else year
         number = int(day) if day else QUALIFIERS[word][1 if index == 0 else 0]
         number = min(number, _last_day(on, month_number))

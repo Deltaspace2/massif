@@ -23,6 +23,22 @@
 #   trient, orny                           already covered by hut-reservation,
 #                                          which is the operator's own booking
 #                                          system and outranks a web page.
+#
+# THE ITALIAN SIDE, reconned 9 Sep 2026. Ten wardened rifugi had no status.
+# URLs came from the OSM `website` tag on ids we already hold, not from
+# guessing domains. Three gates, and only three huts survive all three:
+#
+#   REFUSED by robots.txt   cabaneducombal.com · rifugioelisabetta.com
+#                           rifugiogonella.com · randonneurmb.com
+#   JS-rendered, no prose   caitorino.it/rifugi/dalmazzi (17 chars)
+#                           rifugioelena.it (0 chars)
+#
+# The three below state their season in Italian — "!! CHIUSURA 13 SETTEMBRE",
+# "Il rifugio è aperto" — which is why fr_dates learned Italian first. Before
+# that, llm.py's second guard re-read the model's date phrase in French only,
+# failed, and every statement from these arrived undated and was demoted to
+# UNKNOWN by rule 3. Listing them earlier would have added review load and
+# gained no status.
 
 refuge-des-cosmiques:   https://www.refuge-des-cosmiques.com
 refuge-de-plan-glacier: https://www.planglacier.fr
@@ -32,3 +48,8 @@ refuge-du-fioux:        http://www.montourdumontblanc.com/fr/il4-refuge_i32356-r
 auberge-du-truc:        http://www.montourdumontblanc.com/fr/il4-refuge_i32365-auberge-du-truc.aspx
 cabane-de-la-neuve:     https://www.aneuve.ch/
 cabane-de-saleinaz:     http://www.cas-neuchatel.ch/cabanes/cabane-de-saleinaz-2691m/
+
+# --- Italy ---
+refuge-torino:          https://www.rifugiotorino.com/
+rifugio-monzino:        https://www.rifugiomonzino.com/
+rifugio-walter-bonatti: https://www.rifugiobonatti.it/
