@@ -53,6 +53,28 @@ function isLine(feature: Feature): boolean {
   return kind === "LineString" || kind === "MultiLineString";
 }
 
+/** Escape text before it goes into popup markup.
+ *
+ *  maplibre's `setHTML` is `innerHTML`, so everything below is markup rather
+ *  than text — and the values interpolated into it are NOT ours. A feature
+ *  name is an OSM tag, editable by anyone in the world; a summary is a
+ *  sentence lifted off somebody else's website. Either can contain
+ *  `<img src=x onerror=...>`, which `innerHTML` executes.
+ *
+ *  Every other surface on this site is server-rendered by React, which
+ *  escapes by default. These two popups were the only place that bypassed it.
+ *  Quotes are escaped as well as angle brackets because two of these values
+ *  land inside an href attribute, where a bare quote ends the attribute.
+ */
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 export default function MassifMap({ features }: { features: Feature[] }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -186,11 +208,11 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         .setLngLat([lon, lat])
         .setPopup(
           new maplibregl.Popup({ offset: 14 }).setHTML(
-            `<strong>${feature.name}</strong><br/>` +
-              `<span style="color:#5f6873">${
-                feature.status.summary ?? feature.status.value
-              }</span><br/>` +
-              `<a href="/${feature.type}/${feature.slug}">details</a>`,
+            `<strong>${esc(feature.name)}</strong><br/>` +
+              `<span style="color:#5f6873">${esc(
+                feature.status.summary ?? feature.status.value,
+              )}</span><br/>` +
+              `<a href="/${esc(feature.type)}/${esc(feature.slug)}">details</a>`,
           ),
         )
         .addTo(instance);
@@ -353,14 +375,14 @@ export default function MassifMap({ features }: { features: Feature[] }) {
         new maplibregl.Popup({ offset: 8 })
           .setLngLat(event.lngLat)
           .setHTML(
-            `<strong>${props.name}</strong><br/>` +
-              `<span style="color:#5f6873">${props.summary}</span><br/>` +
+            `<strong>${esc(props.name)}</strong><br/>` +
+              `<span style="color:#5f6873">${esc(props.summary)}</span><br/>` +
               // Said in words as well as in dots. Somebody who does not know
               // the key still has to be told they are looking at our drawing.
               (String(props.schematic) === "1"
                 ? `<span style="color:#5f6873;font-size:11px">Line is schematic — drawn through huts and summits, not a surveyed track.</span><br/>`
                 : "") +
-              `<a href="/${props.type}/${props.slug}">details</a>`,
+              `<a href="/${esc(props.type)}/${esc(props.slug)}">details</a>`,
           )
           .addTo(instance);
       });
