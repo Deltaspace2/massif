@@ -708,6 +708,17 @@
   name_default: Domaine de Balme — Le Tour
   aliases: [Balme, Le Tour, Domaine de Balme, Charamillon]
   country: FR
+  # PINNED, because the name lottery lost. Geometry matching tries the forms
+  # in order and the bare alias "Balme" hit a lift STATION called Balme at
+  # 46.044,6.771 — fourteen kilometres west of Le Tour, in the Aiguilles
+  # Rouges — so the sector dot sat on the wrong side of the valley from the
+  # domain it names. The alias itself must stay: it is how the operator
+  # feed's "Balme: scheduled summer season..." resolves to this feature.
+  #
+  # way/23186074 is the Charamillon gondola, the domain's access lift out of
+  # Le Tour, which is exactly what brevent/flegere/les-houches anchor on. As
+  # a way id it also lets import_lift_geometry draw the sector as the line.
+  external_ids: {osm: way/23186074}
 
 - slug: vallorcine
   feature_type: lift

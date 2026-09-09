@@ -98,6 +98,17 @@ def seed_sources(session) -> int:
     return count
 
 
+def _is_point(geom) -> bool:
+    """Is the stored geometry a point? Anything unreadable counts as one —
+    replaceable — because refusing to touch a broken value would freeze it."""
+    try:
+        from geoalchemy2.shape import to_shape
+
+        return to_shape(geom).geom_type == "Point"
+    except Exception:
+        return True
+
+
 def build_osm_index() -> dict[str, dict]:
     """Normalised name -> OSM candidate."""
     index: dict[str, dict] = {}
@@ -113,6 +124,8 @@ def build_osm_index() -> dict[str, dict]:
 
 def seed_features(session) -> tuple[int, int]:
     osm = build_osm_index()
+    # By id as well as by name, for features whose candidate a person pinned.
+    osm_by_id = {c["osm_id"]: c for c in load("osm_candidates.yaml") if c.get("osm_id")}
     curated = load("features_curated.yaml")
 
     seeded = 0
@@ -144,29 +157,55 @@ def seed_features(session) -> tuple[int, int]:
                 namespace: str(value),
             }
 
-        # OSM supplies geometry only, and only to features that ARE points
+        # OSM supplies geometry only, and only to features that ARE points.
+        #
+        # A LINE IS NEVER DOWNGRADED TO A POINT. This assignment used to be
+        # unconditional, which made every reseed a loaded gun: the lifts and
+        # railways carry LineStrings imported from their OSM ways and
+        # relations, and one `seed_features` run would have silently replaced
+        # all of them with name-matched points again.
+        #
+        # A CURATED PIN BEATS THE NAME MATCH. "A human decided these, so they
+        # outrank anything matching can infer" was already the rule for
+        # external_ids, but geometry ignored it and matched by name anyway —
+        # first form to hit wins, and the bare alias "Balme" hit a lift
+        # station called Balme fourteen kilometres from Le Tour. If the
+        # curated file pins `osm`, that id is looked up directly and the name
+        # lottery never runs.
+        replaceable = existing.geom is None or _is_point(existing.geom)
         forms = (
-            [row["name_default"], *existing.aliases] if row["feature_type"] in POINT_LIKE else []
+            [row["name_default"], *existing.aliases]
+            if row["feature_type"] in POINT_LIKE and replaceable
+            else []
         )
+        pinned = str((row.get("external_ids") or {}).get("osm") or "")
+        if pinned and replaceable:
+            candidate = osm_by_id.get(pinned)
+            forms = []  # the pin answers; a miss must not fall back to names
+            if candidate is None:
+                print(f"  !! {row['slug']}: pinned {pinned} is not in osm_candidates.yaml")
+        else:
+            candidate = None
         for form in forms:
             candidate = osm.get(geo_key(form))
             if candidate:
-                existing.geom = f"SRID=4326;POINT({candidate['lon']} {candidate['lat']})"
-                existing.geom_verified = False
-                existing.external_ids = {
-                    **(existing.external_ids or {}),
-                    "osm": candidate["osm_id"],
-                }
-                # Elevation is geometry, so OSM may supply it — but only where
-                # the curated file is silent, which is the rule for everything
-                # else here. Twelve of nineteen huts had no altitude at all,
-                # and altitude is the physical check that stops a name match
-                # attaching one building's facts to another; without it those
-                # twelve rested on the name alone.
-                if existing.alt_min is None and existing.alt_max is None:
-                    existing.alt_max = metres(candidate.get("ele"))
-                matched += 1
                 break
+        if candidate:
+            existing.geom = f"SRID=4326;POINT({candidate['lon']} {candidate['lat']})"
+            existing.geom_verified = False
+            existing.external_ids = {
+                **(existing.external_ids or {}),
+                "osm": candidate["osm_id"],
+            }
+            # Elevation is geometry, so OSM may supply it — but only where
+            # the curated file is silent, which is the rule for everything
+            # else here. Twelve of nineteen huts had no altitude at all,
+            # and altitude is the physical check that stops a name match
+            # attaching one building's facts to another; without it those
+            # twelve rested on the name alone.
+            if existing.alt_min is None and existing.alt_max is None:
+                existing.alt_max = metres(candidate.get("ele"))
+            matched += 1
 
         if row.get("parent"):
             parents[row["slug"]] = row["parent"]
