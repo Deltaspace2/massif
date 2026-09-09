@@ -86,7 +86,13 @@ jobs:
 
       - name: Install
         working-directory: backend
-        run: pip install -e .
+        # `.[llm]`, not `.`. The anthropic package is an optional extra, and
+        # without it hut-sites raises rather than skipping: build_extractor
+        # returns None only when there is NO KEY, which is the "a machine
+        # without a key completes" contract. With a key and no package it is a
+        # broken install, and saying so loudly is right — it just has to not
+        # happen. Found the moment ANTHROPIC_API_KEY was first set.
+        run: pip install -e ".[llm]"
 
       - name: Migrate
         working-directory: backend
