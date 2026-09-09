@@ -61,23 +61,21 @@ worth having is now a question to answer from use, not up front.
 
 # Waiting on you
 
-## Vercel's firewall is challenging the whole frontend
-Found 10 Sep 2026, evening: every request to montblancmassif.org from curl
-answers 429 with `x-vercel-mitigated: challenge` — the API project is
-untouched. Real browsers pass the JS challenge and the site works, verified.
-Nothing in the repo changed this; it is a project setting on Vercel's side
-(Firewall → Attack Challenge Mode or Bot Filter), possibly toggled during the
-analytics visit, possibly Vercel reacting to this session's own polling.
+## Vercel's firewall — RESOLVED 10 Sep 2026, and the answer changes our tooling
+Steven opened the Firewall tab: **Bot Protection is set to Challenge**, which
+challenges non-browser requests *excluding verified bots* — so Googlebot
+passes and the SEO channel is intact. AI Bots is on Log. Attack Mode, the one
+that would have gated crawlers, is OFF. All three left as they are, on
+purpose.
 
-Why it cannot just stay on unexamined: SEO is this project's distribution
-channel, and a challenge mode that gates crawlers would quietly cut the site
-off from the one channel it lives on. Attack Challenge Mode is documented as a
-temporary measure. Check the massif project's Firewall tab; if Bot Filter with
-verified-bot allowlisting is what is on, that is probably fine — if Attack
-Challenge Mode is on, turn it off once whatever prompted it has passed.
-
-
-None of this can move without a decision or an account only you have.
+**What this means for us:** the frontend can no longer be verified with curl.
+Every scripted request to montblancmassif.org answers 429 with
+`x-vercel-mitigated: challenge`, which looks exactly like an outage and is
+not one — it was misread as one for half an hour the day it appeared. Verify
+frontend deploys in a real browser (the browser pane); curl still works
+against api.montblancmassif.org, which is a different Vercel project with no
+Bot Protection. Any "Verified by: curl <frontend url>" line elsewhere in this
+file now means "in a browser" — the email item's /about check included.
 
 ## Make a new email, put it on the website, and take my personal one off
 
