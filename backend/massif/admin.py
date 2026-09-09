@@ -574,6 +574,11 @@ Enter accepts · Shift+Enter starts a new line"></textarea></label>
 
 
 PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
+<!-- Vercel Web Analytics, the framework-agnostic way: this app is
+     FastAPI, so the @vercel/analytics React component the dashboard
+     suggests cannot apply here. The script 404s harmlessly anywhere but
+     the Vercel deployment, and counts nothing beyond page views. -->
+<script defer src="/_vercel/insights/script.js"></script>
 <meta name=robots content="noindex, nofollow">
 <title>massif · review</title>
 <style>
@@ -693,6 +698,7 @@ async def _fields(request: Request) -> dict[str, str]:
 
 
 ERROR_PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
+<script defer src="/_vercel/insights/script.js"></script>
 <meta name=robots content="noindex, nofollow">
 <title>massif · review</title>
 <style>
@@ -778,6 +784,7 @@ async def reject(statement_id: str, request: Request, session: Session = Depends
 
 
 EDIT_PAGE = """<!doctype html><html lang=en><meta charset=utf-8>
+<script defer src="/_vercel/insights/script.js"></script>
 <meta name=robots content="noindex, nofollow">
 <title>massif · write</title>
 <style>
