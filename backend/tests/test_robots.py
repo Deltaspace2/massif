@@ -131,3 +131,45 @@ def test_robots_fetch_identifies_itself():
 def test_fetch_raises_rather_than_proceeding_when_refused():
     with serving(code=503) as root, pytest.raises(PermissionError):
         base.fetch(f"{root}/anything")
+
+
+# ------------------------------------------ saying WHICH refusal it was
+
+def test_a_published_disallow_and_an_unreadable_file_are_reported_differently():
+    """Both are refusals; they are not the same event.
+
+    aneuve.ch publishes "User-agent: * / Crawl-delay: 10", which allows
+    everything. One failed fetch of that file from a CI runner was logged as
+    "robots.txt disallows https://www.aneuve.ch/" — so the site was read as
+    having refused us when it had done nothing of the kind. The behaviour was
+    right and the sentence was wrong.
+    """
+    with serving(body=b"User-agent: *\nDisallow: /private/\n") as root:
+        allowed, why = base.robots_verdict(f"{root}/private/page")
+        assert (allowed, why) == (False, "disallowed")
+        allowed, why = base.robots_verdict(f"{root}/public/page")
+        assert (allowed, why) == (True, "")
+
+    # Nothing listening at all: the policy could not be read.
+    allowed, why = base.robots_verdict("http://127.0.0.1:9/anything")
+    assert (allowed, why) == (False, "unreadable")
+
+
+def test_crawl_delay_on_its_own_allows_everything():
+    """Verbatim from aneuve.ch. No Disallow anywhere in it."""
+    with serving(body=b"User-agent: *\nCrawl-delay: 10\n") as root:
+        assert base.robots_verdict(f"{root}/anything") == (True, "")
+
+
+def test_the_refusal_message_names_which_kind_it_was():
+    import pytest
+
+    with serving(body=b"User-agent: *\nDisallow: /\n") as root:
+        with pytest.raises(PermissionError) as refused:
+            base.fetch(f"{root}/x")
+        assert "disallows" in str(refused.value)
+        assert "could not read" not in str(refused.value)
+
+    with pytest.raises(PermissionError) as unread:
+        base.fetch("http://127.0.0.1:9/x")
+    assert "could not read robots.txt" in str(unread.value)

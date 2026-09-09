@@ -87,8 +87,8 @@ def _read_robots(root: str) -> urllib.robotparser.RobotFileParser | None:
     return parser
 
 
-def robots_allows(url: str) -> bool:
-    """May we fetch this URL?
+def robots_verdict(url: str) -> tuple[bool, str]:
+    """(may we fetch this, and why not).
 
     Unreachable robots.txt means NO, not yes. The previous version returned
     True on any exception and then cached a parser it had never read — and
@@ -96,6 +96,19 @@ def robots_allows(url: str) -> bool:
     host with a flaky robots.txt was permitted and every later one refused,
     for the life of the process, with no retry. Chamonix was written off as
     "recon blocked" on the strength of one 503 that had long since cleared.
+
+    BOTH REFUSALS ARE REFUSALS, AND THEY ARE NOT THE SAME EVENT. "The site
+    told us not to" is a policy and settled. "We could not read the policy" is
+    usually a bad minute, and it is retried sooner for exactly that reason.
+    Reporting them with one sentence cost a real hour: aneuve.ch publishes
+
+        User-agent: *
+        Crawl-delay: 10
+
+    which allows everything, and one failed fetch of that file from a runner
+    was logged as "robots.txt disallows https://www.aneuve.ch/". Steven opened
+    the file, saw no Disallow, and reasonably concluded the check was broken.
+    It was not — the message was.
     """
     parsed = urlparse(url)
     root = f"{parsed.scheme}://{parsed.netloc}"
@@ -109,21 +122,36 @@ def robots_allows(url: str) -> bool:
         # restart. A published policy is stable enough to reuse for an hour.
         ttl = ROBOTS_TTL if parser is not None else ROBOTS_RETRY_TTL
         if now - checked_at < ttl:
-            return parser.can_fetch(settings.user_agent, url) if parser else False
+            if parser is None:
+                return False, "unreadable"
+            allowed = parser.can_fetch(settings.user_agent, url)
+            return allowed, "" if allowed else "disallowed"
 
     parser = _read_robots(root)
     _robots_cache[root] = (now, parser)
     if parser is None:
-        return False
-    return parser.can_fetch(settings.user_agent, url)
+        return False, "unreadable"
+    allowed = parser.can_fetch(settings.user_agent, url)
+    return allowed, "" if allowed else "disallowed"
+
+
+def robots_allows(url: str) -> bool:
+    """May we fetch this URL? See `robots_verdict` for why not."""
+    return robots_verdict(url)[0]
 
 
 def fetch(url: str, *, client: httpx.Client | None = None) -> httpx.Response:
-    if not robots_allows(url):
-        raise PermissionError(
-            f"robots.txt disallows {url} (or could not be read — an "
-            f"unreachable policy is treated as a refusal)"
-        )
+    allowed, why = robots_verdict(url)
+    if not allowed:
+        if why == "unreadable":
+            # Distinguished on purpose: this one is usually transient and is
+            # re-checked in five minutes, where a real Disallow is settled.
+            raise PermissionError(
+                f"could not read robots.txt for {urlparse(url).netloc} — an unreachable "
+                f"policy is treated as a refusal. This may be a bad minute rather than "
+                f"a decision; it is re-checked sooner than a published one."
+            )
+        raise PermissionError(f"robots.txt disallows {url}")
     host = urlparse(url).netloc
     _throttle(host)
     owned = client is None
