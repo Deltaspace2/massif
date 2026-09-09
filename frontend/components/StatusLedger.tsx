@@ -976,9 +976,17 @@ export default async function StatusLedger({ focus = "all" }: { focus?: Focus })
  *  handoff is the summary's styling, not a control of its own. */
 function QuietRows({ rows, noun }: { rows: Feature[]; noun: string }) {
   if (rows.length === 0) return null;
+  // NOT a fold any more. It was one when the band around it was always open
+  // and the routine rows were the bulk of the page; now the band itself folds
+  // and starts shut, so this was a second "Show all" inside the first —
+  // open a section and you are asked to open it again.
+  //
+  // The line above the rows stays. It is not a control, it is the sentence
+  // that stops a quiet section reading as an empty one: these were checked,
+  // they are in season, and there is nothing to say about them.
   return (
-    <details className="quiet">
-      <summary className="quiet__summary">
+    <div className="quiet">
+      <p className="quiet__summary">
         <span className="lrow__glyph open" style={{ color: "var(--open)" }} aria-hidden="true">
           ●
         </span>
@@ -987,15 +995,12 @@ function QuietRows({ rows, noun }: { rows: Feature[]; noun: string }) {
           {rows.length === 1 ? "" : "s"} routine, in season · all checked this
           sweep
         </span>
-        <span className="quiet__pill">
-          Show all {rows.length} <span aria-hidden="true">▾</span>
-        </span>
-      </summary>
+      </p>
       <div className="quiet__body">
         {rows.map((f) => (
           <LedgerRow key={f.slug} feature={f} />
         ))}
       </div>
-    </details>
+    </div>
   );
 }

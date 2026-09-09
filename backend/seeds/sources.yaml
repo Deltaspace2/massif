@@ -469,3 +469,32 @@
     operator publishing a season.
     Index-driven, so a hut the portal adds is picked up with no config change.
     robots.txt is "User-agent: *" with no Disallow, checked 2 Sep 2026.
+
+- slug: openstreetmap
+  name: OpenStreetMap
+  url: https://www.openstreetmap.org/
+  source_type: community
+  language: en
+  trust_weight: 0.50
+  fetch_interval_minutes: 10080
+  active: true
+  # ODbL, so attribution is a LICENCE CONDITION and not a courtesy — the same
+  # standing as refuges.info's CC BY-SA. Without these two keys `_fact_block`
+  # returns None and the block renders nothing at all, which is the behaviour
+  # we want if anyone ever strips them.
+  licence: ODbL 1.0
+  licence_url: https://opendatacommons.org/licenses/odbl/1-0/
+  notes: >
+    Facts only, never statements. OSM is good at WHERE a thing is and what it
+    is called, and says nothing about whether it is open today — the hut
+    positions and altitudes already come from here through osm_candidates.yaml
+    and import_osm_huts.
+
+    This source exists so the `website` tag can be shown with the credit ODbL
+    requires. camptocamp's operator_url covers 44 of the 74 huts; the rest have
+    a website in OSM and nowhere else we hold, and until now the site knew
+    where those huts live and never said so.
+
+    NO SCRAPER is registered, deliberately: this is a facts importer
+    (massif.scripts.import_osm_websites), so run_ingest skips it exactly as it
+    skips `manual`.

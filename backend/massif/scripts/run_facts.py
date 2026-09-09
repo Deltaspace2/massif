@@ -25,11 +25,15 @@ from __future__ import annotations
 
 import sys
 
-from massif.scripts import import_camptocamp_facts, import_hut_facts
+from massif.scripts import import_camptocamp_facts, import_hut_facts, import_osm_websites
 
 IMPORTERS = {
     "refuges-info": import_hut_facts.main,
     "camptocamp": import_camptocamp_facts.main,
+    # One tag off objects we already hold ids for. Listed here rather than left
+    # as a hand-run script for the reason at the top of this file: an importer
+    # nobody schedules is one that freezes on the day it was last run by hand.
+    "openstreetmap": import_osm_websites.main,
 }
 
 

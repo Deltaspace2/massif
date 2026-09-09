@@ -482,22 +482,21 @@ a.focus__item:hover { border-color: var(--ink); color: var(--ink); text-decorati
    <details>, not a button. Moment three of the brief is a phone in a hut on
    bad signal, so this opens with no JavaScript at all — the handoff's pill is
    the summary's styling, not a control of its own. */
-.quiet > summary { list-style: none; cursor: pointer; }
-.quiet > summary::-webkit-details-marker { display: none; }
+
+
+/* A LINE, NOT A CONTROL. This was a <details> of its own with a "Show all N"
+   pill, from when the band around it was always open and the routine rows
+   were the bulk of the page. The band folds now, so that was a second fold
+   inside the first — open a section and be asked to open it again.
+
+   The sentence stays: it is what stops a quiet section reading as an empty
+   one. These were checked, they are in season, and there is nothing to say
+   about them, which is a different thing from no data. */
 .quiet__summary {
-  display: flex; align-items: center; gap: 14px; padding: 11px 0;
+  display: flex; align-items: center; gap: 14px; padding: 11px 0; margin: 0;
+  border-bottom: 1px solid var(--rule);
 }
 .quiet__text { font-size: 13.5px; color: var(--body); }
-.quiet__pill {
-  margin-left: auto;
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 600; color: var(--ink);
-  border: 1px solid var(--rule-strong); border-radius: 999px;
-  padding: 5px 13px; background: var(--card); white-space: nowrap;
-}
-.quiet__summary:hover .quiet__pill { border-color: var(--ink); }
-.quiet[open] .quiet__summary { border-bottom: 1px solid var(--rule); }
-.quiet[open] .quiet__pill { display: none; }
 
 /* The about page's lists: prose in list form, not a table of data. Wider
    line-height than a ledger row because these are sentences to be read once,
