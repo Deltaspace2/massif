@@ -18,6 +18,13 @@ name: ingest
 
 on:
   workflow_dispatch:
+    inputs:
+      source:
+        description: >
+          One source slug to run now, ignoring its cadence — e.g. hut-sites.
+          Leave empty for the normal sweep of everything due.
+        required: false
+        default: ""
   schedule:
     # Every 30 minutes, revised 7 Sep 2026 against measurement.
     #
@@ -93,7 +100,12 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           USER_AGENT: ${{ vars.USER_AGENT }}
-        run: python -m massif.scripts.run_ingest
+          # Empty on a scheduled run, so run_ingest gets no argument and does
+          # its usual "everything due" sweep. Set from the Actions tab to force
+          # one source: a weekly source is otherwise unverifiable for six days
+          # after any change to it, which is how this came to be needed.
+          ONLY: ${{ inputs.source }}
+        run: python -m massif.scripts.run_ingest $ONLY
 
       # Facts are not statements and do not go through the scraper registry, so
       # run_ingest never touched them. Until this step existed, both directory
