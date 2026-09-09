@@ -335,9 +335,17 @@ function Band({
   const open = focus === "all" || belongsTo === undefined || belongsTo === focus;
   if (!open) {
     const href = FOCUS_BAR.find((f) => f.key === belongsTo)?.href ?? "/";
+    // Visually DIFFERENT from a folded band, or the filter looks broken.
+    // When every band became the same 64px photo strip, "narrowed away, lives
+    // elsewhere" and "folded shut, right here" became indistinguishable — so
+    // narrowing to Huts appeared to change nothing: four identical strips
+    // either way. Steven read it as the filter not working, and that is the
+    // correct reading of what it showed. A narrowed-away band is now a thin
+    // grey line with no photo: plainly not a section of this page.
     return (
-      <a className="band band--folded" href={href}>
-        <BandHead photo={photo} label={label} note={`${folded} \u2192`} />
+      <a className="band band--away" href={href}>
+        <span className="band__away-label">{label}</span>
+        <span className="band__away-note">{folded} →</span>
       </a>
     );
   }
@@ -354,8 +362,13 @@ function Band({
   // The page is still one HTML document: a closed <details> is in the markup
   // and indexable, which matters because people arrive here from searching a
   // hut by name.
+  // Narrowed IS an answer. On /lifts the reader has already said what they
+  // want, and handing them a closed fold makes the filter a two-step: click
+  // the chip, then click the thing you filtered to. The section they asked
+  // for starts open; on "everything" all four still start shut.
+  const askedFor = focus !== "all" && belongsTo === focus;
   return (
-    <details className="band force">
+    <details className="band force" open={askedFor || undefined}>
       <summary className="force__summary">
         <BandHead
           photo={photo}
