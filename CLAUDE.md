@@ -18,6 +18,10 @@ Unattended sessions (scheduled overnight runs) have their own contract in
 
 cd backend && source .venv/bin/activate
 python -m massif.scripts.migrate            # apply db/migrations/*.sql in order
+ruff check massif tests                     # CI runs this BEFORE pytest, and it
+                                            # is the half that gets forgotten:
+                                            # nine commits went out red on lint
+                                            # alone while pytest stayed green
 pytest -q                                   # no DB needed (186 -> 204 in one
                                             # day; the count is not worth
                                             # keeping current here)
@@ -36,8 +40,16 @@ uvicorn massif.main:app --reload            # API on :8000
 python -m massif.ingest.sources.<name>
 
 cd ../frontend && npm run dev               # :3000
-npx tsc --noEmit                            # typecheck; CI runs this + next build
+npx tsc --noEmit                            # typecheck
+npm run build                               # the step nobody runs locally
 ```
+
+**CI is those four**, in `.github/workflows/ci.yml`: `ruff check massif tests`,
+`pytest -q`, `npx tsc --noEmit`, `npm run build`. Run all four before pushing.
+Green pytest is not green CI, and neither is a green `ingest.yml` run — that is
+a different workflow and says nothing about this one. The frontend deploys from
+Vercel rather than from CI, so a red build blocks nothing and is easy to leave
+red for days.
 
 ## Architecture
 
