@@ -412,6 +412,12 @@ function FocusBar({ focus }: { focus: Focus }) {
           </a>
         ),
       )}
+      {/* Beside the chips and not in the masthead: the masthead measures full
+          at 375px — five items, the last ending 12px from the edge — and a
+          sixth would push REPORT back off the screen it was rescued from. */}
+      <a className="focus__item focus__item--search" href="/search">
+        Search…
+      </a>
     </nav>
   );
 }
