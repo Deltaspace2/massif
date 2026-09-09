@@ -65,9 +65,10 @@ None of this can move without a decision or an account only you have.
 
 ## Make a new email, put it on the website, and take my personal one off
 
-NOT STARTED — and the mailbox has to exist before any of the code changes.
-Both addresses below have already been broadcast to every server we fetch, so
-this is not a find-and-replace: the strings come out of the repo, the mailboxes
+DECIDED 9 Sep 2026: the address is **`contact@montblancmassif.org`**. Not
+started — and the mailbox has to exist before any of the code changes. Both
+addresses below have already been broadcast to every server we fetch, so this
+is not a find-and-replace: the strings come out of the repo, the mailboxes
 stay reachable.
 
 **Where an address is published today.** Two different ones, both personal:
@@ -90,13 +91,38 @@ the wire. Both have to be set by hand, and `about/page.tsx:25` is a hand-copy
 of that same string with nothing enforcing the match — its own comment says
 so. All three move together or the page quotes an address we do not send.
 
-**Suggested address: `contact@montblancmassif.org`.** Same domain as the site,
-so it needs no explaining in a log line, and it survives the person behind it
-changing. Cheapest way to have it is forwarding rather than a mailbox —
-Cloudflare Email Routing is free and lands it in whatever inbox you already
-read, which pairs with the registrar move above (that item puts the domain on
-Cloudflare's nameservers anyway, which is what Routing requires). If the
-domain is staying put, most registrars sell forwarding for a few pounds a year.
+**Why this address.** Same domain as the site, so it needs no explaining in a
+log line, and it survives the person behind it changing.
+
+**Being days old does not block it.** The 60-day lock in the registrar item
+above is ICANN's *transfer* lock — it stops the registration moving to another
+registrar and says nothing about DNS. MX records, nameservers and receiving
+mail are all available immediately. Asked and answered, so it is not asked
+again.
+
+**Route: Namecheap forwarding now, Cloudflare Email Routing later.** Namecheap
+gives free forwarding on domains registered with them while the domain is on
+their BasicDNS — they write the MX records, you point `contact@` at whatever
+inbox you already read. Five minutes, no DNS migration. Email Routing is the
+same thing free on the Cloudflare side and wants Cloudflare's nameservers,
+which the domain gets anyway when the registrar item runs in December: the
+natural replacement then, and a bad reason to move DNS now, mid-Vercel-setup.
+A swap, not a dependency.
+
+CHECK FIRST, NOT VERIFIED: that the domain is still on Namecheap BasicDNS. If
+DNS has already moved for the Vercel wiring, the free forwarding is not there
+and the `eforward*.registrar-servers.com` MX records have to go in by hand
+wherever the zone now lives.
+
+**Forwarding receives; it does not send.** A reply to a sysadmin who mails
+`contact@` leaves from whatever inbox the forward lands in, showing that
+address rather than this one. Untidy, not harmful, and worth knowing before it
+surprises someone. Replying *as* `contact@montblancmassif.org` is a separate
+purchase — a real mailbox (Fastmail, Migadu, Zoho) or Gmail "send mail as"
+over an SMTP relay, plus SPF, DKIM and DMARC. A domain registered on 7 Sep
+2026 has no sending reputation, so early mail from it can be filtered; volume
+is what fixes that and this address will never have any. Not worth solving
+until someone needs a reply to come from the domain.
 
 **Forward BOTH old addresses, do not just drop them.** Neither is only a
 string in a file. The gmail was the deployed `USER_AGENT` and went out on
@@ -117,8 +143,12 @@ server we fetch currently carry.
 
 **Order:**
 
-1. Create the address and confirm mail actually arrives at it.
-2. Set the Actions variable and the Vercel env var to the new string.
+1. Set up the forward and confirm mail actually arrives — send from an address
+   OUTSIDE the destination inbox, because a Gmail-to-itself test can pass
+   while the outside world bounces.
+2. Set the Actions variable and the Vercel env var to, character for
+   character:
+   `massif/0.1 (+https://montblancmassif.org/about; contact@montblancmassif.org)`
 3. Change `CONTACT` on both pages, `USER_AGENT` in `about/page.tsx`, and the
    example line in `DEPLOY.md`; `grep -rn 'innes\.io\|innes8' frontend backend
    DEPLOY.md` should then come back empty.
@@ -181,6 +211,22 @@ there from wherever it is. Vercel gives you the records to paste in. Set every
 record pointing at Vercel to **grey cloud ("DNS only")** — orange proxies the
 traffic through Cloudflare's CDN on top of Vercel's, which causes caching
 oddities and can interfere with certificate issuance.
+
+**A new zone starts EMPTY, and two of the records in it are invisible when
+missing.** Moving nameservers carries nothing across. The Vercel records
+announce their own absence — the site goes down — but these two fail silently
+and are the reason this list ends with more than "the website loads":
+
+- The **Google Search Console TXT** at the apex. Verified 10 Sep 2026, and
+  Google re-checks it: lose it and the property un-verifies, the data stops,
+  and nothing says why.
+- The **`contact@` MX records** from the email item below. A bounce there is
+  the address a sysadmin uses when they want us to stop fetching, months
+  later, with no way to know it happened.
+
+So the move is not done when the site loads. It is done when the site loads,
+Search Console still reports the domain verified, and a test message sent from
+outside still reaches `contact@`.
 
 **Worth roughly $4/yr.** Small. If it is more fiddle than it is worth when the
 reminder comes round, staying put is a perfectly reasonable answer — this note
