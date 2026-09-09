@@ -116,7 +116,7 @@ def test_the_floor_is_the_delivered_rate_and_not_merely_the_cron_period():
     """
     schedule = re.search(r'cron:\s*"([^"]+)"', WORKFLOW.read_text(encoding="utf-8"))
     period = cron_period_minutes(schedule.group(1))
-    assert OBSERVED_DELIVERY_MINUTES > period, (
+    assert period < OBSERVED_DELIVERY_MINUTES, (
         "measured delivery is no worse than the cron period — if that is really "
         "true the trigger has been fixed, so re-measure and say so here"
     )

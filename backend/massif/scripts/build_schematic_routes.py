@@ -40,8 +40,7 @@ from __future__ import annotations
 
 import sys
 
-import yaml
-from geoalchemy2.functions import ST_Centroid, ST_X, ST_Y
+from geoalchemy2.functions import ST_X, ST_Y, ST_Centroid
 from sqlalchemy import select
 
 from massif.db import session_scope
@@ -91,9 +90,9 @@ def resolve(session, token: str, peaks: dict) -> tuple[tuple[float, float], floa
             raise LookupError(f"{token} is not a peak with an elevation in osm_candidates.yaml")
         return (float(peak["lon"]), float(peak["lat"])), float(peak["ele"]), peak["name_default"]
 
+    centroid = ST_Centroid(Feature.geom)
     row = session.execute(
-        select(Feature.name_default, ST_X(ST_Centroid(Feature.geom)), ST_Y(ST_Centroid(Feature.geom)))
-        .where(Feature.slug == token)
+        select(Feature.name_default, ST_X(centroid), ST_Y(centroid)).where(Feature.slug == token)
     ).first()
     if row is None or row[1] is None:
         raise LookupError(f"{token} is not a feature we hold geometry for")
@@ -168,7 +167,8 @@ def main(argv: list[str]) -> int:
 
             print(f"  OK    {slug:<26} {len(line)} waypoints, {length:.1f} km, top {top or '?'}m")
             for (lon, lat), ele, name in points:
-                print(f"          {name[:38]:38} {lat:.5f},{lon:.5f}" + (f"  {ele:.0f}m" if ele else ""))
+                height = f"  {ele:.0f}m" if ele else ""
+                print(f"          {name[:38]:38} {lat:.5f},{lon:.5f}{height}")
 
             if apply:
                 wkt = "LINESTRING(" + ",".join(f"{lon} {lat}" for lon, lat in line) + ")"
