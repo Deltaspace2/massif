@@ -53,3 +53,17 @@ cabane-de-saleinaz:     http://www.cas-neuchatel.ch/cabanes/cabane-de-saleinaz-2
 refuge-torino:          https://www.rifugiotorino.com/
 rifugio-monzino:        https://www.rifugiomonzino.com/
 rifugio-walter-bonatti: https://www.rifugiobonatti.it/
+
+# --- 10 Sep 2026 recon, all 74 huts ---
+# The URL inventory came from the operator_url facts (camptocamp + OSM), so
+# for the first time every hut with a known website was actually gated:
+# 24 unknown-status huts had one, and three survive robots + readable prose +
+# a stated season. The rest are recorded in TaskList.md so nobody re-fetches
+# them to learn the same thing.
+refuge-le-peuty:            https://www.refugelepeuty.ch/
+refuge-robert-blanc:        https://refugerobertblanc.fr/
+# A directory page, like the montourdumontblanc entries above — but it is the
+# HUT'S OWN page on it, and it states a dated season ("Ouvert du 23 mai 2026
+# au 1er novembre 2026"). camptocamp's URL for this hut pointed at the
+# directory's front page, which is why the old note said it was unusable.
+refuge-du-plan-de-laiguille: https://www.monrefugepaysdumontblanc.com/fr/il4-refuge_i62638-refuge-du-plan-de-l-aiguille.aspx

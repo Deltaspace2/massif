@@ -405,35 +405,44 @@ swisstopo and the Italian regional layers may be better on their own side.
 ## Create a scraper for latest important news.
 
 
-## Re-run the hut-website recon across all 74 huts
+## Hut-website recon — RERUN 10 Sep 2026, across every hut with a known URL
 
-`seeds/hut_sites.yaml` configures **8**. That file was written when the
-inventory was smaller and the recon covered about 25 candidate sites; there are
-74 active huts now and 32 with no usable status, so most of them have never
-had their own website looked at.
+What changed since the 25-site original: the operator_url facts (camptocamp +
+OSM) mean the URL inventory finally exists, so this pass gated every
+unknown-status hut that has a website — 24 of them. Three survive all three
+gates and are configured in `seeds/hut_sites.yaml`; the review-load worry that
+capped the original recon is gone, because prose-identity means an unchanged
+page is never re-decided and inherit_review keeps a decision across re-reads.
 
-Two entries in it are also stale: `auberge-du-truc` and `refuge-du-fioux` point
-at `montourdumontblanc.com` in the legacy `il4-refuge_….aspx` form. That portal
-is now read properly, as structured availability, by `tmb-refuges` — which is a
-better source for it than asking a model to read the prose around a booking
-calendar. Drop both from `hut_sites.yaml`.
+    ADDED   refuge-le-peuty (CH)          8646 chars, season stated
+    ADDED   refuge-robert-blanc (FR)      3714 chars, season stated
+    ADDED   refuge-du-plan-de-laiguille   its own page on the
+            monrefugepaysdumontblanc directory, with a DATED season
+            ("Ouvert du 23 mai 2026 au 1er novembre 2026"). camptocamp's URL
+            pointed at the directory's front page, which is why the old note
+            wrote this hut off.
 
-The recon itself is mechanical and should be scripted rather than done by hand,
-because it will need doing again: for each hut with no status, find a candidate
-URL, check `robots.txt`, fetch once, measure `readable_text` length, and record
-the outcome **with its reason** — robots refusal, JS-rendered and under 400
-characters, already covered by a better source, or usable. The reasons are the
-valuable half: the current file's header is the only thing stopping the next
-person re-testing sites that have already been ruled out.
+    ROBOTS REFUSES (real Disallow)   refuge-lac-blanc.fr
+    ROBOTS UNREADABLE that day       rifugioelisabetta.com · rifugiogonella.com
+                                     — the transient kind; worth one retry on
+                                     a later run before believing it
+    404                              refugeducoldebalme.com
+    JS-THIN (<400 chars of prose)    bellachat 51 · charpoua 128 · miage 214 ·
+                                     montenvers 115 · nid-d-aigle 80 ·
+                                     bertone 161 · dalmazzi 17 · elena 0 ·
+                                     flegere 309 · grands-mulets 34 ·
+                                     envers-des-aiguilles 34 · contamines 36
+    READABLE, NO SEASON STATED       bionnassay 4594 · durier 1748 ·
+                                     combal 3325 (it) · casermetta 6152 ·
+                                     randonneur 1402 — their "season words"
+                                     are a closed road and farm history, not
+                                     a hut season; adding them would buy model
+                                     calls and review noise for nothing
 
-Weigh the review load before turning any of it on. Everything from this path is
-written `needs_review`, so a person clears each statement before it can take a
-status slot — that is a safety net across eight huts and a bottleneck across
-fifty.
-
-**Verified by:** the recon script's output committed as the seed file's header,
-and a test that every entry in `hut_sites.yaml` names a hut that exists.
-
+Worth a separate look sometime: five of the JS-thin sites are FFCAM
+subdomains (durier, grands-mulets, envers, contamines, nid-d-aigle) for huts
+that read unknown even though `ffcam-refuges` is a live source — the question
+is why that source misses them, not whether their websites parse.
 ## Hut coverage: the operator-by-operator route (the biggest remaining move)
 FFCAM turned out to be the shape that works — an OPERATOR publishing its own
 huts' warden seasons on its own pages — and it took French huts from 2 to 14.
