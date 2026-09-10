@@ -150,7 +150,11 @@ export default function FeatureMap({ feature }: { feature: FeatureDetail }) {
         .addTo(instance);
     }
 
-    instance.on("load", () => {
+    // "style.load", not "load", for the reason MassifMap records at length:
+    // `load` waits for every tile and one hung tile holds it for ever. This
+    // page mostly got away with it — one small viewport finishes its tiles —
+    // but "mostly" is a bad property for the only map on the page.
+    instance.on("style.load", () => {
       // `geometry` is nullable — the Goûter route and the Grand Couloir have
       // none on purpose, because nobody has surveyed them and a drawn line
       // would claim a precision that does not exist. Narrow it rather than

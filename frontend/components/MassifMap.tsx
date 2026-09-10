@@ -221,7 +221,17 @@ export default function MassifMap({ features }: { features: Feature[] }) {
     // ---- lines: routes and couloirs, from camptocamp
     const lines = features.filter(isLine);
 
-    instance.on("load", () => {
+    // "style.load", NOT "load" — and the difference is why the overview map
+    // never drew a single line while every feature page did. MapLibre's
+    // `load` waits for the STYLE and EVERY TILE of the first view; IGN's
+    // basemap is 422 layers, a massif-wide view is hundreds of tiles, and one
+    // hung tile request holds `load` unfired for ever — measured: style
+    // loaded, sprite loaded, `plan_ign` source never reporting complete, 80
+    // lines handed over and none added. A feature page's single small
+    // viewport finishes its tiles, which is why the bug hid there. Adding
+    // sources and layers needs the STYLE, which is what `style.load` says —
+    // the same event the IGN hut-symbol dropper above already trusts.
+    instance.on("style.load", () => {
       if (lines.length === 0) return;
 
       instance.addSource("routes", {
