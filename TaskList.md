@@ -92,7 +92,7 @@ stay reachable.
 | `frontend/app/about/page.tsx:12` (`CONTACT`) | `steven@innes.io` | the "please stop fetching" contact on /about |
 | `frontend/app/about/page.tsx:25` (`USER_AGENT`) | `steven@innes.io` | the string /about quotes verbatim |
 | `frontend/app/feedback/page.tsx:11` (`CONTACT`) | `steven@innes.io` | every `mailto:` on /feedback |
-| `DEPLOY.md:243` | `steven.innes8@gmail.com` | the `gh variable set USER_AGENT` line |
+| `DEPLOY.md` §5 | `steven@innes.io` | the `gh variable set USER_AGENT` line — it carried the gmail until 10 Sep 2026, two deploys behind the variable |
 
 `.env.example` and `backend/massif/config.py:27` carry
 `contact@example.org` — placeholders, nothing to remove.

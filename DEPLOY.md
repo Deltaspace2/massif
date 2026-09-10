@@ -9,6 +9,8 @@ Supabase                                  Postgres 17 + PostGIS
 GitHub Actions                            ingest, hourly cron
 ```
 
+The hosting is free; the domain is not, and it is the only recurring bill.
+
 The frontend server-renders every page against `MASSIF_API`, so the read API
 has to be reachable from Vercel's build and runtime — that is why there is a
 second project rather than a `render.com` free instance, whose ~50s cold start
@@ -179,8 +181,49 @@ link preview, a browser prefetch — can clear the queue.
 **Frontend** — root directory `frontend/`.
 
 - Env var `MASSIF_API` = the API project's production URL, no trailing slash.
+  That is `https://api.montblancmassif.org` — see the domain section below.
 
 Deploy the API first; the frontend build wants it.
+
+### The domain
+
+`montblancmassif.org`, registered at Namecheap on 7 Sep 2026. It is attached
+to both projects and both are live on it:
+
+| Project | Host |
+|---|---|
+| Frontend | `montblancmassif.org` (apex) |
+| API | `api.montblancmassif.org` |
+
+The frontend needs no env var to know this: `frontend/lib/site.ts` defaults
+`SITE_URL` to the apex, and `metadataBase`, `sitemap.ts` and `robots.ts` all
+read it from there. `NEXT_PUBLIC_SITE_URL` overrides it and exists so a
+preview deploy can point at itself; leave it unset in production, and unset on
+previews too unless you have a reason — a preview that falls back to the
+production origin emits canonicals naming production, which is the right
+answer for a duplicate.
+
+**Bot Protection is on the frontend project and not the API one**, set to
+Challenge, which passes verified crawlers — so Googlebot is fine and the SEO
+channel is intact. It does not pass curl. Every scripted request to
+`montblancmassif.org` answers **429** with `x-vercel-mitigated: challenge`,
+which is indistinguishable from an outage if you do not know it is there, and
+was read as one for half an hour the day it appeared. **Verify the frontend in
+a browser.** curl is still the tool for `api.montblancmassif.org`.
+
+Two records at the apex fail silently rather than loudly, so any DNS move —
+the registrar transfer in the task queue, or Cloudflare Email Routing — is not
+done when the site loads:
+
+- the **Google Search Console TXT**, verified 10 Sep 2026. Google re-checks
+  it; lose it and the property un-verifies and the ranking data stops, with
+  nothing anywhere saying why.
+- the **`contact@` MX records**, once that mailbox exists. A bounce there is
+  the address a sysadmin uses when they want us to stop fetching.
+
+Which nameservers the zone is on today is **not recorded and worth checking
+before assuming** — Namecheap BasicDNS is where it started, and the Vercel
+wiring may have moved it.
 
 ### The dependency list is maintained by hand
 
@@ -240,28 +283,40 @@ Actions.
 ## 5. USER_AGENT
 
 ```bash
-gh variable set USER_AGENT --body 'massif/0.1 (+https://github.com/Deltaspace2/massif; steven.innes8@gmail.com)'
+gh variable set USER_AGENT --body 'massif/0.1 (+https://montblancmassif.org/about; steven@innes.io)'
 ```
 
 The workflow hard-fails without it, by design: this project does not touch
 anyone's server without identifying itself and giving them a way to complain.
 Set the same string on the Vercel API project.
 
-**Use the repo URL, not the Vercel one, at least to begin with.** The contact
-address has to resolve to a real page *before* the first request goes out, and
-the repo is public and has an issues tab today. Pointing it at
-`<project>.vercel.app/about` means the first ingest run advertises a contact
-page that does not exist yet — which is the one thing a sysadmin reading their
-logs cannot forgive. Switch it to the site once `/about` is actually up.
+The URL half was the repo for as long as the site had no `/about` to point
+at: a contact address has to resolve to a real page *before* the first request
+goes out, and advertising one that 404s is the one thing a sysadmin reading
+their logs cannot forgive. `/about` is up on the domain now, so the URL points
+at the site.
+
+The email half is **mid-change**. `steven@innes.io` above is the string
+`frontend/app/about/page.tsx` publishes verbatim, which is what a sysadmin
+grepping their logs will try to match, so it is what the variable should say
+today — but it is a personal address, and so is the `steven.innes8@gmail.com`
+this line carried before. `contact@montblancmassif.org` is the decided
+destination; the mailbox has to exist first, and the task queue has the order.
+
+**Nothing enforces the match between the page and the variable**, in either
+direction, and the deployed value is the one in the logs of every server we
+have ever fetched. `gh variable list` settles what is actually being sent —
+check it before changing anything, and change the page and the variable
+together.
 
 The `example.org` placeholder that ships in `.env.example` is not a
 placeholder in the harmless sense: it is a fake contact on every request. The
-local `.env` has been moved to the repo URL for the same reason.
+local `.env` carries a real one for the same reason.
 
 ## 6. Verify, in this order
 
 ```bash
-curl -s https://<api-project>.vercel.app/health
+curl -s https://api.montblancmassif.org/health
 ```
 
 This is a real smoke test, not a liveness ping — `/health` runs two queries,
@@ -269,7 +324,7 @@ so a wrong `DATABASE_URL` gives a 500 here rather than a cheerful 200. Expect
 `features: 75` and a non-null `last_successful_ingest`.
 
 ```bash
-curl -s https://<api-project>.vercel.app/features | head -c 400
+curl -s https://api.montblancmassif.org/features | head -c 400
 ```
 
 Then the ingest, by hand, before trusting the cron. `workflow_dispatch`
@@ -280,15 +335,18 @@ gh workflow run ingest && sleep 20 && gh run list --workflow=ingest --limit 1
 ```
 
 A failure at the "Check the configuration" step means a missing secret, not a
-regression — that is the step doing its job. Finally, load the frontend and
-confirm the map has pins on it: 40 features have geometry, and an empty map is
-the signature of a re-seed rather than a restore.
+regression — that is the step doing its job. Finally, load
+`https://montblancmassif.org` **in a browser** — Bot Protection 429s
+everything else — and confirm the map has pins on it: 40 features have
+geometry, and an empty map is the signature of a re-seed rather than a
+restore.
 
 ## What is deliberately not here
 
-- **No custom domain.** Ships on `*.vercel.app`. That URL goes in
-  `USER_AGENT`, which makes it semi-permanent — moving it later means the
-  contact address in every request log we've ever sent is dead.
+- **No CDN in front of Vercel.** Should the DNS ever sit at Cloudflare, every
+  record pointing at Vercel stays grey-cloud ("DNS only"). Proxying a second
+  CDN on top of Vercel's buys nothing here and causes caching oddities and
+  certificate-issuance trouble.
 - **No migrations from Vercel.** `migrate.py` finds `db/migrations` via
   `parents[3]` and the function bundle is `backend/` only. Migrations belong
   to Actions, which checks out the whole repo. Do not "fix" this.
